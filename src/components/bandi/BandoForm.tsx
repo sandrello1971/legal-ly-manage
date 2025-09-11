@@ -153,13 +153,14 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       let bandoId = initialData?.id;
       
       if (!bandoId) {
+        const { decree_storage_path, ...rest } = formData as any;
         const bandoData = {
-          ...formData,
+          ...rest,
           title: formData.title || 'Bando da Analizzare',
           total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
         };
 
-        const savedBando = await onSave(bandoData);
+        const savedBando: any = await onSave(bandoData);
         bandoId = savedBando?.id;
       }
 
@@ -297,8 +298,9 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       return;
     }
 
+    const { decree_storage_path, ...rest } = formData as any;
     const bandoData = {
-      ...formData,
+      ...rest,
       total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
     };
 
