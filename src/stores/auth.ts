@@ -52,8 +52,15 @@ export const useAuth = create<AuthState>((set, get) => ({
         
         if (session?.user) {
           console.log('👤 User authenticated, fetching profile...');
-          // Fetch user profile when session changes
-          setTimeout(async () => {
+          // Set user and session immediately to prevent loops
+          set({ 
+            user: session.user, 
+            session, 
+            profile: null 
+          });
+          
+          // Then fetch profile asynchronously
+          (async () => {
             try {
               const { data: profile, error } = await supabase
                 .from('profiles')
@@ -67,20 +74,15 @@ export const useAuth = create<AuthState>((set, get) => ({
               
               console.log('📝 Profile fetched:', { hasProfile: !!profile });
               
-              set({ 
-                user: session.user, 
-                session, 
+              // Update only profile to avoid retriggering auth changes
+              set((state) => ({ 
+                ...state,
                 profile: profile as Profile || null 
-              });
+              }));
             } catch (error) {
               console.error('❌ Error fetching profile:', error);
-              set({ 
-                user: session.user, 
-                session, 
-                profile: null 
-              });
             }
-          }, 0);
+          })();
         } else {
           console.log('🚪 User logged out');
           set({ user: null, session: null, profile: null });

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/stores/auth';
 
@@ -7,11 +6,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, initialized, initialize } = useAuth();
+  const { user, initialized } = useAuth();
 
-  useEffect(() => {
-    if (!initialized) initialize();
-  }, [initialized, initialize]);
+  // Remove initialization from ProtectedRoute to prevent loops
+  // Initialization is handled by Layout component
 
   console.log('🛡️ ProtectedRoute state:', { user: !!user, initialized, userId: user?.id });
 
