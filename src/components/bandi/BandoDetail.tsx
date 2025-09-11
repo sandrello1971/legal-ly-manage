@@ -165,6 +165,24 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Colonna principale */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Messaggio se i dati non sono stati processati */}
+          {(!bando.description && !bando.total_amount && !bando.organization && !bando.parsed_data) && (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="font-semibold mb-2">Dati del bando non ancora processati</h3>
+                <p className="text-muted-foreground mb-4">
+                  I dati del bando non sono stati ancora estratti dal documento PDF. 
+                  Utilizzare il pulsante "Modifica" per processare il documento e popolare i campi.
+                </p>
+                <Button variant="outline" onClick={() => onEdit(bando)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifica e Processa Documento
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Descrizione */}
           {bando.description && (
             <Card>
