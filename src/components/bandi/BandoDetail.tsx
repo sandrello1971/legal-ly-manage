@@ -55,7 +55,7 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
     };
 
     fetchBando();
-  }, [bandoId, getBandoById]);
+  }, [bandoId]);
 
   if (loading) {
     return (
