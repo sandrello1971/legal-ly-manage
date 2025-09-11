@@ -77,6 +77,81 @@ export type Database = {
         }
         Relationships: []
       }
+      archive_audit_log: {
+        Row: {
+          action: string
+          archive_id: string | null
+          created_at: string
+          details: Json | null
+          document_id: string | null
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          archive_id?: string | null
+          created_at?: string
+          details?: Json | null
+          document_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          archive_id?: string | null
+          created_at?: string
+          details?: Json | null
+          document_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      archive_policies: {
+        Row: {
+          auto_seal_enabled: boolean
+          created_at: string
+          created_by: string
+          description: string | null
+          document_types: string[] | null
+          id: string
+          legal_requirement: string | null
+          name: string
+          retention_period_months: number
+          updated_at: string
+        }
+        Insert: {
+          auto_seal_enabled?: boolean
+          created_at?: string
+          created_by: string
+          description?: string | null
+          document_types?: string[] | null
+          id?: string
+          legal_requirement?: string | null
+          name: string
+          retention_period_months: number
+          updated_at?: string
+        }
+        Update: {
+          auto_seal_enabled?: boolean
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          document_types?: string[] | null
+          id?: string
+          legal_requirement?: string | null
+          name?: string
+          retention_period_months?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bandi: {
         Row: {
           application_deadline: string | null
@@ -414,6 +489,51 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_checklists: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          document_types: string[] | null
+          id: string
+          mandatory_fields: string[] | null
+          name: string
+          regulation_reference: string
+          requirements: Json
+          retention_max_months: number | null
+          retention_min_months: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          document_types?: string[] | null
+          id?: string
+          mandatory_fields?: string[] | null
+          name: string
+          regulation_reference: string
+          requirements: Json
+          retention_max_months?: number | null
+          retention_min_months?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          document_types?: string[] | null
+          id?: string
+          mandatory_fields?: string[] | null
+          name?: string
+          regulation_reference?: string
+          requirements?: Json
+          retention_max_months?: number | null
+          retention_min_months?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           company: string | null
@@ -443,6 +563,153 @@ export type Database = {
           message?: string
           name?: string
           phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      digital_timestamps: {
+        Row: {
+          archive_id: string | null
+          created_at: string
+          created_by: string
+          digital_signature: string | null
+          document_hash: string
+          document_id: string | null
+          hash_algorithm: string
+          id: string
+          timestamp_authority: string | null
+          timestamp_hash: string
+          timestamp_token: string | null
+          verification_data: Json | null
+        }
+        Insert: {
+          archive_id?: string | null
+          created_at?: string
+          created_by: string
+          digital_signature?: string | null
+          document_hash: string
+          document_id?: string | null
+          hash_algorithm?: string
+          id?: string
+          timestamp_authority?: string | null
+          timestamp_hash: string
+          timestamp_token?: string | null
+          verification_data?: Json | null
+        }
+        Update: {
+          archive_id?: string | null
+          created_at?: string
+          created_by?: string
+          digital_signature?: string | null
+          document_hash?: string
+          document_id?: string | null
+          hash_algorithm?: string
+          id?: string
+          timestamp_authority?: string | null
+          timestamp_hash?: string
+          timestamp_token?: string | null
+          verification_data?: Json | null
+        }
+        Relationships: []
+      }
+      document_archives: {
+        Row: {
+          archive_path: string
+          archive_policy_id: string
+          archived_by: string
+          archived_hash: string
+          compression_ratio: number | null
+          created_at: string
+          digital_signature: Json | null
+          document_id: string
+          file_size: number
+          id: string
+          original_hash: string
+          retention_expires_at: string
+          sealed_at: string | null
+          timestamp_info: Json
+          updated_at: string
+        }
+        Insert: {
+          archive_path: string
+          archive_policy_id: string
+          archived_by: string
+          archived_hash: string
+          compression_ratio?: number | null
+          created_at?: string
+          digital_signature?: Json | null
+          document_id: string
+          file_size: number
+          id?: string
+          original_hash: string
+          retention_expires_at: string
+          sealed_at?: string | null
+          timestamp_info: Json
+          updated_at?: string
+        }
+        Update: {
+          archive_path?: string
+          archive_policy_id?: string
+          archived_by?: string
+          archived_hash?: string
+          compression_ratio?: number | null
+          created_at?: string
+          digital_signature?: Json | null
+          document_id?: string
+          file_size?: number
+          id?: string
+          original_hash?: string
+          retention_expires_at?: string
+          sealed_at?: string | null
+          timestamp_info?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      document_compliance: {
+        Row: {
+          checklist_id: string
+          compliance_score: number | null
+          compliance_status: string
+          created_at: string
+          document_id: string
+          id: string
+          next_review_date: string | null
+          notes: string | null
+          requirements_failed: Json
+          requirements_met: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          checklist_id: string
+          compliance_score?: number | null
+          compliance_status: string
+          created_at?: string
+          document_id: string
+          id?: string
+          next_review_date?: string | null
+          notes?: string | null
+          requirements_failed?: Json
+          requirements_met?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checklist_id?: string
+          compliance_score?: number | null
+          compliance_status?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          next_review_date?: string | null
+          notes?: string | null
+          requirements_failed?: Json
+          requirements_met?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1217,9 +1484,17 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      calculate_retention_expiry: {
+        Args: { archive_date?: string; retention_months: number }
+        Returns: string
+      }
       cleanup_rate_limits: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      generate_document_hash: {
+        Args: { algorithm?: string; file_content: string }
+        Returns: string
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
