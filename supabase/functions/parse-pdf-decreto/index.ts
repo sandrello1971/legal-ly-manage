@@ -11,6 +11,96 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// Estrazione testo da PDF usando analisi diretta del formato PDF
+const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
+  try {
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
+    let extractedText = '';
+    
+    // Converti il buffer in stringa per l'analisi
+    const pdfString = textDecoder.decode(uint8Array);
+    console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
+    
+    // Strategia 1: Cerca contenuto tra marker "BT" (Begin Text) e "ET" (End Text)
+    const textBlockPattern = /BT\s*(.*?)\s*ET/gs;
+    const textBlocks = [...pdfString.matchAll(textBlockPattern)];
+    
+    console.log('🔍 Found', textBlocks.length, 'text blocks');
+    
+    for (const block of textBlocks) {
+      const content = block[1] || '';
+      
+      // Cerca stringhe tra parentesi tonde (formato standard PDF)
+      const stringMatches = content.match(/\(([^)]*)\)/g) || [];
+      for (const match of stringMatches) {
+        const text = match.slice(1, -1) // Rimuovi parentesi
+          .replace(/\\n/g, ' ')
+          .replace(/\\r/g, ' ')
+          .replace(/\\t/g, ' ')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\')
+          .trim();
+        
+        if (text.length > 2 && /[a-zA-Z0-9]/.test(text)) {
+          extractedText += text + ' ';
+        }
+      }
+      
+      // Cerca array di stringhe [(...) (...)] (altro formato PDF)
+      const arrayMatches = content.match(/\[([^\]]*)\]/g) || [];
+      for (const match of arrayMatches) {
+        const arrayContent = match.slice(1, -1);
+        const strings = arrayContent.match(/\(([^)]*)\)/g) || [];
+        for (const str of strings) {
+          const text = str.slice(1, -1).trim();
+          if (text.length > 2 && /[a-zA-Z0-9]/.test(text)) {
+            extractedText += text + ' ';
+          }
+        }
+      }
+    }
+    
+    // Strategia 2: Cerca testo direttamente leggibile nel stream
+    const directTextPattern = /[A-Za-z][A-Za-z0-9\s.,;:!?\-()]{10,100}/g;
+    const directMatches = pdfString.match(directTextPattern) || [];
+    
+    for (const match of directMatches) {
+      // Filtra solo testo che sembra reale (non codici interni PDF)
+      if (!match.includes('obj') && 
+          !match.includes('endobj') && 
+          !match.includes('stream') &&
+          !match.includes('xref') &&
+          !match.match(/^[0-9\s]+$/) &&
+          match.length > 5) {
+        extractedText += match.trim() + ' ';
+      }
+    }
+    
+    // Pulizia finale del testo estratto
+    extractedText = extractedText
+      .replace(/\s+/g, ' ') // Normalizza spazi
+      .replace(/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F]/g, ' ') // Mantieni caratteri europei
+      .replace(/\b\w{1,2}\b/g, '') // Rimuovi parole troppo corte
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log('✅ Estratto testo PDF:', extractedText.length, 'caratteri');
+    console.log('📄 Anteprima testo:', extractedText.substring(0, 300) + '...');
+    
+    if (extractedText.length < 30) {
+      throw new Error('Testo estratto insufficiente per l\'analisi');
+    }
+    
+    return extractedText;
+    
+  } catch (error) {
+    console.error('❌ Errore nell\'estrazione PDF:', error);
+    throw new Error(`Impossibile estrarre testo dal PDF: ${error.message}`);
+  }
+};
+
 serve(async (req) => {
   console.log('🚀 Parse PDF Decreto function called');
   
@@ -50,20 +140,52 @@ serve(async (req) => {
     console.log('👤 User authenticated:', user.id);
 
     const requestData = await req.json();
-    const { pdfText, fileName, bandoId } = requestData;
+    const { fileUrl, fileName, bandoId, storagePath } = requestData;
 
     console.log('📄 Processing PDF:', fileName, 'for bando:', bandoId);
 
-    if (!pdfText) {
-      console.error('❌ No PDF text provided');
-      return new Response(JSON.stringify({ error: 'Testo PDF mancante' }), {
+    // Scarica il PDF dal storage o dall'URL
+    let pdfBuffer: ArrayBuffer;
+    
+    if (storagePath) {
+      console.log('📥 Downloading PDF from storage:', storagePath);
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('documents')
+        .download(storagePath);
+      
+      if (downloadError || !fileData) {
+        console.error('❌ Error downloading from storage:', downloadError);
+        return new Response(JSON.stringify({ error: 'Impossibile scaricare il PDF dallo storage' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      pdfBuffer = await fileData.arrayBuffer();
+    } else if (fileUrl) {
+      console.log('📥 Downloading PDF from URL:', fileUrl);
+      const response = await fetch(fileUrl);
+      
+      if (!response.ok) {
+        console.error('❌ Error downloading from URL:', response.statusText);
+        return new Response(JSON.stringify({ error: 'Impossibile scaricare il PDF dall\'URL' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      pdfBuffer = await response.arrayBuffer();
+    } else {
+      console.error('❌ No file source provided');
+      return new Response(JSON.stringify({ error: 'Nessun file PDF fornito' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('🧾 PDF text length:', pdfText.length);
-    console.log('📝 PDF text preview:', pdfText.substring(0, 500).replace(/\s+/g, ' '));
+    console.log('🔍 Extracting text from PDF...');
+    const pdfText = await extractTextFromPDF(pdfBuffer);
+
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
     // Call OpenAI to analyze the PDF content
@@ -109,7 +231,7 @@ REGOLE IMPORTANTI:
           },
           {
             role: 'user',
-            content: `ANALIZZA QUESTO BANDO:\n\n${pdfText.substring(0, 20000)}`
+            content: `ANALIZZA QUESTO BANDO:\n\n${pdfText}`
           }
         ],
         max_completion_tokens: 2000,
@@ -138,7 +260,7 @@ REGOLE IMPORTANTI:
       const jsonString = jsonMatch ? jsonMatch[0] : aiContent;
       
       parsedData = JSON.parse(jsonString);
-      console.log('✅ Successfully parsed AI response');
+      console.log('✅ Successfully parsed AI response:', parsedData);
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
       console.error('Raw AI content:', aiData.choices[0].message.content);
@@ -146,138 +268,6 @@ REGOLE IMPORTANTI:
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-
-    // Heuristic fallback if AI returned mostly empty fields
-    const countFilled = (obj: any) => Object.values(obj || {}).filter((v: any) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
-    console.log('📊 AI extracted fields count:', countFilled(parsedData));
-    
-    if (countFilled(parsedData) < 2) { // Very aggressive fallback
-      console.log('🚨 AI extraction failed, applying DIRECT text parsing fallback');
-      const cleaned = (pdfText || '').replace(/\u0000/g, ' ').replace(/\s+/g, ' ');
-      
-      // DIRECT extraction without relying on AI
-      const directData: any = {};
-
-      // Title - multiple attempts
-      const titleCandidates = [
-        cleaned.match(/(?:BANDO|AVVISO|CALL)[^\n.]{10,200}/i)?.[0],
-        cleaned.match(/(?:SI\s*4\.0|INDUSTRIA\s*4\.0)[^\n.]{0,150}/i)?.[0],
-        cleaned.match(/(?:per|di|del)[^\n.]{10,100}(?:innovazione|digitalizzazione|imprese)/i)?.[0],
-        fileName?.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim()
-      ].filter(Boolean);
-      
-      directData.title = titleCandidates[0] || 'Bando SI 4.0 2025';
-
-      // Organization - direct search
-      const orgCandidates = [
-        cleaned.match(/(?:Regione\s+\w+)/i)?.[0],
-        cleaned.match(/(?:Ministero[^\n.]{5,80})/i)?.[0],
-        cleaned.match(/(?:MISE|MIMIT)/i)?.[0],
-        cleaned.match(/(?:Camera di Commercio[^\n.]{0,50})/i)?.[0]
-      ].filter(Boolean);
-      
-      directData.organization = orgCandidates[0] || null;
-
-      // Email - all emails found
-      const allEmails = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
-      directData.contact_email = allEmails?.[0] || null;
-
-      // Phone - improved pattern
-      const phonePattern = /(?:tel|telefono|phone)[:\s]*(\+39\s?)?(?:\(?0\d{1,4}\)?\s?)?[\d\s.-]{6,15}/gi;
-      const phoneMatch = cleaned.match(phonePattern);
-      directData.contact_phone = phoneMatch?.[0]?.replace(/[^\d\s+().-]/gi, '').trim() || null;
-
-      // Website - all URLs
-      const allUrls = cleaned.match(/https?:\/\/[^\s)]+/gi);
-      directData.website_url = allUrls?.[0] || null;
-
-      // Amount - multiple patterns, more aggressive
-      let amount = null;
-      const amountPatterns = [
-        /(?:dotazione|budget|risorse|importo)[:\s]*(?:€|EUR)?\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2})?)/gi,
-        /([0-9]{1,3}(?:[.,][0-9]{3})+)(?:[.,][0-9]{2})?\s*(?:€|EUR|euro)/gi,
-        /(?:€|EUR)\s*([0-9]{6,12})/gi,
-        /([0-9]{6,12})\s*(?:milioni|mila)/gi
-      ];
-      
-      for (const pattern of amountPatterns) {
-        const matches = [...cleaned.matchAll(pattern)];
-        if (matches.length > 0) {
-          const numStr = matches[0][1].replace(/[.,](?=\d{3})/g, '').replace(',', '.');
-          amount = parseFloat(numStr);
-          if (amount > 10000) break; // Accept if reasonable
-        }
-      }
-      directData.total_amount = amount;
-
-      // Deadline - enhanced search
-      const deadlinePatterns = [
-        /(?:scadenza|termine|entro)[^\n.]{0,100?}(\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4})/gi,
-        /(\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4})[^\n.]{0,50}(?:scadenza|termine)/gi,
-        /entro\s+il\s+(\d{1,2}\s+\w+\s+\d{4})/gi
-      ];
-      
-      let deadline = null;
-      for (const pattern of deadlinePatterns) {
-        const match = cleaned.match(pattern);
-        if (match) {
-          const dateStr = match[1] || match[0].match(/\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4}/)?.[0];
-          if (dateStr) {
-            const parts = dateStr.match(/(\d{1,2})[\\/.-](\d{1,2})[\\/.-](\d{2,4})/);
-            if (parts) {
-              const day = parts[1].padStart(2, '0');
-              const month = parts[2].padStart(2, '0');
-              let year = parts[3];
-              if (year.length === 2) year = '20' + year;
-              deadline = `${year}-${month}-${day}`;
-              break;
-            }
-          }
-        }
-      }
-      directData.application_deadline = deadline;
-
-      // Description - look for purpose/objective
-      const descPatterns = [
-        /(?:finalità|obiettivo|scopo)[:\s]*([^\n.]{50,300})/gi,
-        /(?:sostiene|promuove|incentiva)[^\n.]{30,200}/gi,
-        /(?:presente bando|questa misura)[^\n.]{30,200}/gi
-      ];
-      
-      let description = null;
-      for (const pattern of descPatterns) {
-        const match = cleaned.match(pattern);
-        if (match) {
-          description = match[0].trim();
-          break;
-        }
-      }
-      directData.description = description;
-
-      // Eligibility - who can participate
-      const eligibilityPatterns = [
-        /(?:possono partecipare|beneficiari|destinatari)[^\n.]{50,300}/gi,
-        /(?:micro|piccole|medie imprese)[^\n.]{20,200}/gi
-      ];
-      
-      let eligibility = null;
-      for (const pattern of eligibilityPatterns) {
-        const match = cleaned.match(pattern);
-        if (match) {
-          eligibility = match[0].trim();
-          break;
-        }
-      }
-      directData.eligibility_criteria = eligibility;
-
-      console.log('🔧 Direct extraction results:', directData);
-      
-      // Merge with AI results, preferring direct extraction
-      parsedData = {
-        ...parsedData,
-        ...Object.fromEntries(Object.entries(directData).filter(([k, v]) => v !== null))
-      };
     }
 
     // Update the bando with parsed data if bandoId is provided

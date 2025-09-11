@@ -25,7 +25,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useBandi } from '@/hooks/useBandi';
-import * as pdfjsLib from 'pdfjs-dist';
 
 interface BandoFormProps {
   initialData?: any;
@@ -168,45 +167,18 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
         throw new Error('Impossibile ottenere l\'ID del bando');
       }
 
-      // Leggi il file PDF dal URL
       toast({
         title: 'Analisi in corso',
-        description: 'Lettura del PDF in corso...',
+        description: 'Invio del PDF al server per l\'analisi...',
       });
 
-      let pdfBuffer: ArrayBuffer;
-      if (formData.decree_storage_path) {
-        const { data: fileData, error: downloadError } = await supabase.storage
-          .from('documents')
-          .download(formData.decree_storage_path);
-        if (downloadError || !fileData) {
-          throw new Error('Impossibile scaricare il PDF dallo storage');
-        }
-        pdfBuffer = await fileData.arrayBuffer();
-      } else {
-        const response = await fetch(formData.decree_file_url);
-        if (!response.ok) {
-          throw new Error('Impossibile leggere il file PDF');
-        }
-        pdfBuffer = await response.arrayBuffer();
-      }
-      const pdfText = await extractTextFromPDF(pdfBuffer);
-
-      if (!pdfText || pdfText.length < 100) {
-        throw new Error('Il PDF sembra vuoto o non leggibile');
-      }
-
-      // Chiama la funzione AI
-      toast({
-        title: 'Analisi AI',
-        description: 'L\'AI sta analizzando il documento...',
-      });
-
+      // Invio diretto del file all'edge function per l'elaborazione server-side
       const { data, error } = await supabase.functions.invoke('parse-pdf-decreto', {
         body: { 
-          pdfText, 
+          fileUrl: formData.decree_file_url,
           fileName: formData.decree_file_name,
-          bandoId 
+          bandoId,
+          storagePath: formData.decree_storage_path
         }
       });
 
@@ -235,100 +207,6 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       });
     } finally {
       setParsing(false);
-    }
-  };
-
-  // Funzione per estrarre testo da PDF - approccio semplificato
-  const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
-    try {
-      // Disabilita completamente il worker per evitare problemi di caricamento
-      pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-      
-      const loadingTask = pdfjsLib.getDocument({
-        data: pdfBuffer,
-        verbosity: 0,
-        isEvalSupported: false,
-        disableAutoFetch: true,
-        disableStream: true,
-        disableRange: true,
-      });
-      
-      const pdfDocument = await loadingTask.promise;
-      
-      let fullText = '';
-      let hasText = false;
-      
-      // Estrai testo solo dalle prime 5 pagine per evitare timeout
-      const maxPages = Math.min(pdfDocument.numPages, 5);
-      
-      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-        try {
-          const page = await pdfDocument.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          
-          if (textContent.items && textContent.items.length > 0) {
-            const pageText = textContent.items
-              .map((item: any) => {
-                if (item && typeof item.str === 'string' && item.str.trim()) {
-                  return item.str.trim();
-                }
-                return '';
-              })
-              .filter(text => text.length > 0)
-              .join(' ');
-            
-            if (pageText.length > 10) {
-              fullText += pageText + '\n\n';
-              hasText = true;
-            }
-          }
-        } catch (pageError) {
-          console.warn(`Errore nella pagina ${pageNum}:`, pageError);
-          continue;
-        }
-      }
-      
-      if (!hasText || fullText.length < 20) {
-        // Fallback: prova una conversione semplice usando FileReader
-        return await extractTextFallback(pdfBuffer);
-      }
-      
-      // Pulisci il testo
-      const cleanText = fullText
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
-      return cleanText || await extractTextFallback(pdfBuffer);
-    } catch (error) {
-      console.error('PDF.js extraction failed:', error);
-      return await extractTextFallback(pdfBuffer);
-    }
-  };
-
-  // Metodo fallback per estrarre almeno qualche informazione
-  const extractTextFallback = async (pdfBuffer: ArrayBuffer): Promise<string> => {
-    try {
-      // Converti in testo e cerca pattern comuni
-      const uint8Array = new Uint8Array(pdfBuffer);
-      const decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
-      const rawText = decoder.decode(uint8Array);
-      
-      // Cerca stringhe leggibili nel PDF
-      const textMatches = rawText.match(/[a-zA-Z0-9\s.,;:!?\-()]{10,}/g) || [];
-      const extractedText = textMatches
-        .filter(match => match.trim().length > 10)
-        .slice(0, 50) // Prendi i primi 50 match
-        .join(' ');
-      
-      if (extractedText.length > 50) {
-        return extractedText;
-      }
-      
-      // Ultimo fallback: crea un testo base dal nome file
-      throw new Error('PDF non leggibile, usa analisi manuale');
-    } catch (error) {
-      throw new Error('Impossibile processare il PDF - file potrebbe essere corrotto o protetto');
     }
   };
 
