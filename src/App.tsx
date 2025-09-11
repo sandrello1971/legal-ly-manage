@@ -11,6 +11,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import Bandi from "./pages/Bandi";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
           >
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="bandi" element={<Bandi />} />
             <Route path="documents" element={<div>Documents page coming soon</div>} />
             <Route path="expenses" element={<div>Expenses page coming soon</div>} />
             <Route path="reports" element={<div>Reports page coming soon</div>} />

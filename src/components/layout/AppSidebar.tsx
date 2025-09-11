@@ -1,4 +1,4 @@
-import { Home, FileText, DollarSign, BarChart3, Settings, User } from 'lucide-react';
+import { Home, FileText, DollarSign, BarChart3, Settings, User, Target } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -14,6 +14,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Bandi', href: '/bandi', icon: Target },
   { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Expenses', href: '/expenses', icon: DollarSign },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
