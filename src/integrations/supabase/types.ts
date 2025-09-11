@@ -125,6 +125,33 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -185,50 +212,149 @@ export type Database = {
         }
         Relationships: []
       }
+      document_tag_relations: {
+        Row: {
+          created_at: string | null
+          document_id: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_id: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          document_id?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_tag_relations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "document_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_tags: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
-          category: string | null
-          created_at: string
+          amount: number | null
+          category_id: string | null
+          created_at: string | null
+          currency: string | null
           description: string | null
-          download_count: number | null
+          document_date: string | null
+          document_type: Database["public"]["Enums"]["document_type"] | null
+          file_name: string
+          file_size: number
           file_type: string
           file_url: string
           id: string
-          tags: string[] | null
+          invoice_number: string | null
+          mime_type: string
+          notes: string | null
+          search_vector: unknown | null
+          status: Database["public"]["Enums"]["document_status"] | null
+          supplier_id: string | null
           title: string
-          updated_at: string
-          uploaded_by: string | null
-          visibility: string | null
+          updated_at: string | null
+          uploaded_by: string
         }
         Insert: {
-          category?: string | null
-          created_at?: string
+          amount?: number | null
+          category_id?: string | null
+          created_at?: string | null
+          currency?: string | null
           description?: string | null
-          download_count?: number | null
+          document_date?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"] | null
+          file_name: string
+          file_size: number
           file_type: string
           file_url: string
           id?: string
-          tags?: string[] | null
+          invoice_number?: string | null
+          mime_type: string
+          notes?: string | null
+          search_vector?: unknown | null
+          status?: Database["public"]["Enums"]["document_status"] | null
+          supplier_id?: string | null
           title: string
-          updated_at?: string
-          uploaded_by?: string | null
-          visibility?: string | null
+          updated_at?: string | null
+          uploaded_by: string
         }
         Update: {
-          category?: string | null
-          created_at?: string
+          amount?: number | null
+          category_id?: string | null
+          created_at?: string | null
+          currency?: string | null
           description?: string | null
-          download_count?: number | null
+          document_date?: string | null
+          document_type?: Database["public"]["Enums"]["document_type"] | null
+          file_name?: string
+          file_size?: number
           file_type?: string
           file_url?: string
           id?: string
-          tags?: string[] | null
+          invoice_number?: string | null
+          mime_type?: string
+          notes?: string | null
+          search_vector?: unknown | null
+          status?: Database["public"]["Enums"]["document_status"] | null
+          supplier_id?: string | null
           title?: string
-          updated_at?: string
-          uploaded_by?: string | null
-          visibility?: string | null
+          updated_at?: string | null
+          uploaded_by?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       knowledge_base: {
         Row: {
@@ -386,6 +512,48 @@ export type Database = {
           table_name?: string
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          postal_code: string | null
+          updated_at: string | null
+          vat_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string | null
+          vat_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          postal_code?: string | null
+          updated_at?: string | null
+          vat_number?: string | null
         }
         Relationships: []
       }
@@ -567,6 +735,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      document_status: "pending" | "approved" | "rejected" | "archived"
+      document_type: "invoice" | "contract" | "receipt" | "report" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -695,6 +865,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      document_status: ["pending", "approved", "rejected", "archived"],
+      document_type: ["invoice", "contract", "receipt", "report", "other"],
     },
   },
 } as const
