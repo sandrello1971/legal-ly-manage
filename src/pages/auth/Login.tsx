@@ -49,10 +49,7 @@ export default function Login() {
         title: 'Bentornato!',
         description: 'Hai effettuato l\'accesso con successo.',
       });
-      // Force a small delay to ensure auth state is updated
-      setTimeout(() => {
-        window.location.replace('/dashboard');
-      }, 100);
+      // The Navigate component will handle redirect automatically
     }
   };
 

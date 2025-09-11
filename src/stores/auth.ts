@@ -44,18 +44,28 @@ export const useAuth = create<AuthState>((set, get) => ({
   subscription: null,
 
   initialize: async () => {
+    console.log('🚀 Auth initialization started');
     try {
       // Set up auth state listener FIRST
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('🔐 Auth state changed:', { event, hasSession: !!session, hasUser: !!session?.user });
+        
         if (session?.user) {
+          console.log('👤 User authenticated, fetching profile...');
           // Fetch user profile when session changes
           setTimeout(async () => {
             try {
-              const { data: profile } = await supabase
+              const { data: profile, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .eq('user_id', session.user.id)
-                .single();
+                .maybeSingle();
+              
+              if (error) {
+                console.error('❌ Profile fetch error:', error);
+              }
+              
+              console.log('📝 Profile fetched:', { hasProfile: !!profile });
               
               set({ 
                 user: session.user, 
@@ -63,7 +73,7 @@ export const useAuth = create<AuthState>((set, get) => ({
                 profile: profile as Profile || null 
               });
             } catch (error) {
-              console.error('Error fetching profile:', error);
+              console.error('❌ Error fetching profile:', error);
               set({ 
                 user: session.user, 
                 session, 
@@ -72,21 +82,29 @@ export const useAuth = create<AuthState>((set, get) => ({
             }
           }, 0);
         } else {
+          console.log('🚪 User logged out');
           set({ user: null, session: null, profile: null });
         }
       });
 
       // THEN check for existing session
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔍 Checking existing session:', { hasSession: !!session, hasUser: !!session?.user });
       
       if (session?.user) {
         try {
           // Fetch user profile
-          const { data: profile } = await supabase
+          const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('user_id', session.user.id)
-            .single();
+            .maybeSingle();
+          
+          if (error) {
+            console.error('❌ Profile init fetch error:', error);
+          }
+          
+          console.log('📝 Initial profile fetched:', { hasProfile: !!profile });
           
           set({ 
             user: session.user, 
@@ -95,7 +113,7 @@ export const useAuth = create<AuthState>((set, get) => ({
             initialized: true 
           });
         } catch (error) {
-          console.error('Error fetching profile during init:', error);
+          console.error('❌ Error fetching profile during init:', error);
           set({ 
             user: session.user, 
             session, 
@@ -104,6 +122,7 @@ export const useAuth = create<AuthState>((set, get) => ({
           });
         }
       } else {
+        console.log('❌ No existing session found');
         set({ user: null, session: null, profile: null, initialized: true });
       }
 

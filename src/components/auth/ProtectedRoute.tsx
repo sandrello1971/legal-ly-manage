@@ -13,9 +13,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!initialized) initialize();
   }, [initialized, initialize]);
 
-  console.log('ProtectedRoute state:', { user: !!user, initialized });
+  console.log('🛡️ ProtectedRoute state:', { user: !!user, initialized, userId: user?.id });
 
   if (!initialized) {
+    console.log('⏳ Still initializing auth...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-4">
@@ -27,8 +28,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user) {
+    console.log('🚫 No user found, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('✅ User authenticated, showing protected content');
   return <>{children}</>;
 }
