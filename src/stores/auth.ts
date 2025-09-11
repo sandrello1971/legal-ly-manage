@@ -23,6 +23,7 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
   initialized: boolean;
+  subscription?: any;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, fullName?: string, company?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
@@ -40,53 +41,77 @@ export const useAuth = create<AuthState>((set, get) => ({
   profile: null,
   loading: false,
   initialized: false,
+  subscription: null,
 
   initialize: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // Fetch user profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        set({ 
-          user: session.user, 
-          session, 
-          profile: profile as Profile || null, 
-          initialized: true 
-        });
-      } else {
-        set({ user: null, session: null, profile: null, initialized: true });
-      }
-
-      // Listen for auth changes
-      supabase.auth.onAuthStateChange(async (event, session) => {
+      // Set up auth state listener FIRST
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (session?.user) {
           // Fetch user profile when session changes
           setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-            
-            set({ 
-              user: session.user, 
-              session, 
-              profile: profile as Profile || null 
-            });
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+              
+              set({ 
+                user: session.user, 
+                session, 
+                profile: profile as Profile || null 
+              });
+            } catch (error) {
+              console.error('Error fetching profile:', error);
+              set({ 
+                user: session.user, 
+                session, 
+                profile: null 
+              });
+            }
           }, 0);
         } else {
           set({ user: null, session: null, profile: null });
         }
       });
+
+      // THEN check for existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        try {
+          // Fetch user profile
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          set({ 
+            user: session.user, 
+            session, 
+            profile: profile as Profile || null, 
+            initialized: true 
+          });
+        } catch (error) {
+          console.error('Error fetching profile during init:', error);
+          set({ 
+            user: session.user, 
+            session, 
+            profile: null, 
+            initialized: true 
+          });
+        }
+      } else {
+        set({ user: null, session: null, profile: null, initialized: true });
+      }
+
+      // Store subscription for cleanup
+      set({ subscription });
     } catch (error) {
       console.error('Auth initialization error:', error);
-      set({ initialized: true });
+      set({ user: null, session: null, profile: null, initialized: true });
     }
   },
 
@@ -190,8 +215,12 @@ export const useAuth = create<AuthState>((set, get) => ({
   signOut: async () => {
     set({ loading: true });
     try {
+      const { subscription } = get();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
       await supabase.auth.signOut();
-      set({ user: null, session: null, profile: null });
+      set({ user: null, session: null, profile: null, subscription: null });
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
