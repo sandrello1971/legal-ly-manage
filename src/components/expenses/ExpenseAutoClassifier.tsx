@@ -63,66 +63,11 @@ export function ExpenseAutoClassifier() {
 
   const { expenses, updateExpense } = useExpenses();
 
-  // Mock data for demonstration
+  // Load classification rules from database
   useEffect(() => {
-    setRules([
-      {
-        id: '1',
-        name: 'Spese di Viaggio',
-        description: 'Classifica automaticamente le spese di viaggio',
-        keywords: ['taxi', 'treno', 'aereo', 'hotel', 'albergo', 'benzina', 'autostrada'],
-        category: 'travel',
-        confidence_threshold: 0.8,
-        is_active: true,
-        success_rate: 92.5,
-        total_applications: 156,
-        created_at: '2024-01-15'
-      },
-      {
-        id: '2',
-        name: 'Materiali da Ufficio',
-        description: 'Identifica materiali e forniture per ufficio',
-        keywords: ['carta', 'penna', 'matita', 'stampante', 'toner', 'cartucci', 'cancelleria'],
-        category: 'materials',
-        confidence_threshold: 0.75,
-        is_active: true,
-        success_rate: 88.3,
-        total_applications: 203,
-        created_at: '2024-01-10'
-      },
-      {
-        id: '3',
-        name: 'Servizi IT',
-        description: 'Classifica servizi informatici e software',
-        keywords: ['software', 'licenza', 'hosting', 'dominio', 'cloud', 'server', 'IT'],
-        category: 'services',
-        confidence_threshold: 0.85,
-        is_active: true,
-        success_rate: 95.1,
-        total_applications: 89,
-        created_at: '2024-01-05'
-      }
-    ]);
-
-    // Mock suggestions
-    setSuggestions([
-      {
-        expenseId: 'exp-1',
-        originalCategory: 'other',
-        suggestedCategory: 'travel',
-        confidence: 0.92,
-        reasons: ['Contiene la parola "taxi"', 'Importo tipico per trasporti'],
-        similarExpenses: []
-      },
-      {
-        expenseId: 'exp-2',
-        originalCategory: 'materials',
-        suggestedCategory: 'services',
-        confidence: 0.78,
-        reasons: ['Fornitore specializzato in servizi IT', 'Descrizione indica software'],
-        similarExpenses: []
-      }
-    ]);
+    // TODO: Load actual classification rules from database
+    setRules([]);
+    setSuggestions([]);
   }, []);
 
   const getConfidenceColor = (confidence: number) => {

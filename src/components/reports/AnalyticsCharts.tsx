@@ -251,50 +251,11 @@ export function AnalyticsCharts({ data }: AnalyticsChartsProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {/* Mock project budget data - in real app, this would come from projects */}
-            {[
-              { name: 'Progetto Alpha', spent: 25000, total: 50000, status: 'in_progress' },
-              { name: 'Progetto Beta', spent: 18000, total: 30000, status: 'in_progress' },
-              { name: 'Progetto Gamma', spent: 45000, total: 40000, status: 'on_hold' },
-              { name: 'Progetto Delta', spent: 12000, total: 25000, status: 'planning' },
-              { name: 'Progetto Epsilon', spent: 8000, total: 15000, status: 'in_progress' }
-            ].map((project, index) => {
-              const percentage = (project.spent / project.total) * 100;
-              const isOverBudget = percentage > 100;
-              
-              return (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">{project.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatCurrency(project.spent)} / {formatCurrency(project.total)}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={isOverBudget ? 'destructive' : percentage > 80 ? 'secondary' : 'outline'}
-                        className="text-xs"
-                      >
-                        {percentage.toFixed(1)}%
-                      </Badge>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {project.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Progress 
-                    value={Math.min(percentage, 100)} 
-                    className={`h-2 ${isOverBudget ? '[&>div]:bg-destructive' : ''}`}
-                  />
-                  {isOverBudget && (
-                    <div className="text-xs text-destructive">
-                      Superamento budget: {formatCurrency(project.spent - project.total)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <p className="text-sm text-muted-foreground text-center py-8">
+              I dati dei progetti verranno visualizzati qui una volta creati.
+              <br />
+              Crea il tuo primo progetto per vedere l'analisi del budget.
+            </p>
           </div>
         </CardContent>
       </Card>

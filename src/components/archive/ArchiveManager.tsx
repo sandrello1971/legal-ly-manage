@@ -66,26 +66,30 @@ export function ArchiveManager() {
     });
   };
 
-  const handleCreateArchive = () => {
+  const handleCreateArchive = async () => {
     if (!selectedDocument || !selectedPolicy) return;
     
     const document = documents?.find(d => d.id === selectedDocument);
     if (!document) return;
 
-    // In a real implementation, you would fetch the actual file content
-    const mockFileData = `Mock file content for ${document.title}`;
-    
-    createArchive.mutate({
-      documentId: selectedDocument,
-      policyId: selectedPolicy,
-      fileData: mockFileData
-    }, {
-      onSuccess: () => {
-        setIsCreateArchiveOpen(false);
-        setSelectedDocument('');
-        setSelectedPolicy('');
-      }
-    });
+    try {
+      // TODO: Implement actual file content retrieval from storage
+      const fileContent = ''; // Will be implemented with proper file handling
+      
+      createArchive.mutate({
+        documentId: selectedDocument,
+        policyId: selectedPolicy,
+        fileData: fileContent
+      }, {
+        onSuccess: () => {
+          setIsCreateArchiveOpen(false);
+          setSelectedDocument('');
+          setSelectedPolicy('');
+        }
+      });
+    } catch (error) {
+      console.error('Error creating archive:', error);
+    }
   };
 
   const handleSealArchive = (archiveId: string) => {
