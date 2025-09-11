@@ -1,11 +1,11 @@
-import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
+
+// Keep a simple wrapper without next-themes to avoid context/runtime issues
+// Consumers can still override the theme via props if needed
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
-
+const Toaster = ({ theme = "system", ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
