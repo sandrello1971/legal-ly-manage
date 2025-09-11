@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/stores/auth';
 
@@ -6,15 +7,20 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, initialized } = useAuth();
+  const { user, initialized, initialize } = useAuth();
 
-  // Remove initialization from ProtectedRoute to prevent loops
-  // Initialization is handled by Layout component
+  console.log('🛡️ ProtectedRoute render:', { user: !!user, initialized, userId: user?.id });
 
-  console.log('🛡️ ProtectedRoute state:', { user: !!user, initialized, userId: user?.id });
+  // Initialize auth if not already done
+  useEffect(() => {
+    if (!initialized) {
+      console.log('🛡️ Initializing auth from ProtectedRoute...');
+      initialize();
+    }
+  }, [initialized, initialize]);
 
   if (!initialized) {
-    console.log('⏳ Still initializing auth...');
+    console.log('⏳ ProtectedRoute: Still initializing auth...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center space-y-4">
