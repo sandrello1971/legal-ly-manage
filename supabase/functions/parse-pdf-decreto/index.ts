@@ -11,86 +11,113 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo da PDF usando analisi diretta del formato PDF
+// Estrazione testo da PDF usando multiple strategie
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
     const uint8Array = new Uint8Array(pdfBuffer);
-    const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
     let extractedText = '';
     
-    // Converti il buffer in stringa per l'analisi
-    const pdfString = textDecoder.decode(uint8Array);
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
     
-    // Strategia 1: Cerca contenuto tra marker "BT" (Begin Text) e "ET" (End Text)
-    const textBlockPattern = /BT\s*(.*?)\s*ET/gs;
-    const textBlocks = [...pdfString.matchAll(textBlockPattern)];
+    // Strategia migliorata: Cerca direttamente nel contenuto binario
+    const pdfBytes = Array.from(uint8Array);
+    let currentText = '';
+    let inTextBlock = false;
     
-    console.log('🔍 Found', textBlocks.length, 'text blocks');
-    
-    for (const block of textBlocks) {
-      const content = block[1] || '';
+    // Scorri byte per byte cercando sequenze di testo leggibile
+    for (let i = 0; i < pdfBytes.length - 1; i++) {
+      const byte = pdfBytes[i];
       
-      // Cerca stringhe tra parentesi tonde (formato standard PDF)
-      const stringMatches = content.match(/\(([^)]*)\)/g) || [];
-      for (const match of stringMatches) {
-        const text = match.slice(1, -1) // Rimuovi parentesi
-          .replace(/\\n/g, ' ')
-          .replace(/\\r/g, ' ')
-          .replace(/\\t/g, ' ')
-          .replace(/\\\(/g, '(')
-          .replace(/\\\)/g, ')')
-          .replace(/\\\\/g, '\\')
-          .trim();
+      // Caratteri ASCII leggibili (lettere, numeri, spazi, punteggiatura)
+      if ((byte >= 32 && byte <= 126) || byte === 195 || byte === 196) { // Include caratteri accentati
+        const char = String.fromCharCode(byte);
         
-        if (text.length > 2 && /[a-zA-Z0-9]/.test(text)) {
-          extractedText += text + ' ';
+        // Se è una lettera, inizia una nuova parola
+        if (/[a-zA-ZÀ-ÿ]/.test(char)) {
+          currentText += char;
+          inTextBlock = true;
+        } else if (inTextBlock && /[\s.,;:!?\-()0-9€%]/.test(char)) {
+          currentText += char;
+        } else if (inTextBlock && currentText.length > 0) {
+          // Fine della parola/frase
+          if (currentText.length >= 3) {
+            // Pulisci e aggiungi se è testo valido
+            const cleanText = currentText.trim();
+            if (cleanText.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(cleanText)) {
+              extractedText += cleanText + ' ';
+            }
+          }
+          currentText = '';
+          inTextBlock = false;
         }
-      }
-      
-      // Cerca array di stringhe [(...) (...)] (altro formato PDF)
-      const arrayMatches = content.match(/\[([^\]]*)\]/g) || [];
-      for (const match of arrayMatches) {
-        const arrayContent = match.slice(1, -1);
-        const strings = arrayContent.match(/\(([^)]*)\)/g) || [];
-        for (const str of strings) {
-          const text = str.slice(1, -1).trim();
-          if (text.length > 2 && /[a-zA-Z0-9]/.test(text)) {
-            extractedText += text + ' ';
+      } else {
+        // Carattere non ASCII - termina il blocco corrente
+        if (inTextBlock && currentText.length >= 3) {
+          const cleanText = currentText.trim();
+          if (cleanText.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(cleanText)) {
+            extractedText += cleanText + ' ';
           }
         }
+        currentText = '';
+        inTextBlock = false;
       }
     }
     
-    // Strategia 2: Cerca testo direttamente leggibile nel stream
-    const directTextPattern = /[A-Za-z][A-Za-z0-9\s.,;:!?\-()]{10,100}/g;
-    const directMatches = pdfString.match(directTextPattern) || [];
+    // Aggiungi l'ultimo blocco se valido
+    if (currentText.length >= 3) {
+      const cleanText = currentText.trim();
+      if (cleanText.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(cleanText)) {
+        extractedText += cleanText + ' ';
+      }
+    }
     
-    for (const match of directMatches) {
-      // Filtra solo testo che sembra reale (non codici interni PDF)
-      if (!match.includes('obj') && 
-          !match.includes('endobj') && 
-          !match.includes('stream') &&
-          !match.includes('xref') &&
-          !match.match(/^[0-9\s]+$/) &&
-          match.length > 5) {
-        extractedText += match.trim() + ' ';
+    // Strategia alternativa: Cerca pattern di testo più specifici
+    const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
+    const pdfString = textDecoder.decode(uint8Array);
+    
+    // Cerca contenuti tra parentesi (formato PDF standard)
+    const parenthesesPattern = /\(([^)]{3,})\)/g;
+    const parenthesesMatches = [...pdfString.matchAll(parenthesesPattern)];
+    
+    for (const match of parenthesesMatches) {
+      const text = match[1]
+        .replace(/\\n/g, ' ')
+        .replace(/\\r/g, ' ')
+        .replace(/\\t/g, ' ')
+        .replace(/\\\(/g, '(')
+        .replace(/\\\)/g, ')')
+        .replace(/\\\\/g, '\\')
+        .trim();
+      
+      if (text.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(text)) {
+        extractedText += text + ' ';
+      }
+    }
+    
+    // Cerca testo tra tag di contenuto
+    const contentPattern = />\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s.,;:!?\-()€%]{10,})\s*</g;
+    const contentMatches = [...pdfString.matchAll(contentPattern)];
+    
+    for (const match of contentMatches) {
+      const text = match[1].trim();
+      if (text.length >= 5 && /[a-zA-ZÀ-ÿ]/.test(text)) {
+        extractedText += text + ' ';
       }
     }
     
     // Pulizia finale del testo estratto
     extractedText = extractedText
       .replace(/\s+/g, ' ') // Normalizza spazi
-      .replace(/[^\x20-\x7E\u00C0-\u017F\u0100-\u024F]/g, ' ') // Mantieni caratteri europei
-      .replace(/\b\w{1,2}\b/g, '') // Rimuovi parole troppo corte
+      .replace(/[^\w\s.,;:!?\-()€%àèéìòùáéíóúâêîôûäëïöüÀÈÉÌÒÙÁÉÍÓÚÂÊÎÔÛÄËÏÖÜ]/g, ' ') // Mantieni solo caratteri validi
+      .replace(/\b\w{1,2}\b(?!\s*[€%])/g, '') // Rimuovi parole troppo corte (tranne unità)
       .replace(/\s+/g, ' ')
       .trim();
     
     console.log('✅ Estratto testo PDF:', extractedText.length, 'caratteri');
-    console.log('📄 Anteprima testo:', extractedText.substring(0, 300) + '...');
+    console.log('📄 Anteprima testo:', extractedText.substring(0, 500) + '...');
     
-    if (extractedText.length < 30) {
-      throw new Error('Testo estratto insufficiente per l\'analisi');
+    if (extractedText.length < 50) {
+      console.warn('⚠️ Testo estratto molto breve, potrebbe essere insufficiente');
     }
     
     return extractedText;
