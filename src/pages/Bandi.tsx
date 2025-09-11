@@ -72,15 +72,18 @@ export default function Bandi() {
 
   const handleSaveBando = async (data: any) => {
     try {
+      let saved;
       if (editingBando) {
-        await updateBando(editingBando.id, data);
+        saved = await updateBando(editingBando.id, data);
       } else {
-        await createBando(data);
+        saved = await createBando(data);
       }
       setShowForm(false);
       setEditingBando(null);
+      return saved;
     } catch (error) {
       console.error('Error saving bando:', error);
+      throw error;
     }
   };
 

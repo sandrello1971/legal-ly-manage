@@ -56,7 +56,8 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
     evaluation_criteria: initialData?.evaluation_criteria || '',
     required_documents: initialData?.required_documents || [],
     decree_file_url: initialData?.decree_file_url || '',
-    decree_file_name: initialData?.decree_file_name || ''
+    decree_file_name: initialData?.decree_file_name || '',
+    decree_storage_path: ''
   });
 
   const [uploading, setUploading] = useState(false);
@@ -114,7 +115,8 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       setFormData(prev => ({
         ...prev,
         decree_file_url: publicUrl,
-        decree_file_name: file.name
+        decree_file_name: file.name,
+        decree_storage_path: filePath
       }));
 
       toast({
@@ -171,12 +173,22 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
         description: 'Lettura del PDF in corso...',
       });
 
-      const response = await fetch(formData.decree_file_url);
-      if (!response.ok) {
-        throw new Error('Impossibile leggere il file PDF');
+      let pdfBuffer: ArrayBuffer;
+      if (formData.decree_storage_path) {
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('documents')
+          .download(formData.decree_storage_path);
+        if (downloadError || !fileData) {
+          throw new Error('Impossibile scaricare il PDF dallo storage');
+        }
+        pdfBuffer = await fileData.arrayBuffer();
+      } else {
+        const response = await fetch(formData.decree_file_url);
+        if (!response.ok) {
+          throw new Error('Impossibile leggere il file PDF');
+        }
+        pdfBuffer = await response.arrayBuffer();
       }
-
-      const pdfBuffer = await response.arrayBuffer();
       const pdfText = await extractTextFromPDF(pdfBuffer);
 
       if (!pdfText || pdfText.length < 100) {
