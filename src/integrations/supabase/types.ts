@@ -253,6 +253,137 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_configurations: {
+        Row: {
+          backup_type: string
+          compression_enabled: boolean
+          created_at: string
+          description: string | null
+          encryption_enabled: boolean
+          encryption_key_id: string | null
+          exclude_tables: Json | null
+          id: string
+          include_tables: Json | null
+          is_active: boolean
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          retention_days: number
+          schedule_cron: string
+          storage_providers: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          backup_type: string
+          compression_enabled?: boolean
+          created_at?: string
+          description?: string | null
+          encryption_enabled?: boolean
+          encryption_key_id?: string | null
+          exclude_tables?: Json | null
+          id?: string
+          include_tables?: Json | null
+          is_active?: boolean
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          retention_days?: number
+          schedule_cron: string
+          storage_providers?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          backup_type?: string
+          compression_enabled?: boolean
+          created_at?: string
+          description?: string | null
+          encryption_enabled?: boolean
+          encryption_key_id?: string | null
+          exclude_tables?: Json | null
+          id?: string
+          include_tables?: Json | null
+          is_active?: boolean
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          retention_days?: number
+          schedule_cron?: string
+          storage_providers?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      backup_jobs: {
+        Row: {
+          backup_path: string | null
+          checksum_sha256: string | null
+          completed_at: string | null
+          compressed_size_bytes: number | null
+          configuration_id: string
+          created_at: string
+          encryption_metadata: Json | null
+          error_message: string | null
+          files_count: number | null
+          id: string
+          job_type: string
+          progress_percentage: number | null
+          recovery_tested_at: string | null
+          started_at: string
+          status: string
+          storage_locations: Json | null
+          total_size_bytes: number | null
+        }
+        Insert: {
+          backup_path?: string | null
+          checksum_sha256?: string | null
+          completed_at?: string | null
+          compressed_size_bytes?: number | null
+          configuration_id: string
+          created_at?: string
+          encryption_metadata?: Json | null
+          error_message?: string | null
+          files_count?: number | null
+          id?: string
+          job_type: string
+          progress_percentage?: number | null
+          recovery_tested_at?: string | null
+          started_at?: string
+          status?: string
+          storage_locations?: Json | null
+          total_size_bytes?: number | null
+        }
+        Update: {
+          backup_path?: string | null
+          checksum_sha256?: string | null
+          completed_at?: string | null
+          compressed_size_bytes?: number | null
+          configuration_id?: string
+          created_at?: string
+          encryption_metadata?: Json | null
+          error_message?: string | null
+          files_count?: number | null
+          id?: string
+          job_type?: string
+          progress_percentage?: number | null
+          recovery_tested_at?: string | null
+          started_at?: string
+          status?: string
+          storage_locations?: Json | null
+          total_size_bytes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "backup_jobs_configuration_id_fkey"
+            columns: ["configuration_id"]
+            isOneToOne: false
+            referencedRelation: "backup_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bandi: {
         Row: {
           application_deadline: string | null
@@ -1238,6 +1369,42 @@ export type Database = {
         }
         Relationships: []
       }
+      performance_baselines: {
+        Row: {
+          baseline_value: number
+          calculation_period: string
+          created_at: string
+          id: string
+          last_calculated_at: string
+          metric_name: string
+          samples_count: number
+          updated_at: string
+          variance_threshold: number
+        }
+        Insert: {
+          baseline_value: number
+          calculation_period: string
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          metric_name: string
+          samples_count?: number
+          updated_at?: string
+          variance_threshold?: number
+        }
+        Update: {
+          baseline_value?: number
+          calculation_period?: string
+          created_at?: string
+          id?: string
+          last_calculated_at?: string
+          metric_name?: string
+          samples_count?: number
+          updated_at?: string
+          variance_threshold?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1642,6 +1809,153 @@ export type Database = {
         }
         Relationships: []
       }
+      system_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          id: string
+          is_resolved: boolean
+          message: string
+          metadata: Json | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          source: string
+          source_id: string | null
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          id?: string
+          is_resolved?: boolean
+          message: string
+          metadata?: Json | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          source: string
+          source_id?: string | null
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          id?: string
+          is_resolved?: boolean
+          message?: string
+          metadata?: Json | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          source?: string
+          source_id?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      system_health_metrics: {
+        Row: {
+          collected_at: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          metric_name: string
+          metric_type: string
+          status: string
+          threshold_critical: number | null
+          threshold_warning: number | null
+          unit: string | null
+          value: number
+        }
+        Insert: {
+          collected_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_name: string
+          metric_type: string
+          status?: string
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+          unit?: string | null
+          value: number
+        }
+        Update: {
+          collected_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          metric_name?: string
+          metric_type?: string
+          status?: string
+          threshold_critical?: number | null
+          threshold_warning?: number | null
+          unit?: string | null
+          value?: number
+        }
+        Relationships: []
+      }
+      system_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          duration_ms: number | null
+          id: string
+          ip_address: unknown | null
+          level: string
+          message: string
+          request_id: string | null
+          session_id: string | null
+          source: string
+          source_id: string | null
+          trace_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          id?: string
+          ip_address?: unknown | null
+          level: string
+          message: string
+          request_id?: string | null
+          session_id?: string | null
+          source: string
+          source_id?: string | null
+          trace_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          duration_ms?: number | null
+          id?: string
+          ip_address?: unknown | null
+          level?: string
+          message?: string
+          request_id?: string | null
+          session_id?: string | null
+          source?: string
+          source_id?: string | null
+          trace_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1778,6 +2092,14 @@ export type Database = {
         Args: { "": string } | { "": unknown }
         Returns: unknown
       }
+      calculate_avg_response_time: {
+        Args: { time_window_minutes?: number }
+        Returns: number
+      }
+      calculate_error_rate: {
+        Args: { time_window_minutes?: number }
+        Returns: number
+      }
       calculate_retention_expiry: {
         Args: { archive_date?: string; retention_months: number }
         Returns: string
@@ -1890,6 +2212,10 @@ export type Database = {
           source_id: string
           title: string
         }[]
+      }
+      schedule_next_backup: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       set_session_context: {
         Args: { session_id_param: string }
