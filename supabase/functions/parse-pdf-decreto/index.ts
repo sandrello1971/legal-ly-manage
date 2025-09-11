@@ -62,6 +62,7 @@ serve(async (req) => {
       });
     }
 
+    console.log('🧾 PDF text length:', pdfText.length);
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
     // Call OpenAI to analyze the PDF content
@@ -143,6 +144,81 @@ IMPORTANTE:
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // Heuristic fallback if AI returned mostly empty fields
+    const countFilled = (obj: any) => Object.values(obj || {}).filter((v: any) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
+    if (countFilled(parsedData) < 3) {
+      console.log('⚠️ AI returned mostly empty fields, applying heuristic fallback');
+      const cleaned = (pdfText || '').replace(/\u0000/g, ' ');
+      const fileTitle = (fileName || 'Bando').replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim();
+
+      // Title
+      let titleMatch = cleaned.match(/(?:Bando|Avviso|Call|Concorso|Finanziamento)[^\n]{0,120}/i);
+      const title = parsedData.title || (titleMatch ? titleMatch[0].trim() : fileTitle);
+
+      // Email
+      const emailMatch = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+      const contact_email = parsedData.contact_email || (emailMatch ? emailMatch[0] : null);
+
+      // Website
+      const urlMatch = cleaned.match(/https?:\/\/[^\s)]+/i);
+      const website_url = parsedData.website_url || (urlMatch ? urlMatch[0] : null);
+
+      // Phone
+      const phoneMatch = cleaned.match(/(?:\+39\s?)?(?:\(?0\)?\s?)?(?:[0-9][\s.-]?){6,12}/);
+      const contact_phone = parsedData.contact_phone || (phoneMatch ? phoneMatch[0].replace(/\s+/g, ' ').trim() : null);
+
+      // Organization (guess)
+      let organization = parsedData.organization;
+      if (!organization) {
+        const orgMatch = cleaned.match(/(?:Regione|Provincia|Comune|Ministero|Camera di Commercio|Unioncamere|Invitalia|Agenzia)[^\n]{0,80}/i);
+        organization = orgMatch ? orgMatch[0].trim() : null;
+      }
+
+      // Total amount
+      let total_amount = parsedData.total_amount;
+      if (total_amount == null) {
+        const withNoDots = cleaned.replace(/\./g, '');
+        const amountLine = withNoDots.match(/(?:€|EUR|euro)\s*([0-9]{4,12})(?:,([0-9]{2}))?/i);
+        if (amountLine) {
+          total_amount = parseFloat(amountLine[1] + (amountLine[2] ? '.' + amountLine[2] : ''));
+        } else {
+          const amountAlt = withNoDots.match(/\b([0-9]{5,12})\b\s*(?:euro|EUR)?/i);
+          if (amountAlt) total_amount = parseFloat(amountAlt[1]);
+        }
+      }
+
+      // Dates helpers
+      const toISO = (d: string | null) => {
+        if (!d) return null;
+        const m = d.match(/(\d{1,2})[\\/.-](\d{1,2})[\\/.-](\d{2,4})/);
+        if (!m) return null;
+        const day = m[1].padStart(2, '0');
+        const mon = m[2].padStart(2, '0');
+        let y = m[3];
+        if (y.length === 2) y = (parseInt(y) > 50 ? '19' : '20') + y;
+        return `${y}-${mon}-${day}`;
+      };
+
+      let application_deadline = parsedData.application_deadline;
+      if (!application_deadline) {
+        const scadBlock = cleaned.match(/scadenza[^\n]{0,200}/i);
+        const dateFromScad = scadBlock ? (scadBlock[0].match(/\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4}/) || [null])[0] : null;
+        const anyDateRaw = (cleaned.match(/\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4}/) || [null])[0];
+        application_deadline = toISO(dateFromScad) || toISO(anyDateRaw);
+      }
+
+      parsedData = {
+        ...parsedData,
+        title,
+        organization,
+        contact_email,
+        contact_phone,
+        website_url,
+        total_amount,
+        application_deadline,
+      };
     }
 
     // Update the bando with parsed data if bandoId is provided
