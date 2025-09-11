@@ -19,12 +19,23 @@ export const useDocuments = () => {
   return useQuery({
     queryKey: ['documents'],
     queryFn: async () => {
+      console.log('📄 Fetching documents...');
+      
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('📄 Session check:', { hasSession: !!session, hasUser: !!session?.user });
+      
       const { data, error } = await supabase
         .from('documents')
         .select('id, title, file_name, file_url, file_type, file_size, document_type, status, uploaded_by, created_at, updated_at')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Documents query error:', error);
+        throw error;
+      }
+      
+      console.log('📄 Documents fetched:', { count: data?.length || 0 });
       return data as Document[];
     }
   });

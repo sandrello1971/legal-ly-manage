@@ -39,14 +39,24 @@ export const useBandi = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('🎯 Fetching bandi...');
+      
+      // Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🎯 Session check:', { hasSession: !!session, hasUser: !!session?.user });
 
       const { data, error: fetchError } = await supabase
         .from('bandi')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('❌ Bandi query error:', fetchError);
+        throw fetchError;
+      }
 
+      console.log('🎯 Bandi fetched:', { count: data?.length || 0 });
       setBandi(data || []);
     } catch (err: any) {
       console.error('Error fetching bandi:', err);
