@@ -196,45 +196,37 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           {
             role: 'system',
-            content: `Analizza questo documento PDF di un bando pubblico italiano ed estrai TUTTE le informazioni possibili.
+            content: `Analizza questo documento PDF di un bando pubblico italiano ed estrai le informazioni principali.
 
-Restituisci SOLO un oggetto JSON valido:
+Restituisci SOLO un oggetto JSON valido in questo formato:
 {
-  "title": "titolo completo del bando",
-  "description": "descrizione dettagliata dell'obiettivo",
-  "organization": "ente che ha emesso il bando",
-  "total_amount": numero_senza_virgole,
-  "application_deadline": "YYYY-MM-DD",
-  "project_start_date": "YYYY-MM-DD", 
-  "project_end_date": "YYYY-MM-DD",
-  "contact_person": "nome della persona di contatto",
-  "contact_email": "email di contatto",
-  "contact_phone": "numero di telefono",
-  "website_url": "sito web dell'ente",
-  "eligibility_criteria": "chi può partecipare",
-  "evaluation_criteria": "come vengono valutate le proposte",
-  "required_documents": ["lista", "dei", "documenti", "richiesti"]
+  "title": "titolo del bando",
+  "description": "descrizione del bando",
+  "organization": "ente emittente",
+  "total_amount": 1000000,
+  "application_deadline": "2025-12-31",
+  "eligibility_criteria": "criteri di partecipazione",
+  "evaluation_criteria": "criteri di valutazione"
 }
 
-REGOLE IMPORTANTI:
-- Estrai SEMPRE il titolo anche se parziale
-- Cerca importi in €, EUR, euro (anche milioni/migliaia)
-- Converti date italiane in formato YYYY-MM-DD
-- Se manca info, usa null (NON stringa vuota)
-- Cerca attentamente numeri di telefono e email
-- Identifica l'ente emittente (Regione, Ministero, ecc.)
-- RISPOSTA SOLO JSON, niente altro testo`
+REGOLE:
+- Se non trovi un'informazione, usa null
+- Per le date usa formato YYYY-MM-DD
+- Per gli importi usa solo numeri (senza €, virgole o punti)
+- Estrai almeno il titolo anche se parziale
+- NON aggiungere testo extra, SOLO il JSON`
           },
           {
             role: 'user',
-            content: `ANALIZZA QUESTO BANDO:\n\n${pdfText}`
+            content: `Testo estratto dal PDF del bando:\n\n${pdfText.substring(0, 8000)}`
           }
         ],
-        max_completion_tokens: 2000,
+        max_tokens: 1000,
+        temperature: 0.3,
       }),
     });
 
