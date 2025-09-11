@@ -242,7 +242,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
   const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
     try {
       // Configura PDF.js worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.js`;
       
       const loadingTask = pdfjsLib.getDocument(pdfBuffer);
       const pdfDocument = await loadingTask.promise;
