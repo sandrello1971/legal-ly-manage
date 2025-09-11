@@ -54,7 +54,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
     website_url: initialData?.website_url || '',
     eligibility_criteria: initialData?.eligibility_criteria || '',
     evaluation_criteria: initialData?.evaluation_criteria || '',
-    required_documents: initialData?.required_documents || [],
+    required_documents: Array.isArray(initialData?.required_documents) ? initialData.required_documents : [],
     decree_file_url: initialData?.decree_file_url || '',
     decree_file_name: initialData?.decree_file_name || '',
     decree_storage_path: ''
@@ -605,7 +605,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
                 </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {formData.required_documents.map((doc, index) => (
+                {(formData.required_documents || []).map((doc, index) => (
                   <Badge key={index} variant="secondary" className="flex items-center gap-1">
                     {doc}
                     <Button
