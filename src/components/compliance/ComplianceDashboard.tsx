@@ -31,6 +31,7 @@ import {
   useExportCertifiedCopy,
   useExportComplianceReport
 } from '@/hooks/useCompliance';
+import { useDocuments } from '@/hooks/useDocuments';
 
 export function ComplianceDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +42,7 @@ export function ComplianceDashboard() {
   const { data: checklists, isLoading: checklistsLoading } = useComplianceChecklists();
   const { data: compliance, isLoading: complianceLoading } = useDocumentCompliance();
   const { data: summary } = useComplianceSummary();
+  const { data: documents } = useDocuments();
 
   const createChecklist = useCreateComplianceChecklist();
   const exportCertifiedCopy = useExportCertifiedCopy();
@@ -198,8 +200,11 @@ export function ComplianceDashboard() {
   };
 
   const filteredCompliance = compliance?.filter(item => {
-    const matchesSearch = item.documents?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.compliance_checklists?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const document = documents?.find(d => d.id === item.document_id);
+    const checklist = checklists?.find(c => c.id === item.checklist_id);
+    
+    const matchesSearch = document?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         checklist?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (!matchesSearch) return false;
     
@@ -436,10 +441,10 @@ export function ComplianceDashboard() {
                         {getStatusIcon(item.compliance_status)}
                         <div>
                           <CardTitle className="text-lg">
-                            {item.documents?.title}
+                            {documents?.find(d => d.id === item.document_id)?.title || 'Documento sconosciuto'}
                           </CardTitle>
                           <CardDescription>
-                            Checklist: {item.compliance_checklists?.name}
+                            Checklist: {checklists?.find(c => c.id === item.checklist_id)?.name || 'Checklist sconosciuta'}
                           </CardDescription>
                         </div>
                       </div>

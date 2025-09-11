@@ -56,11 +56,7 @@ export const useDocumentCompliance = (documentId?: string) => {
     queryFn: async () => {
       let query = supabase
         .from('document_compliance')
-        .select(`
-          *,
-          compliance_checklists(id, name, regulation_reference, requirements),
-          documents(id, title, file_name)
-        `);
+        .select('*');
       
       if (documentId) {
         query = query.eq('document_id', documentId);
@@ -69,7 +65,7 @@ export const useDocumentCompliance = (documentId?: string) => {
       const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as DocumentCompliance[];
+      return data || [];
     }
   });
 };

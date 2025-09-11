@@ -23,6 +23,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useArchivePolicies, useDocumentArchives, useCreateArchivePolicy, useCreateArchive, useSealArchive } from '@/hooks/useArchives';
+import { useDocuments } from '@/hooks/useDocuments';
 
 export function ArchiveManager() {
   const [selectedPolicy, setSelectedPolicy] = useState('');
@@ -34,6 +35,7 @@ export function ArchiveManager() {
 
   const { data: policies, isLoading: policiesLoading } = useArchivePolicies();
   const { data: archives, isLoading: archivesLoading } = useDocumentArchives();
+  const { data: documents } = useDocuments();
   
   const createPolicy = useCreateArchivePolicy();
   const createArchive = useCreateArchive();
@@ -114,8 +116,11 @@ export function ArchiveManager() {
   };
 
   const filteredArchives = archives?.filter(archive => {
-    const matchesSearch = archive.documents?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         archive.archive_policies?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const document = documents?.find(d => d.id === archive.document_id);
+    const policy = policies?.find(p => p.id === archive.archive_policy_id);
+    
+    const matchesSearch = document?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         policy?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (!matchesSearch) return false;
     
@@ -321,10 +326,10 @@ export function ArchiveManager() {
                         <Archive className="h-5 w-5" />
                         <div>
                           <CardTitle className="text-lg">
-                            {archive.documents?.title}
+                            {documents?.find(d => d.id === archive.document_id)?.title || 'Documento sconosciuto'}
                           </CardTitle>
                           <CardDescription>
-                            Politica: {archive.archive_policies?.name}
+                            Politica: {policies?.find(p => p.id === archive.archive_policy_id)?.name || 'Politica sconosciuta'}
                           </CardDescription>
                         </div>
                       </div>
@@ -387,12 +392,12 @@ export function ArchiveManager() {
                         </div>
                       </div>
                     </div>
-                    {archive.archive_policies?.legal_requirement && (
+                    {policies?.find(p => p.id === archive.archive_policy_id)?.legal_requirement && (
                       <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                         <div className="flex items-center gap-2 text-sm text-blue-700">
                           <AlertTriangle className="h-4 w-4" />
                           <span className="font-medium">Requisito Legale:</span>
-                          {archive.archive_policies.legal_requirement}
+                          {policies?.find(p => p.id === archive.archive_policy_id)?.legal_requirement}
                         </div>
                       </div>
                     )}

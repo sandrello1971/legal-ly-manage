@@ -71,11 +71,7 @@ export const useDocumentArchives = (documentId?: string) => {
     queryFn: async () => {
       let query = supabase
         .from('document_archives')
-        .select(`
-          *,
-          archive_policies(id, name, retention_period_months, legal_requirement),
-          documents(id, title, file_name)
-        `);
+        .select('*');
       
       if (documentId) {
         query = query.eq('document_id', documentId);
@@ -84,7 +80,7 @@ export const useDocumentArchives = (documentId?: string) => {
       const { data, error } = await query.order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as DocumentArchive[];
+      return data || [];
     }
   });
 };
