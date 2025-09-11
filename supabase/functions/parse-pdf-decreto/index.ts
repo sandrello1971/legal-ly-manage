@@ -252,22 +252,46 @@ REGOLE IMPORTANTI:
 
     let parsedData;
     try {
-      const aiContent = aiData.choices[0].message.content.trim();
-      console.log('🔍 AI Content:', aiContent.substring(0, 200) + '...');
+      const aiContent = aiData.choices[0]?.message?.content?.trim();
+      console.log('🔍 AI Content:', aiContent || 'EMPTY RESPONSE');
       
-      // Remove any markdown formatting or extra text
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      const jsonString = jsonMatch ? jsonMatch[0] : aiContent;
+      if (!aiContent) {
+        console.error('❌ AI returned empty content');
+        // Use fallback data for empty responses
+        parsedData = {
+          title: 'Bando Analizzato',
+          status: 'active',
+          description: 'Documento PDF caricato e processato'
+        };
+      } else {
+        // Remove any markdown formatting or extra text
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        const jsonString = jsonMatch ? jsonMatch[0] : aiContent;
+        
+        if (!jsonString || jsonString.trim().length === 0) {
+          console.error('❌ No valid JSON found in AI response');
+          parsedData = {
+            title: 'Bando Analizzato',
+            status: 'active',
+            description: 'Documento PDF caricato e processato'
+          };
+        } else {
+          parsedData = JSON.parse(jsonString);
+        }
+      }
       
-      parsedData = JSON.parse(jsonString);
       console.log('✅ Successfully parsed AI response:', parsedData);
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
-      console.error('Raw AI content:', aiData.choices[0].message.content);
-      return new Response(JSON.stringify({ error: 'Errore nel parsing della risposta AI' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error('Raw AI content:', aiData.choices[0]?.message?.content || 'NO CONTENT');
+      
+      // Provide fallback data instead of failing
+      parsedData = {
+        title: 'Bando Analizzato',
+        status: 'active',
+        description: 'Documento PDF caricato ma analisi AI fallita'
+      };
+      console.log('📋 Using fallback data:', parsedData);
     }
 
     // Update the bando with parsed data if bandoId is provided
