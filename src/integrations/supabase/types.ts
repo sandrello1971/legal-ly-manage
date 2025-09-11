@@ -155,6 +155,163 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_statements: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          bank_name: string | null
+          closing_balance: number | null
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          opening_balance: number | null
+          parsed_data: Json | null
+          processing_error: string | null
+          statement_period_end: string | null
+          statement_period_start: string | null
+          status: string
+          total_transactions: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_name?: string | null
+          closing_balance?: number | null
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          opening_balance?: number | null
+          parsed_data?: Json | null
+          processing_error?: string | null
+          statement_period_end?: string | null
+          statement_period_start?: string | null
+          status?: string
+          total_transactions?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          bank_name?: string | null
+          closing_balance?: number | null
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          opening_balance?: number | null
+          parsed_data?: Json | null
+          processing_error?: string | null
+          statement_period_end?: string | null
+          statement_period_start?: string | null
+          status?: string
+          total_transactions?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      bank_transactions: {
+        Row: {
+          amount: number
+          bank_statement_id: string
+          category: string | null
+          counterpart_account: string | null
+          counterpart_name: string | null
+          created_at: string
+          currency: string
+          description: string
+          expense_id: string | null
+          id: string
+          is_reconciled: boolean | null
+          project_id: string | null
+          reconciliation_confidence: number | null
+          reconciliation_notes: string | null
+          reference_number: string | null
+          tags: string[] | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string
+          value_date: string | null
+        }
+        Insert: {
+          amount: number
+          bank_statement_id: string
+          category?: string | null
+          counterpart_account?: string | null
+          counterpart_name?: string | null
+          created_at?: string
+          currency?: string
+          description: string
+          expense_id?: string | null
+          id?: string
+          is_reconciled?: boolean | null
+          project_id?: string | null
+          reconciliation_confidence?: number | null
+          reconciliation_notes?: string | null
+          reference_number?: string | null
+          tags?: string[] | null
+          transaction_date: string
+          transaction_type: string
+          updated_at?: string
+          value_date?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_statement_id?: string
+          category?: string | null
+          counterpart_account?: string | null
+          counterpart_name?: string | null
+          created_at?: string
+          currency?: string
+          description?: string
+          expense_id?: string | null
+          id?: string
+          is_reconciled?: boolean | null
+          project_id?: string | null
+          reconciliation_confidence?: number | null
+          reconciliation_notes?: string | null
+          reference_number?: string | null
+          tags?: string[] | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string
+          value_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_bank_statement_id_fkey"
+            columns: ["bank_statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "project_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           author_id: string | null
