@@ -77,6 +77,84 @@ export type Database = {
         }
         Relationships: []
       }
+      bandi: {
+        Row: {
+          application_deadline: string | null
+          contact_email: string | null
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string | null
+          created_by: string
+          decree_file_name: string | null
+          decree_file_url: string | null
+          description: string | null
+          eligibility_criteria: string | null
+          evaluation_criteria: string | null
+          id: string
+          organization: string | null
+          parsed_data: Json | null
+          project_end_date: string | null
+          project_start_date: string | null
+          required_documents: string[] | null
+          search_vector: unknown | null
+          status: Database["public"]["Enums"]["bando_status"] | null
+          title: string
+          total_amount: number | null
+          updated_at: string | null
+          website_url: string | null
+        }
+        Insert: {
+          application_deadline?: string | null
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          created_by: string
+          decree_file_name?: string | null
+          decree_file_url?: string | null
+          description?: string | null
+          eligibility_criteria?: string | null
+          evaluation_criteria?: string | null
+          id?: string
+          organization?: string | null
+          parsed_data?: Json | null
+          project_end_date?: string | null
+          project_start_date?: string | null
+          required_documents?: string[] | null
+          search_vector?: unknown | null
+          status?: Database["public"]["Enums"]["bando_status"] | null
+          title: string
+          total_amount?: number | null
+          updated_at?: string | null
+          website_url?: string | null
+        }
+        Update: {
+          application_deadline?: string | null
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          created_by?: string
+          decree_file_name?: string | null
+          decree_file_url?: string | null
+          description?: string | null
+          eligibility_criteria?: string | null
+          evaluation_criteria?: string | null
+          id?: string
+          organization?: string | null
+          parsed_data?: Json | null
+          project_end_date?: string | null
+          project_start_date?: string | null
+          required_documents?: string[] | null
+          search_vector?: unknown | null
+          status?: Database["public"]["Enums"]["bando_status"] | null
+          title?: string
+          total_amount?: number | null
+          updated_at?: string | null
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           author_id: string | null
@@ -476,6 +554,302 @@ export type Database = {
         }
         Relationships: []
       }
+      project_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          current_value: number | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          is_read: boolean | null
+          message: string
+          milestone_id: string | null
+          project_id: string
+          read_at: string | null
+          read_by: string | null
+          severity: string
+          threshold_value: number | null
+          title: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          current_value?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_read?: boolean | null
+          message: string
+          milestone_id?: string | null
+          project_id: string
+          read_at?: string | null
+          read_by?: string | null
+          severity?: string
+          threshold_value?: number | null
+          title: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          current_value?: number | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_read?: boolean | null
+          message?: string
+          milestone_id?: string | null
+          project_id?: string
+          read_at?: string | null
+          read_by?: string | null
+          severity?: string
+          threshold_value?: number | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_alerts_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "project_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_alerts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_expenses: {
+        Row: {
+          amount: number
+          approval_notes: string | null
+          approved_at: string | null
+          approved_by: string | null
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at: string | null
+          created_by: string
+          description: string
+          expense_date: string
+          id: string
+          is_approved: boolean | null
+          milestone_id: string | null
+          project_id: string
+          receipt_number: string | null
+          receipt_url: string | null
+          supplier_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category: Database["public"]["Enums"]["expense_category"]
+          created_at?: string | null
+          created_by: string
+          description: string
+          expense_date: string
+          id?: string
+          is_approved?: boolean | null
+          milestone_id?: string | null
+          project_id: string
+          receipt_number?: string | null
+          receipt_url?: string | null
+          supplier_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          approval_notes?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: Database["public"]["Enums"]["expense_category"]
+          created_at?: string | null
+          created_by?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          is_approved?: boolean | null
+          milestone_id?: string | null
+          project_id?: string
+          receipt_number?: string | null
+          receipt_url?: string | null
+          supplier_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_expenses_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "project_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_expenses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_milestones: {
+        Row: {
+          budget_amount: number | null
+          completed_date: string | null
+          completion_criteria: string | null
+          created_at: string | null
+          deliverables: string[] | null
+          depends_on_milestone_id: string | null
+          description: string | null
+          due_date: string
+          id: string
+          is_completed: boolean | null
+          priority: number | null
+          project_id: string
+          title: string
+          type: Database["public"]["Enums"]["milestone_type"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          budget_amount?: number | null
+          completed_date?: string | null
+          completion_criteria?: string | null
+          created_at?: string | null
+          deliverables?: string[] | null
+          depends_on_milestone_id?: string | null
+          description?: string | null
+          due_date: string
+          id?: string
+          is_completed?: boolean | null
+          priority?: number | null
+          project_id: string
+          title: string
+          type?: Database["public"]["Enums"]["milestone_type"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          budget_amount?: number | null
+          completed_date?: string | null
+          completion_criteria?: string | null
+          created_at?: string | null
+          deliverables?: string[] | null
+          depends_on_milestone_id?: string | null
+          description?: string | null
+          due_date?: string
+          id?: string
+          is_completed?: boolean | null
+          priority?: number | null
+          project_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["milestone_type"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_milestones_depends_on_milestone_id_fkey"
+            columns: ["depends_on_milestone_id"]
+            isOneToOne: false
+            referencedRelation: "project_milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          actual_end_date: string | null
+          actual_start_date: string | null
+          allocated_budget: number | null
+          bando_id: string | null
+          created_at: string | null
+          created_by: string
+          description: string | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          progress_percentage: number | null
+          project_documents: string[] | null
+          project_manager: string | null
+          remaining_budget: number | null
+          risk_assessment: string | null
+          spent_budget: number | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["project_status"] | null
+          team_members: string[] | null
+          title: string
+          total_budget: number
+          updated_at: string | null
+        }
+        Insert: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
+          allocated_budget?: number | null
+          bando_id?: string | null
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          progress_percentage?: number | null
+          project_documents?: string[] | null
+          project_manager?: string | null
+          remaining_budget?: number | null
+          risk_assessment?: string | null
+          spent_budget?: number | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"] | null
+          team_members?: string[] | null
+          title: string
+          total_budget: number
+          updated_at?: string | null
+        }
+        Update: {
+          actual_end_date?: string | null
+          actual_start_date?: string | null
+          allocated_budget?: number | null
+          bando_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          progress_percentage?: number | null
+          project_documents?: string[] | null
+          project_manager?: string | null
+          remaining_budget?: number | null
+          risk_assessment?: string | null
+          spent_budget?: number | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["project_status"] | null
+          team_members?: string[] | null
+          title?: string
+          total_budget?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_bando_id_fkey"
+            columns: ["bando_id"]
+            isOneToOne: false
+            referencedRelation: "bandi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_audit_log: {
         Row: {
           action: string
@@ -735,8 +1109,23 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      bando_status: "draft" | "active" | "expired" | "completed"
       document_status: "pending" | "approved" | "rejected" | "archived"
       document_type: "invoice" | "contract" | "receipt" | "report" | "other"
+      expense_category:
+        | "personnel"
+        | "equipment"
+        | "materials"
+        | "services"
+        | "travel"
+        | "other"
+      milestone_type: "deliverable" | "payment" | "review" | "deadline"
+      project_status:
+        | "planning"
+        | "in_progress"
+        | "on_hold"
+        | "completed"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -865,8 +1254,25 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      bando_status: ["draft", "active", "expired", "completed"],
       document_status: ["pending", "approved", "rejected", "archived"],
       document_type: ["invoice", "contract", "receipt", "report", "other"],
+      expense_category: [
+        "personnel",
+        "equipment",
+        "materials",
+        "services",
+        "travel",
+        "other",
+      ],
+      milestone_type: ["deliverable", "payment", "review", "deadline"],
+      project_status: [
+        "planning",
+        "in_progress",
+        "on_hold",
+        "completed",
+        "cancelled",
+      ],
     },
   },
 } as const
