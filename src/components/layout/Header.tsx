@@ -1,5 +1,6 @@
 import { Menu, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +35,9 @@ export function Header() {
         </div>
       </div>
 
-      {user && (
+      <div className="flex items-center gap-2">
+        <NotificationCenter />
+        {user && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
@@ -53,7 +56,8 @@ export function Header() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
+        )}
+      </div>
     </header>
   );
 }

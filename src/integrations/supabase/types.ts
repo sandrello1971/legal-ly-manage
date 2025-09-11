@@ -684,6 +684,97 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email_enabled: boolean
+          email_types: Database["public"]["Enums"]["notification_type"][] | null
+          id: string
+          push_enabled: boolean
+          push_types: Database["public"]["Enums"]["notification_type"][] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_enabled?: boolean
+          email_types?:
+            | Database["public"]["Enums"]["notification_type"][]
+            | null
+          id?: string
+          push_enabled?: boolean
+          push_types?: Database["public"]["Enums"]["notification_type"][] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_enabled?: boolean
+          email_types?:
+            | Database["public"]["Enums"]["notification_type"][]
+            | null
+          id?: string
+          push_enabled?: boolean
+          push_types?: Database["public"]["Enums"]["notification_type"][] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          action_label: string | null
+          action_url: string | null
+          created_at: string
+          data: Json | null
+          expires_at: string | null
+          id: string
+          is_archived: boolean
+          is_read: boolean
+          message: string
+          priority: Database["public"]["Enums"]["notification_priority"]
+          read_at: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_label?: string | null
+          action_url?: string | null
+          created_at?: string
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_archived?: boolean
+          is_read?: boolean
+          message: string
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          read_at?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_label?: string | null
+          action_url?: string | null
+          created_at?: string
+          data?: Json | null
+          expires_at?: string | null
+          id?: string
+          is_archived?: boolean
+          is_read?: boolean
+          message?: string
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          read_at?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1114,6 +1205,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_expired_notifications: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       assign_admin_role_to_user: {
         Args: { user_email: string }
         Returns: undefined
@@ -1277,6 +1372,17 @@ export type Database = {
         | "travel"
         | "other"
       milestone_type: "deliverable" | "payment" | "review" | "deadline"
+      notification_priority: "low" | "medium" | "high" | "urgent"
+      notification_type:
+        | "expense_processed"
+        | "expense_approved"
+        | "expense_rejected"
+        | "statement_processed"
+        | "reconciliation_completed"
+        | "project_deadline"
+        | "budget_alert"
+        | "system_alert"
+        | "anomaly_detected"
       project_status:
         | "planning"
         | "in_progress"
@@ -1423,6 +1529,18 @@ export const Constants = {
         "other",
       ],
       milestone_type: ["deliverable", "payment", "review", "deadline"],
+      notification_priority: ["low", "medium", "high", "urgent"],
+      notification_type: [
+        "expense_processed",
+        "expense_approved",
+        "expense_rejected",
+        "statement_processed",
+        "reconciliation_completed",
+        "project_deadline",
+        "budget_alert",
+        "system_alert",
+        "anomaly_detected",
+      ],
       project_status: [
         "planning",
         "in_progress",
