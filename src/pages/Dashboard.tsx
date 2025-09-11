@@ -1,40 +1,79 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, DollarSign, TrendingUp, Users } from 'lucide-react';
-
-const stats = [
-  {
-    title: 'Total Documents',
-    value: '24',
-    description: '+12% from last month',
-    icon: FileText,
-  },
-  {
-    title: 'Active Cases',
-    value: '12',
-    description: '+5% from last month',
-    icon: Users,
-  },
-  {
-    title: 'Monthly Expenses',
-    value: '€8,542',
-    description: '-3% from last month',
-    icon: DollarSign,
-  },
-  {
-    title: 'Revenue',
-    value: '€24,830',
-    description: '+18% from last month',
-    icon: TrendingUp,
-  },
-];
+import { Button } from '@/components/ui/button';
+import { FileText, DollarSign, TrendingUp, FolderOpen, PlusCircle, FileUp, Receipt } from 'lucide-react';
+import { useDocuments } from '@/hooks/useDocuments';
+import { useBandi } from '@/hooks/useBandi';
+import { useNavigate } from 'react-router-dom';
+import { formatDistanceToNow } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const { data: documents, isLoading: documentsLoading } = useDocuments();
+  const { bandi, loading: bandiLoading } = useBandi();
+
+  const stats = [
+    {
+      title: 'Documenti Totali',
+      value: documentsLoading ? '...' : (documents?.length || 0).toString(),
+      description: 'Documenti caricati',
+      icon: FileText,
+    },
+    {
+      title: 'Bandi Attivi',
+      value: bandiLoading ? '...' : (bandi?.filter(b => b.status === 'active').length || 0).toString(),
+      description: 'Bandi attivi',
+      icon: FolderOpen,
+    },
+    {
+      title: 'Bandi Totali',
+      value: bandiLoading ? '...' : (bandi?.length || 0).toString(),
+      description: 'Tutti i bandi',
+      icon: TrendingUp,
+    },
+    {
+      title: 'Importo Totale',
+      value: bandiLoading ? '...' : `€${bandi?.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0).toLocaleString('it-IT') || '0'}`,
+      description: 'Valore bandi totale',
+      icon: DollarSign,
+    },
+  ];
+
+  // Get recent activity from documents and bandi
+  const recentActivity = [];
+  
+  if (documents) {
+    documents.slice(0, 3).forEach(doc => {
+      recentActivity.push({
+        type: 'document',
+        title: `Documento caricato: ${doc.title}`,
+        time: formatDistanceToNow(new Date(doc.created_at), { addSuffix: true, locale: it }),
+        color: 'bg-primary'
+      });
+    });
+  }
+
+  if (bandi) {
+    bandi.slice(0, 2).forEach(bando => {
+      recentActivity.push({
+        type: 'bando',
+        title: `Bando ${bando.status === 'active' ? 'attivo' : 'creato'}: ${bando.title}`,
+        time: formatDistanceToNow(new Date(bando.created_at), { addSuffix: true, locale: it }),
+        color: bando.status === 'active' ? 'bg-accent' : 'bg-muted'
+      });
+    });
+  }
+
+  // Sort by most recent and take first 5
+  recentActivity.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  const displayActivity = recentActivity.slice(0, 5);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome to your LegalTender Pro dashboard
+          Benvenuto nella tua dashboard LegalTender Pro
         </p>
       </div>
 
@@ -60,58 +99,77 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle>Attività Recente</CardTitle>
             <CardDescription>
-              Your latest documents and case updates
+              I tuoi ultimi documenti e aggiornamenti
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-primary rounded-full"></div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Document uploaded: Contract_2024_001.pdf</p>
-                  <p className="text-xs text-muted-foreground">2 hours ago</p>
+            {displayActivity.length > 0 ? (
+              <div className="space-y-4">
+                {displayActivity.map((activity, index) => (
+                  <div key={index} className="flex items-center space-x-4">
+                    <div className={`w-2 h-2 ${activity.color} rounded-full`}></div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center">
+                  <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Nessuna attività recente</p>
+                  <p className="text-xs text-muted-foreground">Inizia caricando documenti o creando bandi</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-accent rounded-full"></div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Case updated: Smith vs. Johnson</p>
-                  <p className="text-xs text-muted-foreground">5 hours ago</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-warning rounded-full"></div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Expense approved: Court filing fee</p>
-                  <p className="text-xs text-muted-foreground">1 day ago</p>
-                </div>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>Azioni Rapide</CardTitle>
             <CardDescription>
-              Common tasks and shortcuts
+              Attività comuni e scorciatoie
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <button className="w-full text-left p-3 rounded-lg border hover:bg-muted transition-colors">
-              <div className="font-medium">Upload Document</div>
-              <div className="text-sm text-muted-foreground">Add new legal documents</div>
-            </button>
-            <button className="w-full text-left p-3 rounded-lg border hover:bg-muted transition-colors">
-              <div className="font-medium">Add Expense</div>
-              <div className="text-sm text-muted-foreground">Record case expenses</div>
-            </button>
-            <button className="w-full text-left p-3 rounded-lg border hover:bg-muted transition-colors">
-              <div className="font-medium">Generate Report</div>
-              <div className="text-sm text-muted-foreground">Create financial reports</div>
-            </button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start p-3 h-auto"
+              onClick={() => navigate('/documents')}
+            >
+              <FileUp className="h-4 w-4 mr-3" />
+              <div className="text-left">
+                <div className="font-medium">Carica Documento</div>
+                <div className="text-sm text-muted-foreground">Aggiungi nuovi documenti</div>
+              </div>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start p-3 h-auto"
+              onClick={() => navigate('/bandi')}
+            >
+              <PlusCircle className="h-4 w-4 mr-3" />
+              <div className="text-left">
+                <div className="font-medium">Crea Bando</div>
+                <div className="text-sm text-muted-foreground">Aggiungi un nuovo bando</div>
+              </div>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start p-3 h-auto"
+              onClick={() => navigate('/expenses')}
+            >
+              <Receipt className="h-4 w-4 mr-3" />
+              <div className="text-left">
+                <div className="font-medium">Gestisci Spese</div>
+                <div className="text-sm text-muted-foreground">Registra e monitora spese</div>
+              </div>
+            </Button>
           </CardContent>
         </Card>
       </div>
