@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { loginSchema, LoginFormData } from '@/lib/validations';
 
 export default function Login() {
-  const { user, signIn, loading } = useAuth();
+  const { user, signIn, loading, initialized } = useAuth();
   const { toast } = useToast();
 
   const {
@@ -21,6 +21,16 @@ export default function Login() {
     resolver: zodResolver(loginSchema),
   });
 
+  // Show loading while auth is initializing
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Redirect authenticated users to dashboard
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -39,6 +49,10 @@ export default function Login() {
         title: 'Bentornato!',
         description: 'Hai effettuato l\'accesso con successo.',
       });
+      // Force a small delay to ensure auth state is updated
+      setTimeout(() => {
+        window.location.replace('/dashboard');
+      }, 100);
     }
   };
 
