@@ -1,65 +1,43 @@
-import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/hooks/use-toast';
+import { registerSchema, RegisterFormData } from '@/lib/validations';
 
 export default function Register() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const { user, signUp, loading } = useAuth();
   const { toast } = useToast();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  });
 
   if (user) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password || !confirmPassword) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast({
-        title: 'Error',
-        description: 'Passwords do not match',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (password.length < 6) {
-      toast({
-        title: 'Error',
-        description: 'Password must be at least 6 characters long',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const { error } = await signUp(email, password);
+  const onSubmit = async (data: RegisterFormData) => {
+    const { error } = await signUp(data.email, data.password, data.fullName, data.company);
     
     if (error) {
       toast({
-        title: 'Sign up failed',
+        title: 'Registrazione fallita',
         description: error,
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Account created!',
-        description: 'Please check your email to confirm your account.',
+        title: 'Account creato!',
+        description: 'Controlla la tua email per confermare l\'account.',
       });
     }
   };
@@ -77,17 +55,45 @@ export default function Register() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Nome completo</Label>
+              <Input
+                id="fullName"
+                placeholder="Inserisci il tuo nome"
+                {...register('fullName')}
+                autoComplete="name"
+                aria-invalid={errors.fullName ? 'true' : 'false'}
+              />
+              {errors.fullName && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.fullName.message}
+                </p>
+              )}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
+                placeholder="Inserisci la tua email"
+                {...register('email')}
                 autoComplete="email"
+                aria-invalid={errors.email ? 'true' : 'false'}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="company">Azienda (opzionale)</Label>
+              <Input
+                id="company"
+                placeholder="Nome della tua azienda"
+                {...register('company')}
+                autoComplete="organization"
               />
             </div>
             <div className="space-y-2">
@@ -95,33 +101,41 @@ export default function Register() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Create a password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                placeholder="Crea una password"
+                {...register('password')}
                 autoComplete="new-password"
+                aria-invalid={errors.password ? 'true' : 'false'}
               />
+              {errors.password && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">Conferma Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
+                placeholder="Conferma la tua password"
+                {...register('confirmPassword')}
                 autoComplete="new-password"
+                aria-invalid={errors.confirmPassword ? 'true' : 'false'}
               />
+              {errors.confirmPassword && (
+                <p className="text-sm text-destructive" role="alert">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? 'Creazione account...' : 'Crea account'}
             </Button>
           </form>
           <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">Already have an account? </span>
+            <span className="text-muted-foreground">Hai già un account? </span>
             <Link to="/login" className="text-primary hover:underline">
-              Sign in
+              Accedi
             </Link>
           </div>
         </CardContent>

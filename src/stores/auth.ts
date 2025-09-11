@@ -1,30 +1,88 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
+
+export type UserRole = 'admin' | 'manager' | 'accountant' | 'auditor';
+
+interface Profile {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  company: string | null;
+  role: UserRole;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthState {
   user: User | null;
+  session: Session | null;
+  profile: Profile | null;
   loading: boolean;
   initialized: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, fullName?: string, company?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error?: string }>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ error?: string }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error?: string }>;
   initialize: () => Promise<void>;
+  hasRole: (role: UserRole) => boolean;
+  checkAccess: (allowedRoles: UserRole[]) => boolean;
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
   user: null,
+  session: null,
+  profile: null,
   loading: false,
   initialized: false,
 
   initialize: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      set({ user: session?.user ?? null, initialized: true });
+      
+      if (session?.user) {
+        // Fetch user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        set({ 
+          user: session.user, 
+          session, 
+          profile: profile as Profile || null, 
+          initialized: true 
+        });
+      } else {
+        set({ user: null, session: null, profile: null, initialized: true });
+      }
 
       // Listen for auth changes
-      supabase.auth.onAuthStateChange((event, session) => {
-        set({ user: session?.user ?? null });
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) {
+          // Fetch user profile when session changes
+          setTimeout(async () => {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+            
+            set({ 
+              user: session.user, 
+              session, 
+              profile: profile as Profile || null 
+            });
+          }, 0);
+        } else {
+          set({ user: null, session: null, profile: null });
+        }
       });
     } catch (error) {
       console.error('Auth initialization error:', error);
@@ -45,14 +103,85 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
   },
 
-  signUp: async (email: string, password: string) => {
+  signUp: async (email: string, password: string, fullName?: string, company?: string) => {
     set({ loading: true });
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+            company: company,
+          }
+        }
+      });
       if (error) return { error: error.message };
       return {};
     } catch (error) {
-      return { error: 'An unexpected error occurred' };
+      return { error: 'Errore inaspettato durante la registrazione' };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    set({ loading: true });
+    try {
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+      if (error) return { error: error.message };
+      return {};
+    } catch (error) {
+      return { error: 'Errore durante il reset della password' };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  updateProfile: async (updates: Partial<Profile>) => {
+    set({ loading: true });
+    try {
+      const { user } = get();
+      if (!user) return { error: 'User non autenticato' };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', user.id);
+
+      if (error) return { error: error.message };
+
+      // Update local profile
+      const { profile } = get();
+      if (profile) {
+        set({ profile: { ...profile, ...updates } });
+      }
+
+      return {};
+    } catch (error) {
+      return { error: 'Errore durante l\'aggiornamento del profilo' };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    set({ loading: true });
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) return { error: error.message };
+      return {};
+    } catch (error) {
+      return { error: 'Errore durante il cambio password' };
     } finally {
       set({ loading: false });
     }
@@ -62,10 +191,21 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ loading: true });
     try {
       await supabase.auth.signOut();
+      set({ user: null, session: null, profile: null });
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
       set({ loading: false });
     }
+  },
+
+  hasRole: (role: UserRole) => {
+    const { profile } = get();
+    return profile?.role === role;
+  },
+
+  checkAccess: (allowedRoles: UserRole[]) => {
+    const { profile } = get();
+    return profile ? allowedRoles.includes(profile.role) : false;
   },
 }));

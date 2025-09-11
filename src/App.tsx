@@ -7,7 +7,9 @@ import { Layout } from "./components/layout/Layout";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import ResetPassword from "./pages/auth/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/*"
             element={
@@ -31,6 +34,7 @@ const App = () => (
             }
           >
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="profile" element={<Profile />} />
             <Route path="documents" element={<div>Documents page coming soon</div>} />
             <Route path="expenses" element={<div>Expenses page coming soon</div>} />
             <Route path="reports" element={<div>Reports page coming soon</div>} />
