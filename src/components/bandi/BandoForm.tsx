@@ -241,31 +241,75 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
   // Funzione per estrarre testo da PDF usando PDF.js
   const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
     try {
-      // Configura PDF.js worker
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.js`;
+      // Configura PDF.js worker usando un approccio più affidabile
+      const workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.js',
+        import.meta.url
+      ).toString();
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
       
-      const loadingTask = pdfjsLib.getDocument(pdfBuffer);
+      const loadingTask = pdfjsLib.getDocument({
+        data: pdfBuffer,
+        // Configurazioni aggiuntive per PDF problematici
+        verbosity: 0,
+        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.149/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.149/standard_fonts/',
+      });
+      
       const pdfDocument = await loadingTask.promise;
       
       let fullText = '';
+      let hasText = false;
       
-      // Estrai testo da tutte le pagine
-      for (let pageNum = 1; pageNum <= Math.min(pdfDocument.numPages, 10); pageNum++) {
-        const page = await pdfDocument.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += pageText + '\n\n';
+      // Estrai testo da tutte le pagine (massimo 15 per evitare timeout)
+      const maxPages = Math.min(pdfDocument.numPages, 15);
+      
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+        try {
+          const page = await pdfDocument.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          if (textContent.items && textContent.items.length > 0) {
+            const pageText = textContent.items
+              .map((item: any) => {
+                if (item && typeof item.str === 'string') {
+                  return item.str.trim();
+                }
+                return '';
+              })
+              .filter(text => text.length > 0)
+              .join(' ');
+            
+            if (pageText.length > 0) {
+              fullText += pageText + '\n\n';
+              hasText = true;
+            }
+          }
+        } catch (pageError) {
+          console.warn(`Errore nella pagina ${pageNum}:`, pageError);
+          continue;
+        }
       }
       
-      return fullText;
+      if (!hasText) {
+        throw new Error('Nessun testo leggibile trovato nel PDF');
+      }
+      
+      // Pulisci il testo da caratteri strani
+      const cleanText = fullText
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (cleanText.length < 50) {
+        throw new Error('Il testo estratto è troppo corto o illeggibile');
+      }
+      
+      return cleanText;
     } catch (error) {
       console.error('Error extracting PDF text:', error);
-      // Fallback: prova un'estrazione semplificata
-      const decoder = new TextDecoder();
-      const text = decoder.decode(pdfBuffer);
-      return text.slice(1000, 11000); // Prendi una sezione che potrebbe contenere testo
+      throw new Error(`Impossibile estrarre il testo dal PDF: ${error.message}`);
     }
   };
 
