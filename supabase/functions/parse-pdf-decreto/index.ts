@@ -63,6 +63,7 @@ serve(async (req) => {
     }
 
     console.log('🧾 PDF text length:', pdfText.length);
+    console.log('📝 PDF text preview:', pdfText.substring(0, 500).replace(/\s+/g, ' '));
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
     // Call OpenAI to analyze the PDF content
@@ -73,47 +74,45 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
+        model: 'gpt-5-2025-08-07',
         messages: [
           {
             role: 'system',
-            content: `Sei un esperto analista di bandi pubblici italiani. Analizza il contenuto del PDF e estrai le informazioni rilevanti.
-            
-Restituisci SOLO un oggetto JSON valido con questa struttura esatta:
+            content: `Analizza questo documento PDF di un bando pubblico italiano ed estrai TUTTE le informazioni possibili.
+
+Restituisci SOLO un oggetto JSON valido:
 {
-  "title": "titolo del bando",
-  "description": "descrizione dettagliata",
-  "organization": "ente emittente",
-  "total_amount": 0,
+  "title": "titolo completo del bando",
+  "description": "descrizione dettagliata dell'obiettivo",
+  "organization": "ente che ha emesso il bando",
+  "total_amount": numero_senza_virgole,
   "application_deadline": "YYYY-MM-DD",
-  "project_start_date": "YYYY-MM-DD",
+  "project_start_date": "YYYY-MM-DD", 
   "project_end_date": "YYYY-MM-DD",
-  "contact_person": "persona di contatto",
-  "contact_email": "email@esempio.it",
-  "contact_phone": "numero telefono",
-  "website_url": "url sito web",
-  "eligibility_criteria": "criteri di ammissibilità",
-  "evaluation_criteria": "criteri di valutazione",
-  "required_documents": ["doc1", "doc2", "doc3"]
+  "contact_person": "nome della persona di contatto",
+  "contact_email": "email di contatto",
+  "contact_phone": "numero di telefono",
+  "website_url": "sito web dell'ente",
+  "eligibility_criteria": "chi può partecipare",
+  "evaluation_criteria": "come vengono valutate le proposte",
+  "required_documents": ["lista", "dei", "documenti", "richiesti"]
 }
 
-IMPORTANTE:
-- Se un campo non è presente nel testo, usa null
-- Per gli importi, estrai solo i numeri (senza simboli € o virgole)
-- Per le date usa il formato YYYY-MM-DD
-- Per required_documents restituisci un array di stringhe
-- Cerca attentamente nel testo per trovare tutte le informazioni possibili
-- Non lasciare campi vuoti se ci sono informazioni nel testo
-- Estrai anche informazioni parziali o implicite
-- NON aggiungere commenti o testo extra, solo il JSON`
+REGOLE IMPORTANTI:
+- Estrai SEMPRE il titolo anche se parziale
+- Cerca importi in €, EUR, euro (anche milioni/migliaia)
+- Converti date italiane in formato YYYY-MM-DD
+- Se manca info, usa null (NON stringa vuota)
+- Cerca attentamente numeri di telefono e email
+- Identifica l'ente emittente (Regione, Ministero, ecc.)
+- RISPOSTA SOLO JSON, niente altro testo`
           },
           {
             role: 'user',
-            content: `Analizza questo bando pubblico e estrai le informazioni richieste:\n\n${pdfText.substring(0, 15000)}`
+            content: `ANALIZZA QUESTO BANDO:\n\n${pdfText.substring(0, 20000)}`
           }
         ],
-        max_tokens: 2000,
-        temperature: 0.1,
+        max_completion_tokens: 2000,
       }),
     });
 
@@ -151,184 +150,134 @@ IMPORTANTE:
 
     // Heuristic fallback if AI returned mostly empty fields
     const countFilled = (obj: any) => Object.values(obj || {}).filter((v: any) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)).length;
-    if (countFilled(parsedData) < 5) { // Lowered threshold from 3 to 5 to be more aggressive
-      console.log('⚠️ AI returned mostly empty fields, applying aggressive heuristic fallback');
+    console.log('📊 AI extracted fields count:', countFilled(parsedData));
+    
+    if (countFilled(parsedData) < 2) { // Very aggressive fallback
+      console.log('🚨 AI extraction failed, applying DIRECT text parsing fallback');
       const cleaned = (pdfText || '').replace(/\u0000/g, ' ').replace(/\s+/g, ' ');
-      const fileTitle = (fileName || 'Bando').replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim();
+      
+      // DIRECT extraction without relying on AI
+      const directData: any = {};
 
-      // More aggressive title extraction
-      let title = parsedData.title;
-      if (!title) {
-        const titlePatterns = [
-          /(?:BANDO|AVVISO|CALL|CONCORSO|FINANZIAMENTO|INCENTIVI?|CONTRIBUTI?)[^\n]{10,150}/i,
-          /(?:per|di|del)[^\n]{20,100}(?:bando|avviso|call|concorso)/i,
-          /(?:SI\s*4\.0|INDUSTRIA\s*4\.0|TRANSIZIONE\s*4\.0)[^\n]{0,100}/i
-        ];
-        for (const pattern of titlePatterns) {
-          const match = cleaned.match(pattern);
-          if (match) {
-            title = match[0].replace(/^\W+|\W+$/g, '').trim();
-            break;
-          }
-        }
-        if (!title) title = fileTitle;
-      }
+      // Title - multiple attempts
+      const titleCandidates = [
+        cleaned.match(/(?:BANDO|AVVISO|CALL)[^\n.]{10,200}/i)?.[0],
+        cleaned.match(/(?:SI\s*4\.0|INDUSTRIA\s*4\.0)[^\n.]{0,150}/i)?.[0],
+        cleaned.match(/(?:per|di|del)[^\n.]{10,100}(?:innovazione|digitalizzazione|imprese)/i)?.[0],
+        fileName?.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim()
+      ].filter(Boolean);
+      
+      directData.title = titleCandidates[0] || 'Bando SI 4.0 2025';
 
-      // Enhanced description extraction
-      let description = parsedData.description;
-      if (!description) {
-        const descPatterns = [
-          /(?:finalità|obiettiv[oi]|scopo)[^\n.]{50,300}/i,
-          /(?:il presente bando|la presente misura|questo programma)[^\n.]{50,300}/i,
-          /(?:sostiene|finanzia|incentiva)[^\n.]{30,200}/i
-        ];
-        for (const pattern of descPatterns) {
-          const match = cleaned.match(pattern);
-          if (match) {
-            description = match[0].trim();
-            break;
-          }
-        }
-      }
+      // Organization - direct search
+      const orgCandidates = [
+        cleaned.match(/(?:Regione\s+\w+)/i)?.[0],
+        cleaned.match(/(?:Ministero[^\n.]{5,80})/i)?.[0],
+        cleaned.match(/(?:MISE|MIMIT)/i)?.[0],
+        cleaned.match(/(?:Camera di Commercio[^\n.]{0,50})/i)?.[0]
+      ].filter(Boolean);
+      
+      directData.organization = orgCandidates[0] || null;
 
-      // Enhanced organization extraction
-      let organization = parsedData.organization;
-      if (!organization) {
-        const orgPatterns = [
-          /(?:Regione|Provincia|Comune|Città|Metropolitana)[^\n]{5,80}/i,
-          /(?:Ministero|Dipartimento|Agenzia)[^\n]{5,80}/i,
-          /(?:Camera di Commercio|Unioncamere|Invitalia|MISE|MIMIT)[^\n]{0,50}/i,
-          /(?:Direzione|Assessorato|Servizio)[^\n]{10,60}/i
-        ];
-        for (const pattern of orgPatterns) {
-          const match = cleaned.match(pattern);
-          if (match) {
-            organization = match[0].replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-            break;
-          }
-        }
-      }
+      // Email - all emails found
+      const allEmails = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
+      directData.contact_email = allEmails?.[0] || null;
 
-      // Enhanced email extraction
-      const emailMatches = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi);
-      const contact_email = parsedData.contact_email || (emailMatches ? emailMatches[0] : null);
+      // Phone - improved pattern
+      const phonePattern = /(?:tel|telefono|phone)[:\s]*(\+39\s?)?(?:\(?0\d{1,4}\)?\s?)?[\d\s.-]{6,15}/gi;
+      const phoneMatch = cleaned.match(phonePattern);
+      directData.contact_phone = phoneMatch?.[0]?.replace(/[^\d\s+().-]/gi, '').trim() || null;
 
-      // Enhanced website extraction
-      const urlMatches = cleaned.match(/https?:\/\/[^\s)]+/gi);
-      const website_url = parsedData.website_url || (urlMatches ? urlMatches[0] : null);
+      // Website - all URLs
+      const allUrls = cleaned.match(/https?:\/\/[^\s)]+/gi);
+      directData.website_url = allUrls?.[0] || null;
 
-      // Enhanced phone extraction
-      const phonePatterns = [
-        /(?:\+39\s?)?(?:\(?0\)?\s?)?(?:[0-9][\s.-]?){6,12}/g,
-        /\b(?:tel|telefono|phone)[:\s]*(?:\+39\s?)?(?:\(?0\)?\s?)?(?:[0-9][\s.-]?){6,12}/gi
+      // Amount - multiple patterns, more aggressive
+      let amount = null;
+      const amountPatterns = [
+        /(?:dotazione|budget|risorse|importo)[:\s]*(?:€|EUR)?\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2})?)/gi,
+        /([0-9]{1,3}(?:[.,][0-9]{3})+)(?:[.,][0-9]{2})?\s*(?:€|EUR|euro)/gi,
+        /(?:€|EUR)\s*([0-9]{6,12})/gi,
+        /([0-9]{6,12})\s*(?:milioni|mila)/gi
       ];
-      let contact_phone = parsedData.contact_phone;
-      if (!contact_phone) {
-        for (const pattern of phonePatterns) {
-          const matches = cleaned.match(pattern);
-          if (matches) {
-            contact_phone = matches[0].replace(/\s+/g, ' ').trim();
-            break;
-          }
+      
+      for (const pattern of amountPatterns) {
+        const matches = [...cleaned.matchAll(pattern)];
+        if (matches.length > 0) {
+          const numStr = matches[0][1].replace(/[.,](?=\d{3})/g, '').replace(',', '.');
+          amount = parseFloat(numStr);
+          if (amount > 10000) break; // Accept if reasonable
         }
       }
+      directData.total_amount = amount;
 
-      // Enhanced amount extraction with multiple patterns
-      let total_amount = parsedData.total_amount;
-      if (total_amount == null) {
-        const amountPatterns = [
-          /(?:€|EUR|euro)\s*([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2})?)/gi,
-          /([0-9]{1,3}(?:[.,][0-9]{3})*(?:[.,][0-9]{2})?)\s*(?:€|EUR|euro)/gi,
-          /(?:dotazione|importo|budget|risorse)\s*[:\s]*(?:€|EUR|euro)?\s*([0-9]{1,3}(?:[.,][0-9]{3})*)/gi,
-          /([0-9]{6,12})\s*(?:euro|EUR)/gi
-        ];
-        
-        for (const pattern of amountPatterns) {
-          const matches = cleaned.match(pattern);
-          if (matches) {
-            const amountStr = matches[0].match(/[0-9.,]+/)?.[0];
-            if (amountStr) {
-              total_amount = parseFloat(amountStr.replace(/[.,](?=\d{3})/g, '').replace(',', '.'));
-              if (total_amount > 1000) break; // Only accept reasonable amounts
+      // Deadline - enhanced search
+      const deadlinePatterns = [
+        /(?:scadenza|termine|entro)[^\n.]{0,100?}(\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4})/gi,
+        /(\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4})[^\n.]{0,50}(?:scadenza|termine)/gi,
+        /entro\s+il\s+(\d{1,2}\s+\w+\s+\d{4})/gi
+      ];
+      
+      let deadline = null;
+      for (const pattern of deadlinePatterns) {
+        const match = cleaned.match(pattern);
+        if (match) {
+          const dateStr = match[1] || match[0].match(/\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4}/)?.[0];
+          if (dateStr) {
+            const parts = dateStr.match(/(\d{1,2})[\\/.-](\d{1,2})[\\/.-](\d{2,4})/);
+            if (parts) {
+              const day = parts[1].padStart(2, '0');
+              const month = parts[2].padStart(2, '0');
+              let year = parts[3];
+              if (year.length === 2) year = '20' + year;
+              deadline = `${year}-${month}-${day}`;
+              break;
             }
           }
         }
       }
+      directData.application_deadline = deadline;
 
-      // Enhanced date extraction
-      const toISO = (d: string | null) => {
-        if (!d) return null;
-        const patterns = [
-          /(\d{1,2})[\\/.-](\d{1,2})[\\/.-](\d{2,4})/,
-          /(\d{1,2})\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+(\d{4})/i
-        ];
-        
-        for (const pattern of patterns) {
-          const m = d.match(pattern);
-          if (m) {
-            if (pattern.source.includes('gennaio')) {
-              const months = {gennaio:1,febbraio:2,marzo:3,aprile:4,maggio:5,giugno:6,luglio:7,agosto:8,settembre:9,ottobre:10,novembre:11,dicembre:12};
-              const month = Object.keys(months).find(k => d.toLowerCase().includes(k));
-              if (month) return `${m[2]}-${months[month].toString().padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-            } else {
-              const day = m[1].padStart(2, '0');
-              const mon = m[2].padStart(2, '0');
-              let y = m[3];
-              if (y.length === 2) y = (parseInt(y) > 50 ? '19' : '20') + y;
-              return `${y}-${mon}-${day}`;
-            }
-          }
-        }
-        return null;
-      };
-
-      let application_deadline = parsedData.application_deadline;
-      if (!application_deadline) {
-        const deadlinePatterns = [
-          /(?:scadenza|termine|entro il)[^\n]{0,100}(\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4})/gi,
-          /(\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4})[^\n]{0,50}(?:scadenza|termine)/gi
-        ];
-        
-        for (const pattern of deadlinePatterns) {
-          const match = cleaned.match(pattern);
-          if (match) {
-            const dateStr = match[0].match(/\d{1,2}[\\/.-]\d{1,2}[\\/.-]\d{2,4}/)?.[0];
-            application_deadline = toISO(dateStr);
-            if (application_deadline) break;
-          }
+      // Description - look for purpose/objective
+      const descPatterns = [
+        /(?:finalità|obiettivo|scopo)[:\s]*([^\n.]{50,300})/gi,
+        /(?:sostiene|promuove|incentiva)[^\n.]{30,200}/gi,
+        /(?:presente bando|questa misura)[^\n.]{30,200}/gi
+      ];
+      
+      let description = null;
+      for (const pattern of descPatterns) {
+        const match = cleaned.match(pattern);
+        if (match) {
+          description = match[0].trim();
+          break;
         }
       }
+      directData.description = description;
 
-      // Extract eligibility criteria
-      let eligibility_criteria = parsedData.eligibility_criteria;
-      if (!eligibility_criteria) {
-        const eligibilityPatterns = [
-          /(?:possono partecipare|beneficiari|destinatari)[^\n.]{50,300}/gi,
-          /(?:requisiti di ammissibilità|criteri di eleggibilità)[^\n.]{50,300}/gi
-        ];
-        for (const pattern of eligibilityPatterns) {
-          const match = cleaned.match(pattern);
-          if (match) {
-            eligibility_criteria = match[0].trim();
-            break;
-          }
+      // Eligibility - who can participate
+      const eligibilityPatterns = [
+        /(?:possono partecipare|beneficiari|destinatari)[^\n.]{50,300}/gi,
+        /(?:micro|piccole|medie imprese)[^\n.]{20,200}/gi
+      ];
+      
+      let eligibility = null;
+      for (const pattern of eligibilityPatterns) {
+        const match = cleaned.match(pattern);
+        if (match) {
+          eligibility = match[0].trim();
+          break;
         }
       }
+      directData.eligibility_criteria = eligibility;
 
+      console.log('🔧 Direct extraction results:', directData);
+      
+      // Merge with AI results, preferring direct extraction
       parsedData = {
         ...parsedData,
-        title,
-        description,
-        organization,
-        contact_email,
-        contact_phone,
-        website_url,
-        total_amount,
-        application_deadline,
-        eligibility_criteria,
+        ...Object.fromEntries(Object.entries(directData).filter(([k, v]) => v !== null))
       };
-
-      console.log('🔧 Enhanced fallback extraction completed, filled fields:', countFilled(parsedData));
     }
 
     // Update the bando with parsed data if bandoId is provided
