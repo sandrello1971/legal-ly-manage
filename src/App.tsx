@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import Bandi from "./pages/Bandi";
 import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
+import Documents from "./pages/Documents";
 import Banking from "./pages/Banking";
 
 const queryClient = new QueryClient();
@@ -40,7 +41,7 @@ const App = () => {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="profile" element={<Profile />} />
               <Route path="bandi" element={<Bandi />} />
-              <Route path="documents" element={<div>Documents page coming soon</div>} />
+              <Route path="documents" element={<Documents />} />
               <Route path="expenses" element={<Expenses />} />
               <Route path="banking" element={<Banking />} />
               <Route path="reports" element={<Reports />} />
