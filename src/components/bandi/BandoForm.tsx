@@ -25,10 +25,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/stores/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useBandi } from '@/hooks/useBandi';
+import * as pdfjsLib from 'pdfjs-dist';
 
 interface BandoFormProps {
   initialData?: any;
-  onSave: (data: any) => void;
+  onSave: (data: any) => Promise<any> | void;
   onCancel: () => void;
 }
 
@@ -146,21 +147,71 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
     try {
       setParsing(true);
 
-      // Prima salva il bando per ottenere l'ID
-      const bandoData = {
-        ...formData,
-        total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
-      };
+      // Se non abbiamo un ID del bando, dobbiamo salvarlo prima
+      let bandoId = initialData?.id;
+      
+      if (!bandoId) {
+        const bandoData = {
+          ...formData,
+          title: formData.title || 'Bando da Analizzare',
+          total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
+        };
 
-      await onSave(bandoData);
-      
-      // Poi avvia il parsing (questo aggiornerà automaticamente il bando)
-      // Nota: in un'implementazione reale dovresti aspettare di avere l'ID del bando salvato
-      
+        const savedBando = await onSave(bandoData);
+        bandoId = savedBando?.id;
+      }
+
+      if (!bandoId) {
+        throw new Error('Impossibile ottenere l\'ID del bando');
+      }
+
+      // Leggi il file PDF dal URL
       toast({
         title: 'Analisi in corso',
-        description: 'Il decreto PDF è in fase di analisi...',
+        description: 'Lettura del PDF in corso...',
       });
+
+      const response = await fetch(formData.decree_file_url);
+      if (!response.ok) {
+        throw new Error('Impossibile leggere il file PDF');
+      }
+
+      const pdfBuffer = await response.arrayBuffer();
+      const pdfText = await extractTextFromPDF(pdfBuffer);
+
+      if (!pdfText || pdfText.length < 100) {
+        throw new Error('Il PDF sembra vuoto o non leggibile');
+      }
+
+      // Chiama la funzione AI
+      toast({
+        title: 'Analisi AI',
+        description: 'L\'AI sta analizzando il documento...',
+      });
+
+      const { data, error } = await supabase.functions.invoke('parse-pdf-decreto', {
+        body: { 
+          pdfText, 
+          fileName: formData.decree_file_name,
+          bandoId 
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Successo!',
+        description: 'Il bando è stato analizzato e aggiornato con i dati estratti',
+      });
+
+      // Aggiorna il form con i dati estratti
+      if (data?.data) {
+        setFormData(prev => ({
+          ...prev,
+          ...data.data,
+          total_amount: data.data.total_amount?.toString() || prev.total_amount
+        }));
+      }
 
     } catch (error: any) {
       console.error('Error parsing decreto:', error);
@@ -171,6 +222,37 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       });
     } finally {
       setParsing(false);
+    }
+  };
+
+  // Funzione per estrarre testo da PDF usando PDF.js
+  const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
+    try {
+      // Configura PDF.js worker
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+      
+      const loadingTask = pdfjsLib.getDocument(pdfBuffer);
+      const pdfDocument = await loadingTask.promise;
+      
+      let fullText = '';
+      
+      // Estrai testo da tutte le pagine
+      for (let pageNum = 1; pageNum <= Math.min(pdfDocument.numPages, 10); pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n\n';
+      }
+      
+      return fullText;
+    } catch (error) {
+      console.error('Error extracting PDF text:', error);
+      // Fallback: prova un'estrazione semplificata
+      const decoder = new TextDecoder();
+      const text = decoder.decode(pdfBuffer);
+      return text.slice(1000, 11000); // Prendi una sezione che potrebbe contenere testo
     }
   };
 

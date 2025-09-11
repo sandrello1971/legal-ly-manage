@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,218 +11,196 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-interface ParsedDecreeData {
-  totalAmount?: number;
-  currency?: string;
-  applicationDeadline?: string;
-  projectStartDate?: string;
-  projectEndDate?: string;
-  organization?: string;
-  contactPerson?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  eligibilityCriteria?: string;
-  evaluationCriteria?: string;
-  requiredDocuments?: string[];
-  expenseCategories?: {
-    category: string;
-    maxPercentage?: number;
-    maxAmount?: number;
-    description?: string;
-  }[];
-  objectives?: string[];
-  keyRequirements?: string[];
-}
-
 serve(async (req) => {
+  console.log('🚀 Parse PDF Decreto function called');
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { fileUrl, bandoId } = await req.json();
-
-    if (!fileUrl || !bandoId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing fileUrl or bandoId' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Get the authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      console.error('❌ No authorization header found');
+      return new Response(JSON.stringify({ error: 'Non autorizzato' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Processing PDF decreto:', fileUrl);
+    // Create supabase client with user token
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
 
-    // Scarica il file PDF
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to fetch PDF: ${fileResponse.statusText}`);
+    // Get user from token
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('❌ Error getting user:', userError);
+      return new Response(JSON.stringify({ error: 'Utente non trovato' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const pdfBuffer = await fileResponse.arrayBuffer();
-    
-    // Converti in base64 per invio a OpenAI
-    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+    console.log('👤 User authenticated:', user.id);
 
-    console.log('Analyzing PDF with OpenAI...');
+    const requestData = await req.json();
+    const { pdfText, fileName, bandoId } = requestData;
 
-    // Analizza il PDF con OpenAI Vision
-    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log('📄 Processing PDF:', fileName, 'for bando:', bandoId);
+
+    if (!pdfText) {
+      console.error('❌ No PDF text provided');
+      return new Response(JSON.stringify({ error: 'Testo PDF mancante' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('🤖 Calling OpenAI for PDF analysis...');
+
+    // Call OpenAI to analyze the PDF content
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 2000,
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           {
             role: 'system',
-            content: `Sei un esperto nell'analisi di decreti e bandi pubblici italiani. 
-            Estrai SOLO le informazioni presenti nel documento. Se un'informazione non è presente, non inventarla.
-            Restituisci un JSON valido con la struttura specificata.
+            content: `Sei un esperto analista di bandi pubblici italiani. Analizza il contenuto del PDF e estrai le informazioni rilevanti.
             
-            Per le date, usa il formato YYYY-MM-DD.
-            Per gli importi, estrai solo il numero (senza simboli di valuta).
-            Per le categorie di spesa, cerca sezioni come "Spese ammissibili", "Costi eleggibili", "Tipologie di spesa".`
+Restituisci SOLO un oggetto JSON valido con questa struttura esatta:
+{
+  "title": "titolo del bando",
+  "description": "descrizione dettagliata",
+  "organization": "ente emittente",
+  "total_amount": 0,
+  "application_deadline": "YYYY-MM-DD",
+  "project_start_date": "YYYY-MM-DD",
+  "project_end_date": "YYYY-MM-DD",
+  "contact_person": "persona di contatto",
+  "contact_email": "email@esempio.it",
+  "contact_phone": "numero telefono",
+  "website_url": "url sito web",
+  "eligibility_criteria": "criteri di ammissibilità",
+  "evaluation_criteria": "criteri di valutazione",
+  "required_documents": ["doc1", "doc2", "doc3"]
+}
+
+IMPORTANTE:
+- Se un campo non è presente nel testo, usa null
+- Per gli importi, estrai solo i numeri (senza simboli € o virgole)
+- Per le date usa il formato YYYY-MM-DD
+- Per required_documents restituisci un array di stringhe
+- NON aggiungere commenti o testo extra, solo il JSON`
           },
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Analizza questo decreto/bando e estrai le seguenti informazioni in formato JSON:
-                
-                {
-                  "totalAmount": number | null,
-                  "currency": string | null,
-                  "applicationDeadline": string | null,
-                  "projectStartDate": string | null,
-                  "projectEndDate": string | null,
-                  "organization": string | null,
-                  "contactPerson": string | null,
-                  "contactEmail": string | null,
-                  "contactPhone": string | null,
-                  "eligibilityCriteria": string | null,
-                  "evaluationCriteria": string | null,
-                  "requiredDocuments": string[] | null,
-                  "expenseCategories": [
-                    {
-                      "category": string,
-                      "maxPercentage": number | null,
-                      "maxAmount": number | null,
-                      "description": string | null
-                    }
-                  ] | null,
-                  "objectives": string[] | null,
-                  "keyRequirements": string[] | null
-                }
-                
-                Cerca in particolare:
-                - Importo totale del bando/finanziamento
-                - Scadenze per la presentazione delle domande
-                - Date di inizio e fine progetto
-                - Ente organizzatore
-                - Contatti (email, telefono, referente)
-                - Criteri di eleggibilità e valutazione
-                - Documenti richiesti
-                - Categorie di spese ammissibili con percentuali/limiti
-                - Obiettivi del bando
-                - Requisiti chiave
-                
-                Restituisci SOLO il JSON senza testo aggiuntivo.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:application/pdf;base64,${base64Pdf}`
-                }
-              }
-            ]
+            content: `Analizza questo bando pubblico e estrai le informazioni richieste:\n\n${pdfText.substring(0, 15000)}`
           }
         ],
+        max_tokens: 2000,
+        temperature: 0.1,
       }),
     });
 
-    if (!openAIResponse.ok) {
-      const errorText = await openAIResponse.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${openAIResponse.status} ${errorText}`);
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('❌ OpenAI API error:', aiResponse.status, errorText);
+      return new Response(JSON.stringify({ error: 'Errore nell\'analisi AI' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    const openAIData = await openAIResponse.json();
-    const analysisResult = openAIData.choices[0].message.content;
+    const aiData = await aiResponse.json();
+    console.log('✅ OpenAI response received');
 
-    console.log('OpenAI analysis result:', analysisResult);
-
-    // Parse del JSON restituito da OpenAI
-    let parsedData: ParsedDecreeData;
+    let parsedData;
     try {
-      // Rimuovi eventuali caratteri non JSON all'inizio/fine
-      const cleanedResult = analysisResult.replace(/^```json\s*|```$/g, '').trim();
-      parsedData = JSON.parse(cleanedResult);
-    } catch (parseError) {
-      console.error('Failed to parse OpenAI response as JSON:', parseError);
-      console.error('Raw response:', analysisResult);
+      const aiContent = aiData.choices[0].message.content.trim();
+      console.log('🔍 AI Content:', aiContent.substring(0, 200) + '...');
       
-      // Fallback: restituisci i dati parziali estratti manualmente
-      parsedData = {
-        totalAmount: null,
-        currency: 'EUR'
-      };
+      // Remove any markdown formatting or extra text
+      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : aiContent;
+      
+      parsedData = JSON.parse(jsonString);
+      console.log('✅ Successfully parsed AI response');
+    } catch (parseError) {
+      console.error('❌ Error parsing AI response:', parseError);
+      console.error('Raw AI content:', aiData.choices[0].message.content);
+      return new Response(JSON.stringify({ error: 'Errore nel parsing della risposta AI' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Aggiorna il bando nel database con i dati estratti
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    const updateData: any = {
-      parsed_data: parsedData
-    };
+    // Update the bando with parsed data if bandoId is provided
+    if (bandoId) {
+      console.log('📝 Updating bando with parsed data...');
+      
+      const { error: updateError } = await supabase
+        .from('bandi')
+        .update({
+          title: parsedData.title || 'Bando Caricato',
+          description: parsedData.description,
+          organization: parsedData.organization,
+          total_amount: parsedData.total_amount,
+          application_deadline: parsedData.application_deadline,
+          project_start_date: parsedData.project_start_date,
+          project_end_date: parsedData.project_end_date,
+          contact_person: parsedData.contact_person,
+          contact_email: parsedData.contact_email,
+          contact_phone: parsedData.contact_phone,
+          website_url: parsedData.website_url,
+          eligibility_criteria: parsedData.eligibility_criteria,
+          evaluation_criteria: parsedData.evaluation_criteria,
+          required_documents: parsedData.required_documents,
+          parsed_data: parsedData,
+          decree_file_name: fileName,
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', bandoId)
+        .eq('created_by', user.id);
 
-    // Mappa i campi estratti ai campi della tabella
-    if (parsedData.totalAmount) updateData.total_amount = parsedData.totalAmount;
-    if (parsedData.applicationDeadline) updateData.application_deadline = parsedData.applicationDeadline;
-    if (parsedData.projectStartDate) updateData.project_start_date = parsedData.projectStartDate;
-    if (parsedData.projectEndDate) updateData.project_end_date = parsedData.projectEndDate;
-    if (parsedData.organization) updateData.organization = parsedData.organization;
-    if (parsedData.contactPerson) updateData.contact_person = parsedData.contactPerson;
-    if (parsedData.contactEmail) updateData.contact_email = parsedData.contactEmail;
-    if (parsedData.contactPhone) updateData.contact_phone = parsedData.contactPhone;
-    if (parsedData.eligibilityCriteria) updateData.eligibility_criteria = parsedData.eligibilityCriteria;
-    if (parsedData.evaluationCriteria) updateData.evaluation_criteria = parsedData.evaluationCriteria;
-    if (parsedData.requiredDocuments) updateData.required_documents = parsedData.requiredDocuments;
+      if (updateError) {
+        console.error('❌ Error updating bando:', updateError);
+        return new Response(JSON.stringify({ error: 'Errore nell\'aggiornamento del bando' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-    const { error: updateError } = await supabase
-      .from('bandi')
-      .update(updateData)
-      .eq('id', bandoId);
-
-    if (updateError) {
-      console.error('Database update error:', updateError);
-      throw new Error(`Failed to update bando: ${updateError.message}`);
+      console.log('✅ Bando updated successfully');
     }
 
-    console.log('PDF parsing completed successfully');
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        parsedData,
-        message: 'PDF analizzato con successo'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ 
+      success: true, 
+      data: parsedData,
+      message: 'Bando analizzato con successo!'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Error in parse-pdf-decreto function:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Errore durante l\'analisi del PDF',
-        success: false 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    console.error('❌ Error in parse-pdf-decreto function:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Errore interno del server',
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
