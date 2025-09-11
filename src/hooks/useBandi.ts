@@ -65,12 +65,18 @@ export const useBandi = () => {
     try {
       if (!user) throw new Error('User not authenticated');
 
+      // Convert empty date strings to null
+      const processedData = {
+        ...bandoData,
+        application_deadline: bandoData.application_deadline === '' ? null : bandoData.application_deadline,
+        project_start_date: bandoData.project_start_date === '' ? null : bandoData.project_start_date,
+        project_end_date: bandoData.project_end_date === '' ? null : bandoData.project_end_date,
+        created_by: user.id
+      };
+
       const { data, error: createError } = await supabase
         .from('bandi')
-        .insert({
-          ...bandoData,
-          created_by: user.id
-        } as any)
+        .insert(processedData as any)
         .select()
         .single();
 
@@ -97,9 +103,17 @@ export const useBandi = () => {
 
   const updateBando = async (id: string, bandoData: Partial<Bando>) => {
     try {
+      // Convert empty date strings to null
+      const processedData = {
+        ...bandoData,
+        application_deadline: bandoData.application_deadline === '' ? null : bandoData.application_deadline,
+        project_start_date: bandoData.project_start_date === '' ? null : bandoData.project_start_date,
+        project_end_date: bandoData.project_end_date === '' ? null : bandoData.project_end_date,
+      };
+
       const { data, error: updateError } = await supabase
         .from('bandi')
-        .update(bandoData)
+        .update(processedData)
         .eq('id', id)
         .select()
         .single();
