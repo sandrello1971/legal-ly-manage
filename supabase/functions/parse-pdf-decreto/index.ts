@@ -157,26 +157,95 @@ serve(async (req) => {
     console.log('🔍 Extracting text from PDF...');
     const pdfText = await extractTextFromPDF(pdfBuffer);
     console.log('📄 PDF text length:', pdfText.length);
-    
-    // Per ora usiamo dati fissi basati su quello che sappiamo del BANDO SI4.0
-    const testData = {
-      title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
-      description: 'Supporto per lo sviluppo di soluzioni innovative Industria 4.0 per PMI lombarde',
-      organization: 'UNIONCAMERE Regione Lombardia',
-      total_amount: null,
-      application_deadline: null,
-      project_start_date: null,
-      project_end_date: null,
-      contact_person: null,
-      contact_email: null,
-      contact_phone: null,
-      website_url: null,
-      eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
-      evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
-      required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori']
-    };
+    console.log('📄 PDF text preview:', pdfText.substring(0, 500));
 
-    console.log('📝 Using test data:', testData);
+    console.log('🤖 Calling OpenAI for PDF analysis...');
+
+    const aiPrompt = `Estrai le informazioni principali da questo BANDO SI4.0 2025:
+
+TESTO DEL BANDO:
+${pdfText.substring(0, 8000)}
+
+Rispondi SOLO con JSON valido con queste informazioni:
+{
+  "title": "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0",
+  "description": "descrizione breve del bando",
+  "organization": "UNIONCAMERE Regione Lombardia",
+  "total_amount": null,
+  "application_deadline": null,
+  "eligibility_criteria": "criteri di ammissibilità",
+  "evaluation_criteria": "criteri di valutazione",
+  "required_documents": ["documenti", "richiesti"]
+}`;
+
+    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-2025-04-14',
+        messages: [{ role: 'user', content: aiPrompt }],
+        max_completion_tokens: 800,
+      }),
+    });
+
+    let testData;
+    if (!aiResponse.ok) {
+      console.error('❌ OpenAI API error:', aiResponse.status);
+      testData = {
+        title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
+        description: 'Errore nella chiamata OpenAI - usando dati fallback',
+        organization: 'UNIONCAMERE Regione Lombardia',
+        total_amount: null,
+        application_deadline: null,
+        project_start_date: null,
+        project_end_date: null,
+        contact_person: null,
+        contact_email: null,
+        contact_phone: null,
+        website_url: null,
+        eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
+        evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
+        required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori']
+      };
+    } else {
+      console.log('✅ OpenAI response received');
+      const aiData = await aiResponse.json();
+      const aiContent = aiData.choices[0]?.message?.content?.trim();
+      console.log('🔍 AI Content:', aiContent);
+      
+      try {
+        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          testData = JSON.parse(jsonMatch[0]);
+          console.log('✅ Successfully parsed AI response');
+        } else {
+          throw new Error('No JSON found in AI response');
+        }
+      } catch (parseError) {
+        console.error('❌ Error parsing AI response:', parseError);
+        testData = {
+          title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
+          description: 'Errore nel parsing AI - usando dati fallback',
+          organization: 'UNIONCAMERE Regione Lombardia',
+          total_amount: null,
+          application_deadline: null,
+          project_start_date: null,
+          project_end_date: null,
+          contact_person: null,
+          contact_email: null,
+          contact_phone: null,
+          website_url: null,
+          eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
+          evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
+          required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori']
+        };
+      }
+    }
+
+    console.log('📝 Using extracted data:', testData);
 
     if (bandoId) {
       console.log('📝 Updating bando with test data...');
