@@ -371,14 +371,13 @@ Rispondi SOLO con JSON valido:
         // Clean and extract JSON from AI response
         let jsonString = aiContent;
         
-        // Remove markdown code blocks if present
-        const backtick = String.fromCharCode(96);
-        const codeBlockStart = backtick + backtick + backtick;
-        if (jsonString.includes(codeBlockStart)) {
-          const regex = new RegExp(codeBlockStart + '(?:json)?\\s*(\\{[\\s\\S]*?\\})\\s*' + codeBlockStart);
-          const codeBlockMatch = jsonString.match(regex);
-          if (codeBlockMatch) {
-            jsonString = codeBlockMatch[1];
+        // Remove markdown code blocks if present - simplified approach
+        if (jsonString.includes('```')) {
+          // Find first { and last }
+          const firstBrace = jsonString.indexOf('{');
+          const lastBrace = jsonString.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            jsonString = jsonString.substring(firstBrace, lastBrace + 1);
           }
         }
         
