@@ -264,45 +264,75 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {bando.parsed_data.objectives && (
+                  {bando.parsed_data.title && (
                     <div>
-                      <h4 className="font-medium mb-2">Obiettivi</h4>
-                      <ul className="space-y-1">
-                        {bando.parsed_data.objectives.map((obj: string, index: number) => (
-                          <li key={index} className="text-sm text-muted-foreground flex items-start">
-                            <Target className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
-                            {obj}
-                          </li>
-                        ))}
-                      </ul>
+                      <h4 className="font-medium mb-2">Titolo Estratto</h4>
+                      <p className="text-sm text-muted-foreground">{bando.parsed_data.title}</p>
+                    </div>
+                  )}
+                  
+                  {bando.parsed_data.description && (
+                    <div>
+                      <h4 className="font-medium mb-2">Descrizione Estratta</h4>
+                      <p className="text-sm text-muted-foreground">{bando.parsed_data.description}</p>
                     </div>
                   )}
 
-                  {bando.parsed_data.expenseCategories && (
+                  {bando.parsed_data.organization && (
                     <div>
-                      <h4 className="font-medium mb-2">Categorie di Spesa</h4>
-                      <div className="space-y-2">
-                        {bando.parsed_data.expenseCategories.map((cat: any, index: number) => (
-                          <div key={index} className="border rounded-lg p-3">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-medium text-sm">{cat.category}</span>
-                              {cat.maxPercentage && (
-                                <Badge variant="outline" className="text-xs">
-                                  Max {cat.maxPercentage}%
-                                </Badge>
-                              )}
-                            </div>
-                            {cat.description && (
-                              <p className="text-xs text-muted-foreground">{cat.description}</p>
-                            )}
-                            {cat.maxAmount && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Importo massimo: {formatCurrency(cat.maxAmount)}
-                              </p>
-                            )}
-                          </div>
+                      <h4 className="font-medium mb-2">Organizzazione</h4>
+                      <p className="text-sm text-muted-foreground flex items-center">
+                        <Building2 className="h-4 w-4 mr-2" />
+                        {bando.parsed_data.organization}
+                      </p>
+                    </div>
+                  )}
+
+                  {bando.parsed_data.total_amount && (
+                    <div>
+                      <h4 className="font-medium mb-2">Importo Totale</h4>
+                      <p className="text-sm text-muted-foreground flex items-center">
+                        <Euro className="h-4 w-4 mr-2" />
+                        {formatCurrency(bando.parsed_data.total_amount)}
+                      </p>
+                    </div>
+                  )}
+
+                  {bando.parsed_data.application_deadline && (
+                    <div>
+                      <h4 className="font-medium mb-2">Scadenza Domanda</h4>
+                      <p className="text-sm text-muted-foreground flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        {formatDate(bando.parsed_data.application_deadline)}
+                      </p>
+                    </div>
+                  )}
+
+                  {bando.parsed_data.eligibility_criteria && (
+                    <div>
+                      <h4 className="font-medium mb-2">Criteri di Eleggibilità Estratti</h4>
+                      <p className="text-sm text-muted-foreground">{bando.parsed_data.eligibility_criteria}</p>
+                    </div>
+                  )}
+
+                  {bando.parsed_data.evaluation_criteria && (
+                    <div>
+                      <h4 className="font-medium mb-2">Criteri di Valutazione Estratti</h4>
+                      <p className="text-sm text-muted-foreground">{bando.parsed_data.evaluation_criteria}</p>
+                    </div>
+                  )}
+
+                  {bando.parsed_data.required_documents && bando.parsed_data.required_documents.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-2">Documenti Richiesti Estratti</h4>
+                      <ul className="space-y-1">
+                        {bando.parsed_data.required_documents.map((doc: string, index: number) => (
+                          <li key={index} className="text-sm text-muted-foreground flex items-start">
+                            <CheckSquare className="h-3 w-3 mt-1 mr-2 flex-shrink-0" />
+                            {doc}
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -370,22 +400,48 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
               <CardTitle>Informazioni Chiave</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {bando.total_amount && (
+              {/* Priorità per dati estratti dal parsed_data */}
+              {(bando.parsed_data?.total_amount || bando.total_amount) && (
                 <div className="flex items-center">
                   <Euro className="h-4 w-4 text-muted-foreground mr-2" />
                   <div>
-                    <p className="font-medium">{formatCurrency(bando.total_amount)}</p>
-                    <p className="text-xs text-muted-foreground">Importo Totale</p>
+                    <p className="font-medium">
+                      {bando.parsed_data?.total_amount ? 
+                        formatCurrency(bando.parsed_data.total_amount) : 
+                        formatCurrency(bando.total_amount)
+                      }
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Importo Totale {bando.parsed_data?.total_amount ? '(Estratto)' : ''}
+                    </p>
                   </div>
                 </div>
               )}
 
-              {bando.application_deadline && (
+              {(bando.parsed_data?.application_deadline || bando.application_deadline) && (
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 text-muted-foreground mr-2" />
                   <div>
-                    <p className="font-medium">{formatDate(bando.application_deadline)}</p>
-                    <p className="text-xs text-muted-foreground">Scadenza Domanda</p>
+                    <p className="font-medium">
+                      {formatDate(bando.parsed_data?.application_deadline || bando.application_deadline)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Scadenza Domanda {bando.parsed_data?.application_deadline ? '(Estratta)' : ''}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {(bando.parsed_data?.organization || bando.organization) && (
+                <div className="flex items-center">
+                  <Building2 className="h-4 w-4 text-muted-foreground mr-2" />
+                  <div>
+                    <p className="font-medium">
+                      {bando.parsed_data?.organization || bando.organization}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Organizzazione {bando.parsed_data?.organization ? '(Estratta)' : ''}
+                    </p>
                   </div>
                 </div>
               )}
@@ -407,6 +463,22 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
                     <p className="font-medium">{formatDate(bando.project_end_date)}</p>
                     <p className="text-xs text-muted-foreground">Fine Progetto</p>
                   </div>
+                </div>
+              )}
+
+              {/* Se non ci sono informazioni chiave, mostra un messaggio */}
+              {!bando.parsed_data?.total_amount && !bando.total_amount && 
+               !bando.parsed_data?.application_deadline && !bando.application_deadline &&
+               !bando.parsed_data?.organization && !bando.organization &&
+               !bando.project_start_date && !bando.project_end_date && (
+                <div className="text-center py-4">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Nessuna informazione chiave disponibile
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    I dati verranno estratti automaticamente dal documento PDF
+                  </p>
                 </div>
               )}
             </CardContent>
