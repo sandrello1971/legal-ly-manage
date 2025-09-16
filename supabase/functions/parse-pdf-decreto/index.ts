@@ -118,187 +118,49 @@ serve(async (req) => {
 
     let pdfBuffer: ArrayBuffer;
     
-    if (storagePath) {
-      console.log('📥 Downloading PDF from storage:', storagePath);
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from('documents')
-        .download(storagePath);
-      
-      if (downloadError || !fileData) {
-        console.error('❌ Error downloading from storage:', downloadError);
-        return new Response(JSON.stringify({ error: 'Impossibile scaricare il PDF dallo storage' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      pdfBuffer = await fileData.arrayBuffer();
-    } else if (fileUrl) {
-      console.log('📥 Downloading PDF from URL:', fileUrl);
-      const response = await fetch(fileUrl);
-      
-      if (!response.ok) {
-        console.error('❌ Error downloading from URL:', response.statusText);
-        return new Response(JSON.stringify({ error: 'Impossibile scaricare il PDF dall\'URL' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      pdfBuffer = await response.arrayBuffer();
-    } else {
-      console.error('❌ No file source provided');
-      return new Response(JSON.stringify({ error: 'Nessun file PDF fornito' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Test semplificato - ritorna subito successo per debug
+    console.log('🔍 Starting simplified test...');
+    
+    const testData = {
+      title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
+      description: 'Supporto per lo sviluppo di soluzioni innovative Industria 4.0',
+      organization: 'UNIONCAMERE Regione Lombardia',
+      total_amount: null,
+      application_deadline: null,
+      project_start_date: null,
+      project_end_date: null,
+      contact_person: null,
+      contact_email: null,
+      contact_phone: null,
+      website_url: null,
+      eligibility_criteria: 'PMI e micro imprese lombarde',
+      evaluation_criteria: null,
+      required_documents: ['Visura camerale', 'Piano di sviluppo']
+    };
 
-    console.log('🔍 Extracting text from PDF...');
-    const pdfText = await extractTextFromPDF(pdfBuffer);
-
-    console.log('🤖 Calling OpenAI for PDF analysis...');
-
-    const aiPrompt = `Estrai TUTTE le informazioni da questo BANDO SI4.0 2025 di UNIONCAMERE Regione Lombardia.
-
-TESTO COMPLETO DEL BANDO:
-${pdfText.substring(0, 15000)}
-
-ESTRAI QUESTE INFORMAZIONI SPECIFICHE (presenti nel testo):
-- Dotazione finanziaria: cerca "dotazione", "budget", "risorse", "euro", "€"
-- Date di scadenza: cerca "presentazione domande", "termine", "scadenza" 
-- Date progetto: cerca "durata", "avvio", "conclusione"
-- Beneficiari: cerca "soggetti beneficiari", "PMI", "micro imprese"
-- Spese ammissibili: cerca "spese ammissibili", "costi", "investimenti"
-- Agevolazioni: cerca "contributo", "percentuale", "intensità"
-- Contatti: cerca "punto impresa digitale", "email", "telefono"
-- Criteri: cerca "criteri di ammissibilità", "valutazione"
-
-Rispondi SOLO con JSON valido:
-{
-  "title": "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0",
-  "description": "breve descrizione obiettivi e finalità",
-  "organization": "UNIONCAMERE Regione Lombardia", 
-  "total_amount": importo_dotazione_se_presente,
-  "application_deadline": "YYYY-MM-DD_se_data_scadenza_presente",
-  "project_start_date": "YYYY-MM-DD_se_presente",
-  "project_end_date": "YYYY-MM-DD_se_presente", 
-  "contact_person": "referente_se_presente",
-  "contact_email": "email_punto_impresa_digitale",
-  "contact_phone": "telefono_se_presente",
-  "website_url": "sito_se_presente",
-  "eligibility_criteria": "criteri ammissibilità completi",
-  "evaluation_criteria": "criteri valutazione",
-  "required_documents": ["elenco", "documenti", "richiesti"]
-}`;
-
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [
-          {
-            role: 'user',
-            content: aiPrompt
-          }
-        ],
-        max_completion_tokens: 1500,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('❌ OpenAI API error:', aiResponse.status, errorText);
-      return new Response(JSON.stringify({ error: 'Errore nell\'analisi AI' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const aiData = await aiResponse.json();
-    console.log('✅ OpenAI response received');
-
-    let parsedData;
-    try {
-      const aiContent = aiData.choices[0]?.message?.content?.trim();
-      console.log('🔍 AI Response Length:', aiContent?.length || 0);
-      console.log('🔍 AI Content Preview:', aiContent?.substring(0, 200) || 'EMPTY RESPONSE');
-      
-      if (!aiContent) {
-        console.error('❌ AI returned empty content');
-        parsedData = {
-          title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
-          description: 'PDF caricato correttamente ma informazioni non estratte automaticamente',
-          organization: 'UNIONCAMERE Regione Lombardia',
-          status: 'active'
-        };
-      } else {
-        let jsonString = aiContent;
-        
-        // Extract JSON object directly
-        const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          jsonString = jsonMatch[0];
-        }
-        
-        console.log('🔍 Extracted JSON:', jsonString);
-        
-        if (!jsonString || jsonString.trim().length === 0) {
-          console.error('❌ No valid JSON found in AI response');
-          parsedData = {
-            title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
-            description: 'PDF caricato ma formato JSON non valido dalla AI',
-            organization: 'UNIONCAMERE Regione Lombardia',
-            status: 'active'
-          };
-        } else {
-          parsedData = JSON.parse(jsonString);
-          
-          if (!parsedData.title || parsedData.title.trim().length === 0) {
-            parsedData.title = 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0';
-          }
-          
-          console.log('✅ Successfully parsed AI response:', parsedData);
-        }
-      }
-    } catch (parseError) {
-      console.error('❌ Error parsing AI response:', parseError);
-      console.error('❌ Raw AI content:', aiData.choices[0]?.message?.content || 'NO CONTENT');
-      
-      parsedData = {
-        title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
-        description: 'PDF caricato ma errore nell\'analisi automatica delle informazioni',
-        organization: 'UNIONCAMERE Regione Lombardia',
-        status: 'active'
-      };
-      console.log('📋 Using fallback data due to parse error:', parsedData);
-    }
+    console.log('📝 Using test data:', testData);
 
     if (bandoId) {
-      console.log('📝 Updating bando with parsed data...');
+      console.log('📝 Updating bando with test data...');
       
       const { error: updateError } = await supabase
         .from('bandi')
         .update({
-          title: parsedData.title || 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
-          description: parsedData.description,
-          organization: parsedData.organization || 'UNIONCAMERE Regione Lombardia',
-          total_amount: parsedData.total_amount,
-          application_deadline: parsedData.application_deadline,
-          project_start_date: parsedData.project_start_date,
-          project_end_date: parsedData.project_end_date,
-          contact_person: parsedData.contact_person,
-          contact_email: parsedData.contact_email,
-          contact_phone: parsedData.contact_phone,
-          website_url: parsedData.website_url,
-          eligibility_criteria: parsedData.eligibility_criteria,
-          evaluation_criteria: parsedData.evaluation_criteria,
-          required_documents: parsedData.required_documents,
-          parsed_data: parsedData,
+          title: testData.title,
+          description: testData.description,
+          organization: testData.organization,
+          total_amount: testData.total_amount,
+          application_deadline: testData.application_deadline,
+          project_start_date: testData.project_start_date,
+          project_end_date: testData.project_end_date,
+          contact_person: testData.contact_person,
+          contact_email: testData.contact_email,
+          contact_phone: testData.contact_phone,
+          website_url: testData.website_url,
+          eligibility_criteria: testData.eligibility_criteria,
+          evaluation_criteria: testData.evaluation_criteria,
+          required_documents: testData.required_documents,
+          parsed_data: testData,
           decree_file_name: fileName,
           status: 'active',
           updated_at: new Date().toISOString()
@@ -319,8 +181,8 @@ Rispondi SOLO con JSON valido:
 
     return new Response(JSON.stringify({ 
       success: true, 
-      data: parsedData,
-      message: 'Bando analizzato con successo!'
+      data: testData,
+      message: 'Test completato con successo!'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
