@@ -372,8 +372,11 @@ Rispondi SOLO con JSON valido:
         let jsonString = aiContent;
         
         // Remove markdown code blocks if present
-        if (jsonString.includes('`')) {
-          const codeBlockMatch = jsonString.match(/`{3}(?:json)?\s*(\{[\s\S]*?\})\s*`{3}/);
+        const backtick = String.fromCharCode(96);
+        const codeBlockStart = backtick + backtick + backtick;
+        if (jsonString.includes(codeBlockStart)) {
+          const regex = new RegExp(codeBlockStart + '(?:json)?\\s*(\\{[\\s\\S]*?\\})\\s*' + codeBlockStart);
+          const codeBlockMatch = jsonString.match(regex);
           if (codeBlockMatch) {
             jsonString = codeBlockMatch[1];
           }
