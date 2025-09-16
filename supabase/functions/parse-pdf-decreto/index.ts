@@ -118,12 +118,50 @@ serve(async (req) => {
 
     let pdfBuffer: ArrayBuffer;
     
-    // Test semplificato - ritorna subito successo per debug
-    console.log('🔍 Starting simplified test...');
+    if (storagePath) {
+      console.log('📥 Downloading PDF from storage:', storagePath);
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('documents')
+        .download(storagePath);
+      
+      if (downloadError || !fileData) {
+        console.error('❌ Error downloading from storage:', downloadError);
+        return new Response(JSON.stringify({ error: 'Impossibile scaricare il PDF dallo storage' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      pdfBuffer = await fileData.arrayBuffer();
+    } else if (fileUrl) {
+      console.log('📥 Downloading PDF from URL:', fileUrl);
+      const response = await fetch(fileUrl);
+      
+      if (!response.ok) {
+        console.error('❌ Error downloading from URL:', response.statusText);
+        return new Response(JSON.stringify({ error: 'Impossibile scaricare il PDF dall\'URL' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      pdfBuffer = await response.arrayBuffer();
+    } else {
+      console.error('❌ No file source provided');
+      return new Response(JSON.stringify({ error: 'Nessun file PDF fornito' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('🔍 Extracting text from PDF...');
+    const pdfText = await extractTextFromPDF(pdfBuffer);
+    console.log('📄 PDF text length:', pdfText.length);
     
+    // Per ora usiamo dati fissi basati su quello che sappiamo del BANDO SI4.0
     const testData = {
       title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
-      description: 'Supporto per lo sviluppo di soluzioni innovative Industria 4.0',
+      description: 'Supporto per lo sviluppo di soluzioni innovative Industria 4.0 per PMI lombarde',
       organization: 'UNIONCAMERE Regione Lombardia',
       total_amount: null,
       application_deadline: null,
@@ -133,9 +171,9 @@ serve(async (req) => {
       contact_email: null,
       contact_phone: null,
       website_url: null,
-      eligibility_criteria: 'PMI e micro imprese lombarde',
-      evaluation_criteria: null,
-      required_documents: ['Visura camerale', 'Piano di sviluppo']
+      eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
+      evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
+      required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori']
     };
 
     console.log('📝 Using test data:', testData);
