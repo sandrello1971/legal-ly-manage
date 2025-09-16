@@ -2,12 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
-// Import PDF processing library
-const { getDocument, GlobalWorkerOptions } = await import('https://esm.sh/pdfjs-dist@4.4.168/build/pdf.min.mjs');
-
-// Set PDF.js worker (required for text extraction)
-GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -17,70 +11,140 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo da PDF usando PDF.js
+// Estrazione testo migliorata senza librerie esterne per evitare problemi di compatibilità
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
     
-    // Load PDF document using PDF.js
-    const loadingTask = getDocument({
-      data: new Uint8Array(pdfBuffer),
-      useSystemFonts: true,
-      standardFontDataUrl: 'https://esm.sh/pdfjs-dist@4.4.168/web/',
-    });
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
+    const pdfString = textDecoder.decode(uint8Array);
     
-    const pdf = await loadingTask.promise;
-    console.log('📄 PDF loaded, pages:', pdf.numPages);
+    let extractedText = '';
     
-    let fullText = '';
+    console.log('🔍 Starting advanced text extraction...');
     
-    // Extract text from each page (limit to first 10 pages for performance)
-    const maxPages = Math.min(pdf.numPages, 10);
-    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-      try {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        
-        // Combine text items from the page
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ')
+    // Metodo 1: Estrazione testo da stream di contenuto PDF
+    const streamPattern = /stream\s*(.*?)\s*endstream/gs;
+    const streamMatches = [...pdfString.matchAll(streamPattern)];
+    
+    console.log('📄 Found', streamMatches.length, 'content streams');
+    
+    for (const match of streamMatches) {
+      const streamContent = match[1];
+      
+      // Cerca testo tra parentesi (formato PDF standard)
+      const textInParentheses = /\(([^)]+)\)/g;
+      const textMatches = [...streamContent.matchAll(textInParentheses)];
+      
+      for (const textMatch of textMatches) {
+        let text = textMatch[1]
+          .replace(/\\n/g, ' ')
+          .replace(/\\r/g, ' ')
+          .replace(/\\t/g, ' ')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\')
           .trim();
         
-        if (pageText) {
-          fullText += pageText + ' ';
-          console.log(`📄 Page ${pageNum}: ${pageText.length} characters extracted`);
+        if (text.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(text)) {
+          extractedText += text + ' ';
         }
-      } catch (pageError) {
-        console.warn(`⚠️ Error extracting page ${pageNum}:`, pageError);
-        continue;
       }
     }
     
-    // Clean up extracted text
-    fullText = fullText
-      .replace(/\s+/g, ' ')  // Normalize whitespace
-      .replace(/\n+/g, ' ')  // Replace newlines with spaces
-      .replace(/\t+/g, ' ')  // Replace tabs with spaces
-      .trim();
+    // Metodo 2: Estrazione da comandi di testo Tj e TJ
+    const tjPattern = /\(([^)]+)\)\s*Tj/g;
+    const tjMatches = [...pdfString.matchAll(tjPattern)];
     
-    console.log('✅ Total extracted text:', fullText.length, 'characters');
-    console.log('📄 Preview:', fullText.substring(0, 500) + '...');
+    console.log('📄 Found', tjMatches.length, 'Tj text commands');
     
-    if (fullText.length < 100) {
-      console.warn('⚠️ Very short text extracted, might be insufficient');
+    for (const match of tjMatches) {
+      let text = match[1]
+        .replace(/\\n/g, ' ')
+        .replace(/\\r/g, ' ')
+        .replace(/\\t/g, ' ')
+        .trim();
       
-      // Fallback: try byte-level extraction for problematic PDFs
-      console.log('🔄 Trying fallback extraction method...');
-      return await extractTextFallback(pdfBuffer);
+      if (text.length >= 2 && /[a-zA-ZÀ-ÿ]/.test(text)) {
+        extractedText += text + ' ';
+      }
     }
     
-    return fullText;
+    // Metodo 3: Estrazione da array di testo TJ
+    const tjArrayPattern = /\[([^\]]+)\]\s*TJ/g;
+    const tjArrayMatches = [...pdfString.matchAll(tjArrayPattern)];
+    
+    console.log('📄 Found', tjArrayMatches.length, 'TJ array commands');
+    
+    for (const match of tjArrayMatches) {
+      const arrayContent = match[1];
+      const stringPattern = /\(([^)]+)\)/g;
+      const strings = [...arrayContent.matchAll(stringPattern)];
+      
+      for (const str of strings) {
+        let text = str[1]
+          .replace(/\\n/g, ' ')
+          .replace(/\\r/g, ' ')
+          .trim();
+        
+        if (text.length >= 2 && /[a-zA-ZÀ-ÿ]/.test(text)) {
+          extractedText += text + ' ';
+        }
+      }
+    }
+    
+    // Metodo 4: Ricerca diretta di testo leggibile nell'intero documento
+    const readableTextPattern = /[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s.,;:!?\-()€%\u00C0-\u017F]{5,}/g;
+    const readableMatches = [...pdfString.matchAll(readableTextPattern)];
+    
+    console.log('📄 Found', readableMatches.length, 'readable text segments');
+    
+    for (const match of readableMatches) {
+      const text = match[0].trim();
+      // Filtra solo testo che sembra reale (non codici binari)
+      if (text.length >= 5 && 
+          !text.includes('\x00') && 
+          !text.includes('\xFF') &&
+          !/^[0-9a-fA-F\s]+$/.test(text)) {
+        extractedText += text + ' ';
+      }
+    }
+    
+    // Pulizia finale
+    extractedText = extractedText
+      .replace(/\s+/g, ' ')  // Normalizza spazi
+      .replace(/(.)\1{5,}/g, '$1$1')  // Rimuovi ripetizioni eccessive
+      .trim();
+    
+    // Rimuovi duplicati di parole consecutive
+    const words = extractedText.split(' ');
+    const uniqueWords = [];
+    let lastWord = '';
+    
+    for (const word of words) {
+      if (word !== lastWord || word.length > 10) {
+        uniqueWords.push(word);
+        lastWord = word;
+      }
+    }
+    
+    extractedText = uniqueWords.join(' ');
+    
+    console.log('✅ Total extracted text:', extractedText.length, 'characters');
+    console.log('📄 Preview (first 300 chars):', extractedText.substring(0, 300) + '...');
+    
+    if (extractedText.length < 100) {
+      console.warn('⚠️ Very short text extracted, trying alternative method...');
+      return extractTextFallback(pdfBuffer);
+    }
+    
+    return extractedText;
     
   } catch (error) {
-    console.error('❌ Error in PDF.js extraction:', error);
+    console.error('❌ Error in main extraction:', error);
     console.log('🔄 Trying fallback extraction method...');
-    return await extractTextFallback(pdfBuffer);
+    return extractTextFallback(pdfBuffer);
   }
 };
 
