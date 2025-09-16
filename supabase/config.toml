@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.analyze-expense-document]
 verify_jwt = false
+
+[functions.analyze-project-document]
+verify_jwt = false
