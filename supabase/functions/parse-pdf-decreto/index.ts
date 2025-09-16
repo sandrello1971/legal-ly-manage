@@ -161,21 +161,37 @@ serve(async (req) => {
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
-    const aiPrompt = `Estrai le informazioni principali da questo BANDO SI4.0 2025:
+    const aiPrompt = `Estrai le informazioni principali da questo BANDO SI4.0 2025 includendo TUTTI i dati economici disponibili:
 
 TESTO DEL BANDO:
 ${pdfText.substring(0, 8000)}
 
-Rispondi SOLO con JSON valido con queste informazioni:
+Rispondi SOLO con JSON valido con queste informazioni complete:
 {
-  "title": "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0",
-  "description": "descrizione breve del bando",
-  "organization": "UNIONCAMERE Regione Lombardia",
-  "total_amount": null,
-  "application_deadline": null,
-  "eligibility_criteria": "criteri di ammissibilità",
-  "evaluation_criteria": "criteri di valutazione",
-  "required_documents": ["documenti", "richiesti"]
+  "title": "titolo completo del bando",
+  "description": "descrizione dettagliata del bando",
+  "organization": "ente organizzatore",
+  "total_amount": "importo totale disponibile come numero",
+  "min_funding": "importo minimo finanziabile come numero", 
+  "max_funding": "importo massimo finanziabile come numero",
+  "funding_percentage": "percentuale di copertura come numero (es. 50 per 50%)",
+  "application_deadline": "data scadenza in formato YYYY-MM-DD",
+  "project_duration_months": "durata massima progetto in mesi come numero",
+  "eligibility_criteria": "criteri di ammissibilità dettagliati",
+  "evaluation_criteria": "criteri di valutazione dettagliati", 
+  "required_documents": ["lista", "documenti", "richiesti"],
+  "expense_categories": [
+    {
+      "name": "nome categoria",
+      "description": "descrizione categoria", 
+      "max_percentage": "percentuale massima come numero",
+      "max_amount": "importo massimo come numero",
+      "eligible_expenses": ["spese", "ammissibili"]
+    }
+  ],
+  "target_companies": "tipologie aziende destinatarie",
+  "geographic_scope": "ambito geografico",
+  "innovation_areas": ["aree", "di", "innovazione"]
 }`;
 
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -199,16 +215,24 @@ Rispondi SOLO con JSON valido con queste informazioni:
         description: 'Errore nella chiamata OpenAI - usando dati fallback',
         organization: 'UNIONCAMERE Regione Lombardia',
         total_amount: null,
+        min_funding: null,
+        max_funding: null,
+        funding_percentage: null,
         application_deadline: null,
         project_start_date: null,
         project_end_date: null,
+        project_duration_months: null,
         contact_person: null,
         contact_email: null,
         contact_phone: null,
         website_url: null,
         eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
         evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
-        required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori']
+        required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori'],
+        expense_categories: [],
+        target_companies: null,
+        geographic_scope: null,
+        innovation_areas: []
       };
     } else {
       console.log('✅ OpenAI response received');
@@ -231,16 +255,24 @@ Rispondi SOLO con JSON valido con queste informazioni:
           description: 'Errore nel parsing AI - usando dati fallback',
           organization: 'UNIONCAMERE Regione Lombardia',
           total_amount: null,
+          min_funding: null,
+          max_funding: null,
+          funding_percentage: null,
           application_deadline: null,
           project_start_date: null,
           project_end_date: null,
+          project_duration_months: null,
           contact_person: null,
           contact_email: null,
           contact_phone: null,
           website_url: null,
           eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
           evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
-          required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori']
+          required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori'],
+          expense_categories: [],
+          target_companies: null,
+          geographic_scope: null,
+          innovation_areas: []
         };
       }
     }

@@ -88,8 +88,10 @@ export default function Bandi() {
   };
 
   const handleEditBando = (bando: any) => {
+    console.log('Editing bando:', bando);
     setEditingBando(bando);
     setShowForm(true);
+    setSelectedBando(null); // Chiudi la vista dettaglio
   };
 
   const handleDeleteBando = async (id: string) => {
