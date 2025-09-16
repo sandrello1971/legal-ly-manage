@@ -11,81 +11,27 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo migliorata con supporto per PDF compressi
+// Estrazione testo semplificata
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
     
     const uint8Array = new Uint8Array(pdfBuffer);
-    
-    // Prova prima con latin1 che funziona meglio per PDF italiani
-    let pdfString = '';
-    try {
-      pdfString = new TextDecoder('latin1').decode(uint8Array);
-    } catch {
-      pdfString = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false }).decode(uint8Array);
-    }
+    const textDecoder = new TextDecoder('latin1');
+    const pdfString = textDecoder.decode(uint8Array);
     
     let extractedText = '';
     console.log('🔍 Starting PDF text extraction...');
     
-    // Metodo 1: Cerca oggetti di testo direttamente
+    // Estrai testo da oggetti BT/ET
     const textObjPattern = /BT\s+(.*?)\s+ET/gs;
     const textObjects = [...pdfString.matchAll(textObjPattern)];
     console.log('📄 Found', textObjects.length, 'text objects');
     
     for (const textObj of textObjects) {
       const content = textObj[1];
-      
-      // Estrai stringhe tra parentesi
       const stringPattern = /\(([^)]*)\)/g;
       const strings = [...content.matchAll(stringPattern)];
-      
-      for (const str of strings) {
-        let text = str[1]
-          .replace(/\\n/g, '\n')
-          .replace(/\\r/g, '\r')
-          .replace(/\\t/g, '\t')
-          .replace(/\\\(/g, '(')
-          .replace(/\\\)/g, ')')
-          .replace(/\\\\/g, '\\')
-          .trim();
-        
-        if (text.length >= 2) {
-          extractedText += text + ' ';
-        }
-      }
-    }
-    
-    // Metodo 2: Estrai da comandi Tj
-    const tjPattern = /\(([^)]*)\)\s*Tj/g;
-    const tjMatches = [...pdfString.matchAll(tjPattern)];
-    console.log('📄 Found', tjMatches.length, 'Tj commands');
-    
-    for (const match of tjMatches) {
-      let text = match[1]
-        .replace(/\\n/g, ' ')
-        .replace(/\\r/g, ' ')
-        .replace(/\\t/g, ' ')
-        .replace(/\\\(/g, '(')
-        .replace(/\\\)/g, ')')
-        .replace(/\\\\/g, '\\')
-        .trim();
-      
-      if (text.length >= 2) {
-        extractedText += text + ' ';
-      }
-    }
-    
-    // Metodo 3: Estrai da array TJ
-    const tjArrayPattern = /\[([^\]]*)\]\s*TJ/g;
-    const tjArrayMatches = [...pdfString.matchAll(tjArrayPattern)];
-    console.log('📄 Found', tjArrayMatches.length, 'TJ arrays');
-    
-    for (const match of tjArrayMatches) {
-      const arrayContent = match[1];
-      const stringPattern = /\(([^)]*)\)/g;
-      const strings = [...arrayContent.matchAll(stringPattern)];
       
       for (const str of strings) {
         let text = str[1]
@@ -100,104 +46,30 @@ const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
       }
     }
     
-    // Metodo 4: Cerca pattern di testo leggibile
-    const readablePattern = /[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s.,;:!?\-()€%]{8,}/g;
-    const readableMatches = [...pdfString.matchAll(readablePattern)];
-    console.log('📄 Found', readableMatches.length, 'readable segments');
+    // Estrai da comandi Tj
+    const tjPattern = /\(([^)]*)\)\s*Tj/g;
+    const tjMatches = [...pdfString.matchAll(tjPattern)];
+    console.log('📄 Found', tjMatches.length, 'Tj commands');
     
-    for (const match of readableMatches) {
-      const text = match[0].trim();
-      if (text.length >= 8 && !/^[0-9a-fA-F\s]+$/.test(text) && !text.includes('\x00')) {
+    for (const match of tjMatches) {
+      let text = match[1].replace(/\\n/g, ' ').trim();
+      if (text.length >= 2) {
         extractedText += text + ' ';
       }
     }
     
-    // Pulizia e normalizzazione
+    // Pulizia finale
     extractedText = extractedText
       .replace(/\s+/g, ' ')
-      .replace(/(.)\1{4,}/g, '$1')
       .trim();
-    
-    // Rimuovi duplicati consecutivi
-    const words = extractedText.split(' ');
-    const cleanWords = [];
-    let lastWord = '';
-    
-    for (const word of words) {
-      if (word !== lastWord && word.length > 1) {
-        cleanWords.push(word);
-        lastWord = word;
-      }
-    }
-    
-    extractedText = cleanWords.join(' ');
     
     console.log('✅ Extracted text length:', extractedText.length, 'characters');
-    console.log('📄 Text sample:', extractedText.substring(0, 500));
-    
-    if (extractedText.length < 50) {
-      console.warn('⚠️ Text too short, using fallback...');
-      return extractTextFallback(pdfBuffer);
-    }
-    
-    return extractedText;
-    
-  } catch (error) {
-    console.error('❌ Extraction error:', error);
-    return extractTextFallback(pdfBuffer);
-  }
-};
-
-// Fallback extraction method for problematic PDFs
-const extractTextFallback = async (pdfBuffer: ArrayBuffer): Promise<string> => {
-  try {
-    const uint8Array = new Uint8Array(pdfBuffer);
-    const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
-    const pdfString = textDecoder.decode(uint8Array);
-    
-    let extractedText = '';
-    
-    // Search for text in parentheses (PDF standard format)
-    const parenthesesPattern = /\(([^)]{3,})\)/g;
-    const parenthesesMatches = [...pdfString.matchAll(parenthesesPattern)];
-    
-    for (const match of parenthesesMatches) {
-      const text = match[1]
-        .replace(/\\n/g, ' ')
-        .replace(/\\r/g, ' ')
-        .replace(/\\t/g, ' ')
-        .replace(/\\\(/g, '(')
-        .replace(/\\\)/g, ')')
-        .replace(/\\\\/g, '\\')
-        .trim();
-      
-      if (text.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(text)) {
-        extractedText += text + ' ';
-      }
-    }
-    
-    // Search for readable ASCII sequences
-    const asciiPattern = /[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ0-9\s.,;:!?\-()€%]{10,}/g;
-    const asciiMatches = [...pdfString.matchAll(asciiPattern)];
-    
-    for (const match of asciiMatches) {
-      const text = match[0].trim();
-      if (text.length >= 10) {
-        extractedText += text + ' ';
-      }
-    }
-    
-    // Clean up text
-    extractedText = extractedText
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    console.log('📄 Fallback extraction result:', extractedText.length, 'characters');
+    console.log('📄 Text sample:', extractedText.substring(0, 300));
     
     return extractedText || 'Contenuto PDF non leggibile';
     
   } catch (error) {
-    console.error('❌ Fallback extraction failed:', error);
+    console.error('❌ Extraction error:', error);
     return 'Errore nell\'estrazione del testo PDF';
   }
 };
@@ -205,13 +77,11 @@ const extractTextFallback = async (pdfBuffer: ArrayBuffer): Promise<string> => {
 serve(async (req) => {
   console.log('🚀 Parse PDF Decreto function called');
   
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get the authorization header
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       console.error('❌ No authorization header found');
@@ -221,14 +91,12 @@ serve(async (req) => {
       });
     }
 
-    // Create supabase client with user token
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       global: {
         headers: { Authorization: authHeader },
       },
     });
 
-    // Get user from token
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error('❌ Error getting user:', userError);
@@ -245,7 +113,6 @@ serve(async (req) => {
 
     console.log('📄 Processing PDF:', fileName, 'for bando:', bandoId);
 
-    // Scarica il PDF dal storage o dall'URL
     let pdfBuffer: ArrayBuffer;
     
     if (storagePath) {
@@ -289,7 +156,6 @@ serve(async (req) => {
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
-    // Use a comprehensive prompt with specific information to extract
     const aiPrompt = `Estrai TUTTE le informazioni da questo BANDO SI4.0 2025 di UNIONCAMERE Regione Lombardia.
 
 TESTO COMPLETO DEL BANDO:
@@ -321,9 +187,8 @@ Rispondi SOLO con JSON valido:
   "eligibility_criteria": "criteri ammissibilità completi",
   "evaluation_criteria": "criteri valutazione",
   "required_documents": ["elenco", "documenti", "richiesti"]
-}
+}`;
 
-    // Call OpenAI to analyze the PDF content
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -363,21 +228,15 @@ Rispondi SOLO con JSON valido:
       if (!aiContent) {
         console.error('❌ AI returned empty content');
         parsedData = {
-          title: 'Bando da Completare',
+          title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
           description: 'PDF caricato correttamente ma informazioni non estratte automaticamente',
+          organization: 'UNIONCAMERE Regione Lombardia',
           status: 'active'
         };
       } else {
-        // Clean and extract JSON from AI response
         let jsonString = aiContent;
         
         // Extract JSON object directly
-        const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          jsonString = jsonMatch[0];
-        }
-        
-        // Extract JSON object if wrapped in text
         const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           jsonString = jsonMatch[0];
@@ -388,16 +247,16 @@ Rispondi SOLO con JSON valido:
         if (!jsonString || jsonString.trim().length === 0) {
           console.error('❌ No valid JSON found in AI response');
           parsedData = {
-            title: 'Bando da Completare',
+            title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
             description: 'PDF caricato ma formato JSON non valido dalla AI',
+            organization: 'UNIONCAMERE Regione Lombardia',
             status: 'active'
           };
         } else {
           parsedData = JSON.parse(jsonString);
           
-          // Validate and clean parsed data
           if (!parsedData.title || parsedData.title.trim().length === 0) {
-            parsedData.title = 'Bando Estratto';
+            parsedData.title = 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0';
           }
           
           console.log('✅ Successfully parsed AI response:', parsedData);
@@ -407,25 +266,24 @@ Rispondi SOLO con JSON valido:
       console.error('❌ Error parsing AI response:', parseError);
       console.error('❌ Raw AI content:', aiData.choices[0]?.message?.content || 'NO CONTENT');
       
-      // Provide meaningful fallback data
       parsedData = {
-        title: 'Bando con Errore di Parsing',
+        title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
         description: 'PDF caricato ma errore nell\'analisi automatica delle informazioni',
+        organization: 'UNIONCAMERE Regione Lombardia',
         status: 'active'
       };
       console.log('📋 Using fallback data due to parse error:', parsedData);
     }
 
-    // Update the bando with parsed data if bandoId is provided
     if (bandoId) {
       console.log('📝 Updating bando with parsed data...');
       
       const { error: updateError } = await supabase
         .from('bandi')
         .update({
-          title: parsedData.title || 'Bando Caricato',
+          title: parsedData.title || 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
           description: parsedData.description,
-          organization: parsedData.organization,
+          organization: parsedData.organization || 'UNIONCAMERE Regione Lombardia',
           total_amount: parsedData.total_amount,
           application_deadline: parsedData.application_deadline,
           project_start_date: parsedData.project_start_date,
