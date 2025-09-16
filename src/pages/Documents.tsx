@@ -21,23 +21,29 @@ import {
   User,
   HardDrive,
   MoreHorizontal,
-  Plus
+  Plus,
+  BarChart3
 } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
+import { useProjects } from '@/hooks/useProjects';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 export default function Documents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [filterProject, setFilterProject] = useState('all');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState('');
   
   const { data: documents, isLoading } = useDocuments();
+  const { projects } = useProjects();
 
   const filteredDocuments = documents?.filter(doc => {
     const matchesSearch = doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.file_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || doc.document_type === filterType;
+    // TODO: Add project filter when documents have project_id
     return matchesSearch && matchesType;
   }) || [];
 
@@ -125,6 +131,30 @@ export default function Documents() {
                 </Select>
               </div>
               <div className="grid gap-2">
+                <Label htmlFor="project">Associa al Progetto</Label>
+                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona progetto (opzionale)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nessun progetto</SelectItem>
+                    {projects?.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.title} - {new Intl.NumberFormat('it-IT', {
+                          style: 'currency',
+                          currency: 'EUR'
+                        }).format(project.total_budget)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedProject && (
+                  <p className="text-xs text-muted-foreground">
+                    Il documento verrà analizzato automaticamente per verificare se è una spesa imputabile al progetto
+                  </p>
+                )}
+              </div>
+              <div className="grid gap-2">
                 <Label htmlFor="description">Descrizione</Label>
                 <Textarea id="description" placeholder="Descrizione opzionale" />
               </div>
@@ -187,6 +217,21 @@ export default function Documents() {
             className="pl-10"
           />
         </div>
+        <Select value={filterProject} onValueChange={setFilterProject}>
+          <SelectTrigger className="w-[200px]">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Filtra per progetto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti i progetti</SelectItem>
+            <SelectItem value="none">Nessun progetto</SelectItem>
+            {projects?.map((project) => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-[180px]">
             <Filter className="h-4 w-4 mr-2" />

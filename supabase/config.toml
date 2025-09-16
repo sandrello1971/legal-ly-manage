@@ -1,1 +1,10 @@
 project_id = "cpopaqguywwaqprrvony"
+
+[functions.parse-pdf-decreto]
+verify_jwt = false
+
+[functions.process-expense-receipt]
+verify_jwt = false
+
+[functions.analyze-expense-document]
+verify_jwt = false

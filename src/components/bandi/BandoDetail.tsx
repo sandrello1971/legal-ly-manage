@@ -26,7 +26,9 @@ import {
 import { useBandi, type Bando } from "@/hooks/useBandi";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { useProjects } from "@/hooks/useProjects";
+import { useProjects, type Project } from "@/hooks/useProjects";
+import { ProjectForm } from "@/components/projects/ProjectForm";
+import { ProjectDashboard } from "@/components/projects/ProjectDashboard";
 
 interface BandoDetailProps {
   bandoId: string;
@@ -38,8 +40,12 @@ interface BandoDetailProps {
 export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailProps) => {
   const [bando, setBando] = useState<Bando | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showProjectForm, setShowProjectForm] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  
   const { getBandoById } = useBandi();
-  const { projects } = useProjects(bandoId);
+  const { projects, refetch: refetchProjects } = useProjects(bandoId);
 
   useEffect(() => {
     const fetchBando = async () => {
@@ -124,6 +130,68 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
       currency: 'EUR'
     }).format(amount);
   };
+
+  const handleProjectSuccess = () => {
+    setShowProjectForm(false);
+    setEditingProject(null);
+    refetchProjects();
+  };
+
+  const handleEditProject = () => {
+    setEditingProject(selectedProject);
+    setShowProjectForm(true);
+    setSelectedProject(null);
+  };
+
+  const handleAddExpense = () => {
+    // TODO: Navigate to expenses page with project filter
+    console.log('Add expense for project:', selectedProject?.id);
+  };
+
+  // Show project form
+  if (showProjectForm) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" onClick={() => setShowProjectForm(false)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Indietro al Bando
+          </Button>
+          <h1 className="text-2xl font-bold">
+            {editingProject ? 'Modifica Progetto' : 'Nuovo Progetto'}
+          </h1>
+        </div>
+        <ProjectForm
+          bandoId={bandoId}
+          onSuccess={handleProjectSuccess}
+          onCancel={() => {
+            setShowProjectForm(false);
+            setEditingProject(null);
+          }}
+          initialData={editingProject || undefined}
+        />
+      </div>
+    );
+  }
+
+  // Show project dashboard
+  if (selectedProject) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" onClick={() => setSelectedProject(null)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Indietro al Bando
+          </Button>
+        </div>
+        <ProjectDashboard
+          project={selectedProject}
+          onEditProject={handleEditProject}
+          onAddExpense={handleAddExpense}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -399,7 +467,7 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Progetti Collegati ({projects?.length || 0})
               </CardTitle>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowProjectForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nuovo Progetto
               </Button>
@@ -408,23 +476,29 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
               {projects && projects.length > 0 ? (
                 <div className="space-y-3">
                   {projects.map((project) => (
-                    <div key={project.id} className="border rounded-lg p-3">
+                    <div 
+                      key={project.id} 
+                      className="border rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setSelectedProject(project)}
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-medium">{project.title}</h4>
                         <Badge variant="outline">{project.status}</Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Budget: {formatCurrency(project.total_budget)}
-                      </p>
-                      <div className="w-full bg-secondary rounded-full h-2">
+                      <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground mb-2">
+                        <p>Budget: {formatCurrency(project.total_budget)}</p>
+                        <p>Speso: {formatCurrency(project.spent_budget)}</p>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-2 mb-1">
                         <div
                           className="bg-primary h-2 rounded-full"
                           style={{ width: `${project.progress_percentage}%` }}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Progresso: {project.progress_percentage}%
-                      </p>
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Progresso: {project.progress_percentage}%</span>
+                        <span>Rimanente: {formatCurrency(project.remaining_budget)}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -434,7 +508,7 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
                   <p className="text-muted-foreground mb-4">
                     Nessun progetto collegato a questo bando
                   </p>
-                  <Button size="sm">
+                  <Button size="sm" onClick={() => setShowProjectForm(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Crea Primo Progetto
                   </Button>
