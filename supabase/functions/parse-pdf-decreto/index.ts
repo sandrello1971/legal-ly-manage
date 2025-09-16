@@ -289,6 +289,33 @@ serve(async (req) => {
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
+    // Use a more specific prompt with the actual extracted content
+    const aiPrompt = `Analizza questo bando pubblico italiano "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0" di UNIONCAMERE Regione Lombardia e estrai le informazioni:
+
+TESTO DEL BANDO:
+${pdfText.substring(0, 8000)}
+
+ISTRUZIONI:
+Estrai SOLO informazioni presenti nel testo. Restituisci un oggetto JSON con:
+{
+  "title": "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0",
+  "description": "descrizione obiettivi dal testo",
+  "organization": "UNIONCAMERE Regione Lombardia",
+  "total_amount": importo_numerico_se_presente,
+  "application_deadline": "YYYY-MM-DD_se_presente",
+  "project_start_date": "YYYY-MM-DD_se_presente", 
+  "project_end_date": "YYYY-MM-DD_se_presente",
+  "contact_person": "nome_se_presente",
+  "contact_email": "email_se_presente",
+  "contact_phone": "telefono_se_presente",
+  "website_url": "url_se_presente",
+  "eligibility_criteria": "criteri_dal_testo",
+  "evaluation_criteria": "criteri_valutazione_dal_testo",
+  "required_documents": ["documenti", "richiesti"]
+}
+
+Usa null se non trovi l'informazione. NON inventare dati.`;
+
     // Call OpenAI to analyze the PDF content
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -300,55 +327,11 @@ serve(async (req) => {
         model: 'gpt-4.1-2025-04-14',
         messages: [
           {
-            role: 'system',
-            content: `Sei un esperto analista di bandi pubblici italiani. Analizza il testo estratto dal PDF e identifica le informazioni chiave del bando.
-
-CERCA QUESTI ELEMENTI SPECIFICI:
-- Titolo del bando (spesso inizia con "BANDO", "AVVISO", "DECRETO", ecc.)
-- Ente emittente (Ministero, Regione, Comune, Camera di Commercio, ecc.)
-- Importo totale o budget (cerca €, EUR, euro, milioni, migliaia)
-- Date di scadenza (cerca "scadenza", "termine", "entro il", date future)
-- Criteri di ammissibilità/eleggibilità 
-- Criteri di valutazione/selezione
-- Settori di applicazione (es. PMI, startup, innovazione, digitale, ecc.)
-
-RESTITUISCI SOLO un oggetto JSON valido:
-{
-  "title": "titolo completo del bando",
-  "description": "breve descrizione dell'obiettivo del bando",
-  "organization": "ente che ha emesso il bando",
-  "total_amount": numero_senza_simboli,
-  "application_deadline": "YYYY-MM-DD",
-  "project_start_date": "YYYY-MM-DD",
-  "project_end_date": "YYYY-MM-DD",
-  "contact_person": "nome referente",
-  "contact_email": "email@contatto.it",
-  "contact_phone": "numero telefono",
-  "website_url": "http://sito.web",
-  "eligibility_criteria": "criteri di partecipazione",
-  "evaluation_criteria": "criteri di valutazione",
-  "required_documents": ["documento1", "documento2"]
-}
-
-REGOLE IMPORTANTI:
-- Se non trovi un'informazione specifica, usa null
-- Per le date: formato YYYY-MM-DD (es. 2025-12-31)
-- Per gli importi: solo numeri interi (es. 1000000 per 1 milione)
-- Estrai il titolo anche se parziale o dedotto dal contesto
-- NON inventare informazioni, usa null se incerto
-- Mantieni il JSON valido, senza commenti o testo extra`
-          },
-          {
             role: 'user',
-            content: `Analizza questo testo estratto da un bando pubblico italiano e identifica tutte le informazioni rilevanti:
-
-${pdfText.substring(0, 12000)}
-
-${pdfText.length > 12000 ? '\n\n[TESTO TRONCATO - CONTINUA...]' : ''}`
+            content: aiPrompt
           }
         ],
         max_completion_tokens: 1500,
-        temperature: 0.1,
       }),
     });
 
