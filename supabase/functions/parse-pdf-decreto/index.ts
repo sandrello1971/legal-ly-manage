@@ -289,32 +289,39 @@ serve(async (req) => {
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
-    // Use a more specific prompt with the actual extracted content
-    const aiPrompt = `Analizza questo bando pubblico italiano "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0" di UNIONCAMERE Regione Lombardia e estrai le informazioni:
+    // Use a comprehensive prompt with specific information to extract
+    const aiPrompt = `Estrai TUTTE le informazioni da questo BANDO SI4.0 2025 di UNIONCAMERE Regione Lombardia.
 
-TESTO DEL BANDO:
-${pdfText.substring(0, 8000)}
+TESTO COMPLETO DEL BANDO:
+${pdfText.substring(0, 15000)}
 
-ISTRUZIONI:
-Estrai SOLO informazioni presenti nel testo. Restituisci un oggetto JSON con:
+ESTRAI QUESTE INFORMAZIONI SPECIFICHE (presenti nel testo):
+- Dotazione finanziaria: cerca "dotazione", "budget", "risorse", "euro", "€"
+- Date di scadenza: cerca "presentazione domande", "termine", "scadenza" 
+- Date progetto: cerca "durata", "avvio", "conclusione"
+- Beneficiari: cerca "soggetti beneficiari", "PMI", "micro imprese"
+- Spese ammissibili: cerca "spese ammissibili", "costi", "investimenti"
+- Agevolazioni: cerca "contributo", "percentuale", "intensità"
+- Contatti: cerca "punto impresa digitale", "email", "telefono"
+- Criteri: cerca "criteri di ammissibilità", "valutazione"
+
+Rispondi SOLO con JSON valido:
 {
   "title": "BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0",
-  "description": "descrizione obiettivi dal testo",
-  "organization": "UNIONCAMERE Regione Lombardia",
-  "total_amount": importo_numerico_se_presente,
-  "application_deadline": "YYYY-MM-DD_se_presente",
-  "project_start_date": "YYYY-MM-DD_se_presente", 
-  "project_end_date": "YYYY-MM-DD_se_presente",
-  "contact_person": "nome_se_presente",
-  "contact_email": "email_se_presente",
+  "description": "breve descrizione obiettivi e finalità",
+  "organization": "UNIONCAMERE Regione Lombardia", 
+  "total_amount": importo_dotazione_se_presente,
+  "application_deadline": "YYYY-MM-DD_se_data_scadenza_presente",
+  "project_start_date": "YYYY-MM-DD_se_presente",
+  "project_end_date": "YYYY-MM-DD_se_presente", 
+  "contact_person": "referente_se_presente",
+  "contact_email": "email_punto_impresa_digitale",
   "contact_phone": "telefono_se_presente",
-  "website_url": "url_se_presente",
-  "eligibility_criteria": "criteri_dal_testo",
-  "evaluation_criteria": "criteri_valutazione_dal_testo",
-  "required_documents": ["documenti", "richiesti"]
+  "website_url": "sito_se_presente",
+  "eligibility_criteria": "criteri ammissibilità completi",
+  "evaluation_criteria": "criteri valutazione",
+  "required_documents": ["elenco", "documenti", "richiesti"]
 }
-
-Usa null se non trovi l'informazione. NON inventare dati.`;
 
     // Call OpenAI to analyze the PDF content
     const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
