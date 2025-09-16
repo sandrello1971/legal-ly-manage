@@ -109,9 +109,12 @@ serve(async (req) => {
     console.log('👤 User authenticated:', user.id);
 
     const requestData = await req.json();
+    console.log('📥 Request data received:', JSON.stringify(requestData, null, 2));
     const { fileUrl, fileName, bandoId, storagePath } = requestData;
 
     console.log('📄 Processing PDF:', fileName, 'for bando:', bandoId);
+    console.log('📄 Storage path:', storagePath);
+    console.log('📄 File URL:', fileUrl);
 
     let pdfBuffer: ArrayBuffer;
     
