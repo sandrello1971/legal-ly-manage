@@ -2,6 +2,12 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
+// Import PDF processing library
+const { getDocument, GlobalWorkerOptions } = await import('https://esm.sh/pdfjs-dist@4.4.168/build/pdf.min.mjs');
+
+// Set PDF.js worker (required for text extraction)
+GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -11,71 +17,83 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo da PDF usando multiple strategie
+// Estrazione testo da PDF usando PDF.js
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
-    const uint8Array = new Uint8Array(pdfBuffer);
-    let extractedText = '';
-    
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
     
-    // Strategia migliorata: Cerca direttamente nel contenuto binario
-    const pdfBytes = Array.from(uint8Array);
-    let currentText = '';
-    let inTextBlock = false;
+    // Load PDF document using PDF.js
+    const loadingTask = getDocument({
+      data: new Uint8Array(pdfBuffer),
+      useSystemFonts: true,
+      standardFontDataUrl: 'https://esm.sh/pdfjs-dist@4.4.168/web/',
+    });
     
-    // Scorri byte per byte cercando sequenze di testo leggibile
-    for (let i = 0; i < pdfBytes.length - 1; i++) {
-      const byte = pdfBytes[i];
-      
-      // Caratteri ASCII leggibili (lettere, numeri, spazi, punteggiatura)
-      if ((byte >= 32 && byte <= 126) || byte === 195 || byte === 196) { // Include caratteri accentati
-        const char = String.fromCharCode(byte);
+    const pdf = await loadingTask.promise;
+    console.log('📄 PDF loaded, pages:', pdf.numPages);
+    
+    let fullText = '';
+    
+    // Extract text from each page (limit to first 10 pages for performance)
+    const maxPages = Math.min(pdf.numPages, 10);
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+      try {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
         
-        // Se è una lettera, inizia una nuova parola
-        if (/[a-zA-ZÀ-ÿ]/.test(char)) {
-          currentText += char;
-          inTextBlock = true;
-        } else if (inTextBlock && /[\s.,;:!?\-()0-9€%]/.test(char)) {
-          currentText += char;
-        } else if (inTextBlock && currentText.length > 0) {
-          // Fine della parola/frase
-          if (currentText.length >= 3) {
-            // Pulisci e aggiungi se è testo valido
-            const cleanText = currentText.trim();
-            if (cleanText.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(cleanText)) {
-              extractedText += cleanText + ' ';
-            }
-          }
-          currentText = '';
-          inTextBlock = false;
+        // Combine text items from the page
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ')
+          .trim();
+        
+        if (pageText) {
+          fullText += pageText + ' ';
+          console.log(`📄 Page ${pageNum}: ${pageText.length} characters extracted`);
         }
-      } else {
-        // Carattere non ASCII - termina il blocco corrente
-        if (inTextBlock && currentText.length >= 3) {
-          const cleanText = currentText.trim();
-          if (cleanText.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(cleanText)) {
-            extractedText += cleanText + ' ';
-          }
-        }
-        currentText = '';
-        inTextBlock = false;
+      } catch (pageError) {
+        console.warn(`⚠️ Error extracting page ${pageNum}:`, pageError);
+        continue;
       }
     }
     
-    // Aggiungi l'ultimo blocco se valido
-    if (currentText.length >= 3) {
-      const cleanText = currentText.trim();
-      if (cleanText.length >= 3 && /[a-zA-ZÀ-ÿ]/.test(cleanText)) {
-        extractedText += cleanText + ' ';
-      }
+    // Clean up extracted text
+    fullText = fullText
+      .replace(/\s+/g, ' ')  // Normalize whitespace
+      .replace(/\n+/g, ' ')  // Replace newlines with spaces
+      .replace(/\t+/g, ' ')  // Replace tabs with spaces
+      .trim();
+    
+    console.log('✅ Total extracted text:', fullText.length, 'characters');
+    console.log('📄 Preview:', fullText.substring(0, 500) + '...');
+    
+    if (fullText.length < 100) {
+      console.warn('⚠️ Very short text extracted, might be insufficient');
+      
+      // Fallback: try byte-level extraction for problematic PDFs
+      console.log('🔄 Trying fallback extraction method...');
+      return await extractTextFallback(pdfBuffer);
     }
     
-    // Strategia alternativa: Cerca pattern di testo più specifici
+    return fullText;
+    
+  } catch (error) {
+    console.error('❌ Error in PDF.js extraction:', error);
+    console.log('🔄 Trying fallback extraction method...');
+    return await extractTextFallback(pdfBuffer);
+  }
+};
+
+// Fallback extraction method for problematic PDFs
+const extractTextFallback = async (pdfBuffer: ArrayBuffer): Promise<string> => {
+  try {
+    const uint8Array = new Uint8Array(pdfBuffer);
     const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
     const pdfString = textDecoder.decode(uint8Array);
     
-    // Cerca contenuti tra parentesi (formato PDF standard)
+    let extractedText = '';
+    
+    // Search for text in parentheses (PDF standard format)
     const parenthesesPattern = /\(([^)]{3,})\)/g;
     const parenthesesMatches = [...pdfString.matchAll(parenthesesPattern)];
     
@@ -94,37 +112,29 @@ const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
       }
     }
     
-    // Cerca testo tra tag di contenuto
-    const contentPattern = />\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s.,;:!?\-()€%]{10,})\s*</g;
-    const contentMatches = [...pdfString.matchAll(contentPattern)];
+    // Search for readable ASCII sequences
+    const asciiPattern = /[a-zA-ZÀ-ÿ][a-zA-ZÀ-ÿ0-9\s.,;:!?\-()€%]{10,}/g;
+    const asciiMatches = [...pdfString.matchAll(asciiPattern)];
     
-    for (const match of contentMatches) {
-      const text = match[1].trim();
-      if (text.length >= 5 && /[a-zA-ZÀ-ÿ]/.test(text)) {
+    for (const match of asciiMatches) {
+      const text = match[0].trim();
+      if (text.length >= 10) {
         extractedText += text + ' ';
       }
     }
     
-    // Pulizia finale del testo estratto
+    // Clean up text
     extractedText = extractedText
-      .replace(/\s+/g, ' ') // Normalizza spazi
-      .replace(/[^\w\s.,;:!?\-()€%àèéìòùáéíóúâêîôûäëïöüÀÈÉÌÒÙÁÉÍÓÚÂÊÎÔÛÄËÏÖÜ]/g, ' ') // Mantieni solo caratteri validi
-      .replace(/\b\w{1,2}\b(?!\s*[€%])/g, '') // Rimuovi parole troppo corte (tranne unità)
       .replace(/\s+/g, ' ')
       .trim();
     
-    console.log('✅ Estratto testo PDF:', extractedText.length, 'caratteri');
-    console.log('📄 Anteprima testo:', extractedText.substring(0, 500) + '...');
+    console.log('📄 Fallback extraction result:', extractedText.length, 'characters');
     
-    if (extractedText.length < 50) {
-      console.warn('⚠️ Testo estratto molto breve, potrebbe essere insufficiente');
-    }
-    
-    return extractedText;
+    return extractedText || 'Contenuto PDF non leggibile';
     
   } catch (error) {
-    console.error('❌ Errore nell\'estrazione PDF:', error);
-    throw new Error(`Impossibile estrarre testo dal PDF: ${error.message}`);
+    console.error('❌ Fallback extraction failed:', error);
+    return 'Errore nell\'estrazione del testo PDF';
   }
 };
 
@@ -227,33 +237,54 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `Analizza questo documento PDF di un bando pubblico italiano ed estrai le informazioni principali.
+            content: `Sei un esperto analista di bandi pubblici italiani. Analizza il testo estratto dal PDF e identifica le informazioni chiave del bando.
 
-Restituisci SOLO un oggetto JSON valido in questo formato:
+CERCA QUESTI ELEMENTI SPECIFICI:
+- Titolo del bando (spesso inizia con "BANDO", "AVVISO", "DECRETO", ecc.)
+- Ente emittente (Ministero, Regione, Comune, Camera di Commercio, ecc.)
+- Importo totale o budget (cerca €, EUR, euro, milioni, migliaia)
+- Date di scadenza (cerca "scadenza", "termine", "entro il", date future)
+- Criteri di ammissibilità/eleggibilità 
+- Criteri di valutazione/selezione
+- Settori di applicazione (es. PMI, startup, innovazione, digitale, ecc.)
+
+RESTITUISCI SOLO un oggetto JSON valido:
 {
-  "title": "titolo del bando",
-  "description": "descrizione del bando",
-  "organization": "ente emittente",
-  "total_amount": 1000000,
-  "application_deadline": "2025-12-31",
+  "title": "titolo completo del bando",
+  "description": "breve descrizione dell'obiettivo del bando",
+  "organization": "ente che ha emesso il bando",
+  "total_amount": numero_senza_simboli,
+  "application_deadline": "YYYY-MM-DD",
+  "project_start_date": "YYYY-MM-DD",
+  "project_end_date": "YYYY-MM-DD",
+  "contact_person": "nome referente",
+  "contact_email": "email@contatto.it",
+  "contact_phone": "numero telefono",
+  "website_url": "http://sito.web",
   "eligibility_criteria": "criteri di partecipazione",
-  "evaluation_criteria": "criteri di valutazione"
+  "evaluation_criteria": "criteri di valutazione",
+  "required_documents": ["documento1", "documento2"]
 }
 
-REGOLE:
-- Se non trovi un'informazione, usa null
-- Per le date usa formato YYYY-MM-DD
-- Per gli importi usa solo numeri (senza €, virgole o punti)
-- Estrai almeno il titolo anche se parziale
-- NON aggiungere testo extra, SOLO il JSON`
+REGOLE IMPORTANTI:
+- Se non trovi un'informazione specifica, usa null
+- Per le date: formato YYYY-MM-DD (es. 2025-12-31)
+- Per gli importi: solo numeri interi (es. 1000000 per 1 milione)
+- Estrai il titolo anche se parziale o dedotto dal contesto
+- NON inventare informazioni, usa null se incerto
+- Mantieni il JSON valido, senza commenti o testo extra`
           },
           {
             role: 'user',
-            content: `Testo estratto dal PDF del bando:\n\n${pdfText.substring(0, 8000)}`
+            content: `Analizza questo testo estratto da un bando pubblico italiano e identifica tutte le informazioni rilevanti:
+
+${pdfText.substring(0, 12000)}
+
+${pdfText.length > 12000 ? '\n\n[TESTO TRONCATO - CONTINUA...]' : ''}`
           }
         ],
-        max_tokens: 1000,
-        temperature: 0.3,
+        max_completion_tokens: 1500,
+        temperature: 0.1,
       }),
     });
 
@@ -272,45 +303,65 @@ REGOLE:
     let parsedData;
     try {
       const aiContent = aiData.choices[0]?.message?.content?.trim();
-      console.log('🔍 AI Content:', aiContent || 'EMPTY RESPONSE');
+      console.log('🔍 AI Response Length:', aiContent?.length || 0);
+      console.log('🔍 AI Content Preview:', aiContent?.substring(0, 200) || 'EMPTY RESPONSE');
       
       if (!aiContent) {
         console.error('❌ AI returned empty content');
-        // Use fallback data for empty responses
         parsedData = {
-          title: 'Bando Analizzato',
-          status: 'active',
-          description: 'Documento PDF caricato e processato'
+          title: 'Bando da Completare',
+          description: 'PDF caricato correttamente ma informazioni non estratte automaticamente',
+          status: 'active'
         };
       } else {
-        // Remove any markdown formatting or extra text
-        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-        const jsonString = jsonMatch ? jsonMatch[0] : aiContent;
+        // Clean and extract JSON from AI response
+        let jsonString = aiContent;
+        
+        // Remove markdown code blocks if present
+        if (jsonString.includes('```')) {
+          const codeBlockMatch = jsonString.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+          if (codeBlockMatch) {
+            jsonString = codeBlockMatch[1];
+          }
+        }
+        
+        // Extract JSON object if wrapped in text
+        const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          jsonString = jsonMatch[0];
+        }
+        
+        console.log('🔍 Extracted JSON:', jsonString);
         
         if (!jsonString || jsonString.trim().length === 0) {
           console.error('❌ No valid JSON found in AI response');
           parsedData = {
-            title: 'Bando Analizzato',
-            status: 'active',
-            description: 'Documento PDF caricato e processato'
+            title: 'Bando da Completare',
+            description: 'PDF caricato ma formato JSON non valido dalla AI',
+            status: 'active'
           };
         } else {
           parsedData = JSON.parse(jsonString);
+          
+          // Validate and clean parsed data
+          if (!parsedData.title || parsedData.title.trim().length === 0) {
+            parsedData.title = 'Bando Estratto';
+          }
+          
+          console.log('✅ Successfully parsed AI response:', parsedData);
         }
       }
-      
-      console.log('✅ Successfully parsed AI response:', parsedData);
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
-      console.error('Raw AI content:', aiData.choices[0]?.message?.content || 'NO CONTENT');
+      console.error('❌ Raw AI content:', aiData.choices[0]?.message?.content || 'NO CONTENT');
       
-      // Provide fallback data instead of failing
+      // Provide meaningful fallback data
       parsedData = {
-        title: 'Bando Analizzato',
-        status: 'active',
-        description: 'Documento PDF caricato ma analisi AI fallita'
+        title: 'Bando con Errore di Parsing',
+        description: 'PDF caricato ma errore nell\'analisi automatica delle informazioni',
+        status: 'active'
       };
-      console.log('📋 Using fallback data:', parsedData);
+      console.log('📋 Using fallback data due to parse error:', parsedData);
     }
 
     // Update the bando with parsed data if bandoId is provided
