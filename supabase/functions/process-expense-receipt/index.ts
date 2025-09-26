@@ -20,12 +20,18 @@ serve(async (req) => {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;
+    const projectId = formData.get('projectId') as string;
 
     if (!file) {
       throw new Error('No file provided');
     }
 
-    console.log('Processing receipt file:', file.name);
+    console.log('Processing receipt file:', file.name, 'for project:', projectId);
+
+    // Handle XML files (electronic invoices)
+    if (file.type === 'application/xml' || file.type === 'text/xml' || file.name.endsWith('.xml')) {
+      return await processXMLInvoice(file, projectId, supabaseUrl, supabaseServiceKey);
+    }
 
     // Convert file to base64 for OpenAI Vision API
     const bytes = await file.arrayBuffer();
@@ -206,4 +212,294 @@ async function classifyExpense(description: string, supplier: string | null) {
     confidence: 0.5,
     reasons: ['Nessuna categoria specifica identificata']
   };
+}
+
+// Function to process XML electronic invoices
+async function processXMLInvoice(file: File, projectId: string, supabaseUrl: string, supabaseServiceKey: string) {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  
+  // Read XML content
+  const xmlContent = await file.text();
+  console.log('XML Content length:', xmlContent.length);
+  
+  // Get project and bando data for validation
+  let projectData = null;
+  let bandoData = null;
+  
+  if (projectId) {
+    const { data: project } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        bandi:bando_id (
+          title,
+          description,
+          eligibility_criteria,
+          parsed_data
+        )
+      `)
+      .eq('id', projectId)
+      .single();
+    
+    projectData = project;
+    bandoData = project?.bandi;
+  }
+  
+  try {
+    // Parse XML to extract invoice data
+    const invoiceData = parseXMLInvoice(xmlContent);
+    
+    // Validate project code presence
+    const projectCodeValidation = validateProjectCode(xmlContent, projectData);
+    
+    // Validate coherence with bando
+    const bandoCoherence = await validateBandoCoherence(invoiceData, bandoData);
+    
+    // Determine if the expense should be approved or rejected
+    const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent;
+    
+    const result = {
+      extractedData: invoiceData,
+      category: invoiceData.category,
+      confidence: shouldApprove ? 0.9 : 0.3,
+      validation: {
+        projectCode: projectCodeValidation,
+        bandoCoherence: bandoCoherence,
+        shouldApprove: shouldApprove,
+        reasons: [
+          ...(projectCodeValidation.reasons || []),
+          ...(bandoCoherence.reasons || [])
+        ]
+      }
+    };
+    
+    console.log('XML Processing result:', result);
+    
+    return new Response(JSON.stringify(result), {
+      headers: { 
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Content-Type': 'application/json' 
+      },
+    });
+    
+  } catch (error) {
+    console.error('Error processing XML invoice:', error);
+    throw new Error(`Errore nell'elaborazione della fattura XML: ${error.message}`);
+  }
+}
+
+// Parse XML electronic invoice
+function parseXMLInvoice(xmlContent: string) {
+  // Extract key information from XML using regex patterns
+  // This handles the standard Italian electronic invoice format (FatturaPA)
+  
+  const extractValue = (pattern: RegExp) => {
+    const match = xmlContent.match(pattern);
+    return match ? match[1].trim() : null;
+  };
+  
+  const extractAmount = (pattern: RegExp) => {
+    const match = xmlContent.match(pattern);
+    return match ? parseFloat(match[1].replace(',', '.')) : 0;
+  };
+  
+  // Extract supplier info
+  const supplierName = extractValue(/<DenominazioneImpresa>([^<]+)<\/DenominazioneImpresa>/) ||
+                      extractValue(/<Denominazione>([^<]+)<\/Denominazione>/) ||
+                      extractValue(/<Nome>([^<]+)<\/Nome>/);
+  
+  // Extract invoice details
+  const invoiceNumber = extractValue(/<Numero>([^<]+)<\/Numero>/);
+  const invoiceDate = extractValue(/<Data>([^<]+)<\/Data>/);
+  
+  // Extract amounts
+  const totalAmount = extractAmount(/<ImportoTotaleDocumento>([0-9.,]+)<\/ImportoTotaleDocumento>/) ||
+                     extractAmount(/<PrezzoTotale>([0-9.,]+)<\/PrezzoTotale>/);
+  
+  // Extract line items for description
+  const descriptions = [];
+  const descriptionMatches = xmlContent.match(/<Descrizione>([^<]+)<\/Descrizione>/g);
+  if (descriptionMatches) {
+    descriptions.push(...descriptionMatches.map(match => 
+      match.replace(/<\/?Descrizione>/g, '').trim()
+    ));
+  }
+  
+  const description = descriptions.length > 0 ? descriptions.join(', ') : 'Fattura elettronica';
+  
+  // Auto-classify based on description
+  const classification = classifyElectronicInvoice(description, supplierName);
+  
+  return {
+    description: description,
+    amount: totalAmount,
+    date: invoiceDate || new Date().toISOString().split('T')[0],
+    supplier: supplierName,
+    receiptNumber: invoiceNumber,
+    category: classification.category,
+    confidence: classification.confidence,
+    invoiceType: 'electronic'
+  };
+}
+
+// Validate if project code is present in the invoice
+function validateProjectCode(xmlContent: string, projectData: any) {
+  if (!projectData) {
+    return {
+      isValid: false,
+      reasons: ['Progetto non specificato']
+    };
+  }
+  
+  const projectCode = projectData.project_code || projectData.id.slice(0, 8);
+  const projectTitle = projectData.title || '';
+  
+  // Search for project references in various XML fields
+  const fieldsToCheck = [
+    /<Descrizione>([^<]+)<\/Descrizione>/g,
+    /<Causale>([^<]+)<\/Causale>/g,
+    /<RiferimentoNumeroLinea>([^<]+)<\/RiferimentoNumeroLinea>/g,
+    /<RiferimentoDocumento>([^<]+)<\/RiferimentoDocumento>/g,
+    /<Note>([^<]+)<\/Note>/g
+  ];
+  
+  let foundReferences = [];
+  
+  for (const pattern of fieldsToCheck) {
+    const matches = xmlContent.match(pattern);
+    if (matches) {
+      for (const match of matches) {
+        const content = match.replace(/<[^>]+>/g, '').toLowerCase();
+        if (content.includes(projectCode.toLowerCase()) || 
+            (projectTitle && content.includes(projectTitle.toLowerCase()))) {
+          foundReferences.push(content);
+        }
+      }
+    }
+  }
+  
+  return {
+    isValid: foundReferences.length > 0,
+    references: foundReferences,
+    reasons: foundReferences.length > 0 
+      ? [`Codice progetto trovato: ${foundReferences.join(', ')}`]
+      : ['Codice progetto non trovato nella fattura']
+  };
+}
+
+// Validate coherence with bando requirements
+async function validateBandoCoherence(invoiceData: any, bandoData: any) {
+  if (!bandoData) {
+    return {
+      isCoherent: true, // If no bando data, assume coherent
+      reasons: ['Nessun bando associato - verifica manuale richiesta']
+    };
+  }
+  
+  const description = invoiceData.description?.toLowerCase() || '';
+  const supplier = invoiceData.supplier?.toLowerCase() || '';
+  const amount = invoiceData.amount || 0;
+  
+  let coherenceScore = 0;
+  let reasons = [];
+  
+  // Check against bando eligibility criteria
+  const eligibilityCriteria = bandoData.eligibility_criteria?.toLowerCase() || '';
+  if (eligibilityCriteria) {
+    // Look for common expense types mentioned in eligibility
+    const eligibleExpenses = [
+      'personale', 'attrezzature', 'materiali', 'servizi', 
+      'consulenze', 'software', 'hardware', 'formazione'
+    ];
+    
+    const foundEligibleTypes = eligibleExpenses.filter(type => 
+      eligibilityCriteria.includes(type) && 
+      (description.includes(type) || supplier.includes(type))
+    );
+    
+    if (foundEligibleTypes.length > 0) {
+      coherenceScore += 0.5;
+      reasons.push(`Coerente con criteri del bando: ${foundEligibleTypes.join(', ')}`);
+    }
+  }
+  
+  // Check parsed bando data for expense limits
+  const parsedData = bandoData.parsed_data || {};
+  if (parsedData.maxExpenseAmount && amount > parsedData.maxExpenseAmount) {
+    reasons.push(`Importo ${amount}€ superiore al limite del bando (${parsedData.maxExpenseAmount}€)`);
+    coherenceScore -= 0.3;
+  } else if (parsedData.maxExpenseAmount) {
+    coherenceScore += 0.2;
+    reasons.push(`Importo entro i limiti del bando`);
+  }
+  
+  // Additional coherence checks based on invoice category vs bando focus
+  const categoryCoherence = checkCategoryCoherence(invoiceData.category, bandoData);
+  coherenceScore += categoryCoherence.score;
+  reasons.push(...categoryCoherence.reasons);
+  
+  return {
+    isCoherent: coherenceScore >= 0.5,
+    coherenceScore: coherenceScore,
+    reasons: reasons
+  };
+}
+
+// Check if expense category is coherent with bando
+function checkCategoryCoherence(category: string, bandoData: any) {
+  const bandoDescription = (bandoData.description || '').toLowerCase();
+  const bandoTitle = (bandoData.title || '').toLowerCase();
+  const bandoText = `${bandoDescription} ${bandoTitle}`;
+  
+  const categoryMappings = {
+    'equipment': ['attrezzature', 'hardware', 'macchinari', 'strumenti'],
+    'services': ['servizi', 'consulenze', 'assistenza', 'software'],
+    'materials': ['materiali', 'forniture', 'cancelleria'],
+    'personnel': ['personale', 'risorse umane', 'collaboratori'],
+    'travel': ['viaggi', 'trasferte', 'trasporti']
+  };
+  
+  const keywords = categoryMappings[category] || [];
+  const foundKeywords = keywords.filter(keyword => bandoText.includes(keyword));
+  
+  if (foundKeywords.length > 0) {
+    return {
+      score: 0.3,
+      reasons: [`Categoria ${category} coerente con il bando (${foundKeywords.join(', ')})`]
+    };
+  }
+  
+  return {
+    score: 0.1,
+    reasons: [`Categoria ${category} - coerenza da verificare manualmente`]
+  };
+}
+
+// Classify electronic invoices
+function classifyElectronicInvoice(description: string, supplier: string | null) {
+  const text = `${description || ''} ${supplier || ''}`.toLowerCase();
+  
+  // Enhanced classification for electronic invoices
+  if (text.includes('consulenza') || text.includes('servizi professional') || 
+      text.includes('assistenza tecnica') || text.includes('sviluppo software')) {
+    return { category: 'services', confidence: 0.9 };
+  }
+  
+  if (text.includes('licenza software') || text.includes('abbonamento') ||
+      text.includes('cloud') || text.includes('saas')) {
+    return { category: 'services', confidence: 0.85 };
+  }
+  
+  if (text.includes('hardware') || text.includes('computer') || 
+      text.includes('server') || text.includes('attrezzatura')) {
+    return { category: 'equipment', confidence: 0.9 };
+  }
+  
+  if (text.includes('materiale') || text.includes('forniture') ||
+      text.includes('cancelleria') || text.includes('consumabili')) {
+    return { category: 'materials', confidence: 0.8 };
+  }
+  
+  return { category: 'other', confidence: 0.6 };
 }

@@ -44,7 +44,13 @@ export function ExpenseProcessor() {
       const upload = newUploads[i];
       
       try {
-        const result = await processExpenseReceipt(upload.file);
+        const formData = new FormData();
+        formData.append('file', upload.file);
+        if (upload.projectId) {
+          formData.append('projectId', upload.projectId);
+        }
+        
+        const result = await processExpenseReceipt(formData);
         
         setUploads(prev => prev.map(u => 
           u.id === upload.id 
@@ -53,7 +59,8 @@ export function ExpenseProcessor() {
                 status: 'completed',
                 confidence: result.confidence || 0.8,
                 category: result.category,
-                extractedData: result.extractedData
+                extractedData: result.extractedData,
+                validation: result.validation
               }
             : u
         ));
@@ -79,7 +86,9 @@ export function ExpenseProcessor() {
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'image/*': ['.png', '.jpg', '.jpeg']
+      'image/*': ['.png', '.jpg', '.jpeg'],
+      'application/xml': ['.xml'],
+      'text/xml': ['.xml']
     },
     multiple: true
   });
@@ -153,7 +162,7 @@ export function ExpenseProcessor() {
                   {isDragActive ? 'Rilascia i file qui' : 'Trascina le ricevute qui o clicca per selezionare'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Supporta PDF, PNG, JPG (max 10MB per file)
+                  Supporta PDF, PNG, JPG, XML (fatture elettroniche) - max 10MB per file
                 </p>
               </div>
             </div>
@@ -201,6 +210,11 @@ export function ExpenseProcessor() {
                             Confidenza: {getConfidenceText(upload.confidence)} ({Math.round(upload.confidence * 100)}%)
                           </Badge>
                         )}
+                        {upload.extractedData?.invoiceType === 'electronic' && upload.validation && (
+                          <Badge variant={upload.validation.shouldApprove ? "default" : "destructive"}>
+                            {upload.validation.shouldApprove ? "Approvata automaticamente" : "Richiede verifica"}
+                          </Badge>
+                        )}
                         {upload.status === 'error' && (
                           <Badge variant="destructive">Errore</Badge>
                         )}
@@ -223,8 +237,9 @@ export function ExpenseProcessor() {
 
                     {upload.status === 'completed' && (
                       <Tabs defaultValue="extracted" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-3">
                           <TabsTrigger value="extracted">Dati Estratti</TabsTrigger>
+                          <TabsTrigger value="validation">Validazione</TabsTrigger>
                           <TabsTrigger value="manual">Correzione Manuale</TabsTrigger>
                         </TabsList>
                         
@@ -247,6 +262,79 @@ export function ExpenseProcessor() {
                               <p className="text-sm">{upload.extractedData?.supplier || 'Non disponibile'}</p>
                             </div>
                           </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="validation" className="space-y-4">
+                          {upload.validation ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                {upload.validation.shouldApprove ? (
+                                  <CheckCircle className="h-5 w-5 text-success" />
+                                ) : (
+                                  <AlertCircle className="h-5 w-5 text-destructive" />
+                                )}
+                                <span className="font-medium">
+                                  {upload.validation.shouldApprove ? 'Fattura validata automaticamente' : 'Verifica manuale richiesta'}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                  <Label>Verifica Codice Progetto</Label>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {upload.validation.projectCode?.isValid ? (
+                                      <CheckCircle className="h-4 w-4 text-success" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-destructive" />
+                                    )}
+                                    <span className="text-sm">
+                                      {upload.validation.projectCode?.isValid ? 'Trovato' : 'Non trovato'}
+                                    </span>
+                                  </div>
+                                  {upload.validation.projectCode?.references && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Riferimenti: {upload.validation.projectCode.references.join(', ')}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                <div>
+                                  <Label>Coerenza con Bando</Label>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {upload.validation.bandoCoherence?.isCoherent ? (
+                                      <CheckCircle className="h-4 w-4 text-success" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-warning" />
+                                    )}
+                                    <span className="text-sm">
+                                      {upload.validation.bandoCoherence?.isCoherent ? 'Coerente' : 'Da verificare'}
+                                    </span>
+                                    {upload.validation.bandoCoherence?.coherenceScore && (
+                                      <span className="text-xs text-muted-foreground">
+                                        (Punteggio: {Math.round(upload.validation.bandoCoherence.coherenceScore * 100)}%)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {upload.validation.reasons && upload.validation.reasons.length > 0 && (
+                                <div>
+                                  <Label>Dettagli Validazione</Label>
+                                  <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                                    {upload.validation.reasons.map((reason, idx) => (
+                                      <li key={idx} className="flex items-start gap-2">
+                                        <span className="w-1 h-1 rounded-full bg-muted-foreground mt-2 flex-shrink-0" />
+                                        {reason}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Nessuna validazione disponibile per questo file.</p>
+                          )}
                         </TabsContent>
                         
                         <TabsContent value="manual" className="space-y-4">

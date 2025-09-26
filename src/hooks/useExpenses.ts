@@ -35,6 +35,21 @@ export interface ExpenseUpload {
     date: string;
     supplier?: string;
     receiptNumber?: string;
+    invoiceType?: 'electronic' | 'traditional';
+  };
+  validation?: {
+    projectCode?: {
+      isValid: boolean;
+      references?: string[];
+      reasons?: string[];
+    };
+    bandoCoherence?: {
+      isCoherent: boolean;
+      coherenceScore?: number;
+      reasons?: string[];
+    };
+    shouldApprove: boolean;
+    reasons?: string[];
   };
 }
 
@@ -247,11 +262,8 @@ export const useExpenses = (projectId?: string) => {
     }
   };
 
-  const processExpenseReceipt = async (file: File): Promise<any> => {
+  const processExpenseReceipt = async (formData: FormData): Promise<any> => {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
       const { data, error } = await supabase.functions.invoke('process-expense-receipt', {
         body: formData
       });
