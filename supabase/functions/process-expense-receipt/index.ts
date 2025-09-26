@@ -251,7 +251,7 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     if (extractedProjectCodes.length > 0) {
       console.log('Searching for projects with codes/titles:', extractedProjectCodes);
       
-      // Cerca progetti per titolo o project_code
+      // Cerca progetti per titolo
       const { data: projects } = await supabase
         .from('projects')
         .select(`
@@ -263,12 +263,14 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
             parsed_data
           )
         `)
-        .or(`title.in.(${extractedProjectCodes.join(',')}),project_code.in.(${extractedProjectCodes.join(',')})`);
+        .or(`title.in.(${extractedProjectCodes.join(',')})`);
       
       if (projects && projects.length > 0) {
         projectData = projects[0];
         bandoData = projects[0]?.bandi;
-        console.log('Found project by XML content:', projectData.title);
+        console.log('Found project by XML content:', projectData.title, 'ID:', projectData.id);
+      } else {
+        console.log('No project found for codes:', extractedProjectCodes);
       }
     }
   }
@@ -380,8 +382,8 @@ function validateProjectCode(xmlContent: string, projectData: any) {
     };
   }
   
-  const projectCode = projectData.project_code || projectData.id.slice(0, 8);
   const projectTitle = projectData.title || '';
+  const projectId = projectData.id ? projectData.id.slice(0, 8) : '';
   
   // Search for project references in various XML fields
   const fieldsToCheck = [
@@ -399,20 +401,28 @@ function validateProjectCode(xmlContent: string, projectData: any) {
     if (matches) {
       for (const match of matches) {
         const content = match.replace(/<[^>]+>/g, '').toLowerCase();
-        if (content.includes(projectCode.toLowerCase()) || 
-            (projectTitle && content.includes(projectTitle.toLowerCase()))) {
+        // Cerca per titolo progetto o ID progetto
+        if ((projectTitle && content.includes(projectTitle.toLowerCase())) ||
+            (projectId && content.includes(projectId.toLowerCase()))) {
           foundReferences.push(content);
         }
       }
     }
   }
   
+  console.log('Project validation:', {
+    projectTitle,
+    projectId,
+    foundReferences,
+    xmlContent: xmlContent.substring(0, 500) + '...'
+  });
+  
   return {
     isValid: foundReferences.length > 0,
     references: foundReferences,
     reasons: foundReferences.length > 0 
       ? [`Codice progetto trovato: ${foundReferences.join(', ')}`]
-      : ['Codice progetto non trovato nella fattura']
+      : [`Codice progetto non trovato nella fattura per progetto: ${projectTitle}`]
   };
 }
 
