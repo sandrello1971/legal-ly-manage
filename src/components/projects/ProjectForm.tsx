@@ -145,7 +145,6 @@ export const ProjectForm = ({ bandoId, onSuccess, onCancel, initialData }: Proje
       const projectData = {
         ...projectFormData,
         bando_id: bandoId,
-        remaining_budget: projectFormData.total_budget - projectFormData.allocated_budget,
         spent_budget: 0,
         progress_percentage: 0,
         project_documents: documentUrl ? [documentUrl] : [],
