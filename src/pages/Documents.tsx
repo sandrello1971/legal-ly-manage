@@ -137,7 +137,7 @@ export default function Documents() {
                     <SelectValue placeholder="Seleziona progetto (opzionale)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nessun progetto</SelectItem>
+                    <SelectItem value="none">Nessun progetto</SelectItem>
                     {projects?.map((project) => (
                       <SelectItem key={project.id} value={project.id}>
                         {project.title} - {new Intl.NumberFormat('it-IT', {
