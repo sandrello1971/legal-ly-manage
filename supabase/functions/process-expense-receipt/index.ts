@@ -243,10 +243,38 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     
     projectData = project;
     bandoData = project?.bandi;
+  } else {
+    // Se non c'è projectId, prova a trovare il progetto dal contenuto XML
+    const xmlContent = await file.text();
+    const extractedProjectCodes = extractProjectCodesFromXML(xmlContent);
+    
+    if (extractedProjectCodes.length > 0) {
+      console.log('Searching for projects with codes/titles:', extractedProjectCodes);
+      
+      // Cerca progetti per titolo o project_code
+      const { data: projects } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          bandi:bando_id (
+            title,
+            description,
+            eligibility_criteria,
+            parsed_data
+          )
+        `)
+        .or(`title.in.(${extractedProjectCodes.join(',')}),project_code.in.(${extractedProjectCodes.join(',')})`);
+      
+      if (projects && projects.length > 0) {
+        projectData = projects[0];
+        bandoData = projects[0]?.bandi;
+        console.log('Found project by XML content:', projectData.title);
+      }
+    }
   }
   
   try {
-    // Parse XML to extract invoice data
+    // Parse XML to extract invoice data (xmlContent already available from above)
     const invoiceData = parseXMLInvoice(xmlContent);
     
     // Validate project code presence
@@ -474,6 +502,46 @@ function checkCategoryCoherence(category: string, bandoData: any) {
     score: 0.1,
     reasons: [`Categoria ${category} - coerenza da verificare manualmente`]
   };
+}
+
+// Extract potential project codes from XML content
+function extractProjectCodesFromXML(xmlContent: string): string[] {
+  const codes = new Set<string>();
+  
+  // Pattern per cercare codici progetto nelle descrizioni
+  const descriptionMatches = xmlContent.match(/<Descrizione>([^<]+)<\/Descrizione>/g);
+  if (descriptionMatches) {
+    descriptionMatches.forEach(match => {
+      const content = match.replace(/<\/?Descrizione>/g, '').trim();
+      // Cerca pattern come "noscite001", "progetto123", etc.
+      const projectMatches = content.match(/\b[a-zA-Z]+\d{3,}\b/g);
+      if (projectMatches) {
+        projectMatches.forEach(code => codes.add(code.toLowerCase()));
+      }
+    });
+  }
+  
+  // Cerca anche in altri campi
+  const otherFields = [
+    /<Causale>([^<]+)<\/Causale>/g,
+    /<Note>([^<]+)<\/Note>/g,
+    /<RiferimentoDocumento>([^<]+)<\/RiferimentoDocumento>/g
+  ];
+  
+  otherFields.forEach(pattern => {
+    const matches = xmlContent.match(pattern);
+    if (matches) {
+      matches.forEach(match => {
+        const content = match.replace(/<[^>]+>/g, '').trim();
+        const projectMatches = content.match(/\b[a-zA-Z]+\d{3,}\b/g);
+        if (projectMatches) {
+          projectMatches.forEach(code => codes.add(code.toLowerCase()));
+        }
+      });
+    }
+  });
+  
+  return Array.from(codes);
 }
 
 // Classify electronic invoices
