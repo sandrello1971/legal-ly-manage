@@ -330,7 +330,7 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
     console.error('❌ Error in parse-pdf-decreto function:', error);
     return new Response(JSON.stringify({ 
       error: 'Errore interno del server',
-      details: error.message 
+      details: (error as Error).message 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

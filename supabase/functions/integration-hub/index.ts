@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,7 +43,7 @@ async function handleEmailIntegration(config: IntegrationConfig, action: string,
           const domains = await resend.domains.list();
           return { success: true, message: 'Connection successful', data: domains };
         } catch (error) {
-          return { success: false, error: error.message };
+          return { success: false, error: (error as Error).message };
         }
       
       default:
@@ -286,8 +286,8 @@ serve(async (req) => {
       integration_id,
       action,
       result.success ? 'success' : 'error',
-      result.result?.synced || result.result?.length || 1,
-      result.result?.errors || (result.success ? 0 : 1),
+      (result.result as any)?.synced || (result.result as any)?.length || 1,
+      (result.result as any)?.errors || (result.success ? 0 : 1),
       result.success ? null : { error: result.error }
     );
 
@@ -317,7 +317,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message 
+        message: (error as Error).message 
       }),
       {
         status: 500,

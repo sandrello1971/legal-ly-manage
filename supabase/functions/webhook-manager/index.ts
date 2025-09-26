@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createHmac } from "https://deno.land/std@0.190.0/crypto/mod.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,11 +32,19 @@ interface WebhookEvent {
 }
 
 // Generate webhook signature for security
-function generateSignature(payload: string, secret: string): string {
-  const hmac = createHmac('sha256', secret);
-  hmac.update(payload);
-  return 'sha256=' + Array.from(hmac.digest())
-    .map(b => b.toString(16).padStart(2, '0'))
+async function generateSignature(payload: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const secretKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signatureBytes = await crypto.subtle.sign('HMAC', secretKey, encoder.encode(payload));
+  return 'sha256=' + Array.from(new Uint8Array(signatureBytes))
+    .map((b: any) => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
@@ -56,7 +64,7 @@ async function deliverWebhook(subscription: WebhookSubscription, event: WebhookE
       subscription_id: subscription.id
     });
 
-    const signature = generateSignature(payload, subscription.secret_key);
+    const signature = await generateSignature(payload, subscription.secret_key);
 
     const response = await fetch(subscription.endpoint_url, {
       method: 'POST',
@@ -81,7 +89,7 @@ async function deliverWebhook(subscription: WebhookSubscription, event: WebhookE
   } catch (error) {
     return {
       success: false,
-      error: error.message
+      error: (error as Error).message
     };
   }
 }
@@ -356,7 +364,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
-        message: error.message 
+        message: (error as Error).message 
       }),
       {
         status: 500,

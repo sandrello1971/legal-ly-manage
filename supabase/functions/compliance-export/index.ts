@@ -140,7 +140,7 @@ serve(async (req) => {
       const hashArray = new Uint8Array(hashBuffer);
       const verificationHash = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
 
-      certifiedCopy.verification.certificate_hash = verificationHash;
+      (certifiedCopy.verification as any).certificate_hash = verificationHash;
 
       console.log('Certified copy generated:', certifiedCopy.certification.certificate_id);
 
@@ -234,7 +234,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in compliance-export function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

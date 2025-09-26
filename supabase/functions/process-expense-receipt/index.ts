@@ -146,7 +146,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in process-expense-receipt function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: (error as Error).message,
       extractedData: null,
       confidence: 0
     }), {
@@ -313,7 +313,7 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     
   } catch (error) {
     console.error('Error processing XML invoice:', error);
-    throw new Error(`Errore nell'elaborazione della fattura XML: ${error.message}`);
+    throw new Error(`Errore nell'elaborazione della fattura XML: ${(error as Error).message}`);
   }
 }
 
@@ -488,8 +488,8 @@ function checkCategoryCoherence(category: string, bandoData: any) {
     'travel': ['viaggi', 'trasferte', 'trasporti']
   };
   
-  const keywords = categoryMappings[category] || [];
-  const foundKeywords = keywords.filter(keyword => bandoText.includes(keyword));
+  const keywords: string[] = (categoryMappings as any)[category] || [];
+  const foundKeywords = keywords.filter((keyword: string) => bandoText.includes(keyword));
   
   if (foundKeywords.length > 0) {
     return {

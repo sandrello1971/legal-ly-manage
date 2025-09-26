@@ -74,7 +74,7 @@ serve(async (req) => {
     console.error('Error processing bank statement:', error);
     return new Response(JSON.stringify({ 
       error: 'Failed to process bank statement',
-      details: error.message 
+      details: (error as Error).message 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
