@@ -93,10 +93,55 @@ export function ExpenseProcessor() {
     multiple: true
   });
 
-  const updateUpload = (id: string, updates: Partial<ProcessedExpense>) => {
+  const updateUpload = async (id: string, updates: Partial<ProcessedExpense>) => {
     setUploads(prev => prev.map(u => 
       u.id === id ? { ...u, ...updates } : u
     ));
+
+    // Se il projectId è cambiato e il file è stato processato, riprocessa per la validazione
+    if (updates.projectId && updates.projectId !== '') {
+      const upload = uploads.find(u => u.id === id);
+      if (upload && upload.status === 'completed') {
+        await reprocessFileWithProject(upload, updates.projectId);
+      }
+    }
+  };
+
+  const reprocessFileWithProject = async (upload: ProcessedExpense, projectId: string) => {
+    setUploads(prev => prev.map(u => 
+      u.id === upload.id ? { ...u, status: 'processing' } : u
+    ));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', upload.file);
+      formData.append('projectId', projectId);
+      
+      const result = await processExpenseReceipt(formData);
+      
+      setUploads(prev => prev.map(u => 
+        u.id === upload.id 
+          ? {
+              ...u,
+              status: 'completed',
+              confidence: result.confidence || 0.8,
+              category: result.category,
+              extractedData: result.extractedData,
+              validation: result.validation
+            }
+          : u
+      ));
+    } catch (error) {
+      setUploads(prev => prev.map(u => 
+        u.id === upload.id 
+          ? {
+              ...u,
+              status: 'error',
+              error: error instanceof Error ? error.message : 'Errore nella rivalidazione'
+            }
+          : u
+      ));
+    }
   };
 
   const removeUpload = (id: string) => {
