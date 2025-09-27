@@ -11,24 +11,36 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
-
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Bandi', href: '/bandi', icon: Target },
-  { name: 'Documents', href: '/documents', icon: FileText },
-  { name: 'Expenses', href: '/expenses', icon: DollarSign },
-  { name: 'Banking', href: '/banking', icon: Banknote },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
-  { name: 'Profile', href: '/profile', icon: User },
-  { name: 'Settings', href: '/settings', icon: Settings },
-];
+import { useUserRole } from '@/hooks/useUserRole';
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const location = useLocation();
+  const { userRole } = useUserRole();
   const isCollapsed = state === 'collapsed';
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Filter navigation based on user role
+  const getVisibleNavigation = () => {
+    // Base navigation for all users
+    const baseNavigation = [
+      { name: 'Dashboard', href: '/dashboard', icon: Home },
+      { name: 'Bandi', href: '/bandi', icon: Target },
+      { name: 'Documents', href: '/documents', icon: FileText },
+      { name: 'Expenses', href: '/expenses', icon: DollarSign },
+      { name: 'Banking', href: '/banking', icon: Banknote },
+      { name: 'Reports', href: '/reports', icon: BarChart3 },
+      { name: 'Profile', href: '/profile', icon: User },
+    ];
+
+    // Add Settings only if user has permission (admin or can access settings)
+    if (userRole === 'admin' || userRole === 'user') {
+      baseNavigation.push({ name: 'Settings', href: '/settings', icon: Settings });
+    }
+
+    return baseNavigation;
+  };
 
   return (
     <Sidebar className={isCollapsed ? 'w-16' : 'w-64'} collapsible="icon">
@@ -37,7 +49,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => (
+              {getVisibleNavigation().map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton asChild>
                     <NavLink
