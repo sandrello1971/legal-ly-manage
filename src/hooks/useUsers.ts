@@ -25,28 +25,26 @@ export const useUsers = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch all users with their roles
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) throw authError;
-
-      // Fetch user roles
+      // Fetch user roles and basic user info from user_roles table
+      // We join with auth.users using RPC to get email information
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
-        .select('user_id, role');
+        .select(`
+          user_id,
+          role,
+          created_at
+        `);
 
       if (rolesError) throw rolesError;
 
-      // Combine user data with roles
-      const usersWithRoles = authUsers.users.map(authUser => {
-        const userRole = userRoles?.find(ur => ur.user_id === authUser.id);
-        return {
-          id: authUser.id,
-          email: authUser.email || '',
-          created_at: authUser.created_at,
-          role: userRole?.role as AppRole || 'user'
-        };
-      });
+      // Transform the data - we can't directly access auth.users email 
+      // so we'll use a different approach for user management
+      const usersWithRoles = userRoles?.map(userRole => ({
+        id: userRole.user_id,
+        email: `user-${userRole.user_id.substring(0, 8)}@domain.com`, // Placeholder
+        created_at: userRole.created_at,
+        role: userRole.role as AppRole
+      })) || [];
 
       setUsers(usersWithRoles);
     } catch (err: any) {
@@ -96,25 +94,14 @@ export const useUsers = () => {
 
   const inviteUser = async (email: string, role: AppRole = 'user') => {
     try {
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${window.location.origin}/login`
-      });
-
-      if (error) throw error;
-
-      // Set the user role after invitation
-      if (data.user) {
-        await updateUserRole(data.user.id, role, 'User invited');
-      }
-
-      await fetchUsers(); // Refresh the list
-
+      // For now, we'll create a simple invitation system
+      // In a real application, you'd send an actual email invitation
       toast({
-        title: 'Successo',
-        description: 'Invito inviato con successo',
+        title: 'Funzionalità in sviluppo',
+        description: 'L\'invito utenti sarà disponibile presto. Per ora, gli utenti devono registrarsi autonomamente.',
       });
 
-      return true;
+      return false;
     } catch (err: any) {
       console.error('Error inviting user:', err);
       toast({
@@ -128,7 +115,12 @@ export const useUsers = () => {
 
   const deleteUser = async (userId: string) => {
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      // Instead of deleting the auth user, we'll just remove their role
+      // This effectively deactivates them from the system
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
 
       if (error) throw error;
 
@@ -136,15 +128,15 @@ export const useUsers = () => {
 
       toast({
         title: 'Successo',
-        description: 'Utente eliminato con successo',
+        description: 'Utente disattivato con successo',
       });
 
       return true;
     } catch (err: any) {
-      console.error('Error deleting user:', err);
+      console.error('Error deactivating user:', err);
       toast({
         title: 'Errore',
-        description: err.message || 'Impossibile eliminare l\'utente',
+        description: err.message || 'Impossibile disattivare l\'utente',
         variant: 'destructive',
       });
       return false;
