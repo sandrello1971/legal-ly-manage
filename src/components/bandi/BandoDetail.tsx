@@ -144,8 +144,8 @@ export const BandoDetail = ({ bandoId, onBack, onEdit, onDelete }: BandoDetailPr
   };
 
   const handleAddExpense = () => {
-    // TODO: Navigate to expenses page with project filter
-    console.log('Add expense for project:', selectedProject?.id);
+    // Navigate to expenses page with project filter
+    window.location.href = `/expenses?projectId=${selectedProject?.id}`;
   };
 
   // Show project form
