@@ -102,9 +102,9 @@ export const UserManagement = () => {
           </CardTitle>
           <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button disabled>
                 <Plus className="h-4 w-4 mr-2" />
-                Invita Utente
+                Invita Utente (Presto)
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -187,10 +187,10 @@ export const UserManagement = () => {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Elimina Utente</AlertDialogTitle>
+                                <AlertDialogTitle>Disattiva Utente</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Sei sicuro di voler eliminare l'utente {user.email}? 
-                                  Questa azione non può essere annullata.
+                                  Sei sicuro di voler disattivare l'utente {user.email}? 
+                                  L'utente non potrà più accedere al sistema.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -199,7 +199,7 @@ export const UserManagement = () => {
                                   onClick={() => deleteUser(user.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  Elimina
+                                  Disattiva
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>

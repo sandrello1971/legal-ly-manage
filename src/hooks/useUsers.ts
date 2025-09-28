@@ -25,26 +25,36 @@ export const useUsers = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch user roles and basic user info from user_roles table
-      // We join with auth.users using RPC to get email information
-      const { data: userRoles, error: rolesError } = await supabase
-        .from('user_roles')
+      // Fetch user profiles with their roles
+      const { data: userProfiles, error: profilesError } = await supabase
+        .from('user_profiles')
         .select(`
-          user_id,
-          role,
+          id,
+          email,
+          first_name,
+          last_name,
           created_at
         `);
 
+      if (profilesError) throw profilesError;
+
+      // Fetch user roles separately
+      const { data: userRoles, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
       if (rolesError) throw rolesError;
 
-      // Transform the data - we can't directly access auth.users email 
-      // so we'll use a different approach for user management
-      const usersWithRoles = userRoles?.map(userRole => ({
-        id: userRole.user_id,
-        email: `user-${userRole.user_id.substring(0, 8)}@domain.com`, // Placeholder
-        created_at: userRole.created_at,
-        role: userRole.role as AppRole
-      })) || [];
+      // Transform the data
+      const usersWithRoles = userProfiles?.map(profile => {
+        const userRole = userRoles?.find(ur => ur.user_id === profile.id);
+        return {
+          id: profile.id,
+          email: profile.email || '',
+          created_at: profile.created_at,
+          role: userRole?.role as AppRole || 'user'
+        };
+      }) || [];
 
       setUsers(usersWithRoles);
     } catch (err: any) {
