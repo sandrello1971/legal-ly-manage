@@ -303,32 +303,12 @@ serve(async (req) => {
       });
     }
 
-    console.log('🔍 Extracting text from PDF using improved manual extraction...');
-    let pdfText = await extractTextFromPDF(pdfBuffer);
+    console.log('🤖 Converting PDF to base64 and sending directly to OpenAI for analysis...');
     
-    console.log('📊 Extracted text stats:');
-    console.log('  - Length:', pdfText.length);
-    console.log('  - First 300 chars:', pdfText.substring(0, 300));
-    console.log('  - Last 200 chars:', pdfText.substring(Math.max(0, pdfText.length - 200)));
+    // Converti il PDF in base64
+    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
     
-    // Se il testo estratto è troppo corto o sembra essere garbage, fallisce
-    if (pdfText.length < 100) {
-      console.error('❌ Extracted text is too short:', pdfText.length, 'characters');
-      return new Response(JSON.stringify({ 
-        error: 'Il PDF non contiene testo leggibile. Potrebbe essere un\'immagine scansionata. Si prega di fornire un PDF con testo selezionabile.',
-        details: `Only ${pdfText.length} characters extracted`
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    
-    console.log('🤖 Calling OpenAI for PDF analysis...');
-
-    const aiPrompt = `Analizza questo testo estratto da un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
-
-TESTO DEL BANDO:
-${pdfText.substring(0, 15000)}
+    const aiPrompt = `Analizza questo PDF di un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
 
 IMPORTANTE: 
 - NON usare categorie predefinite
@@ -371,9 +351,22 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [{ role: 'user', content: aiPrompt }],
-        max_completion_tokens: 2000,
+        model: 'gpt-4o',
+        messages: [
+          { 
+            role: 'user', 
+            content: [
+              { type: 'text', text: aiPrompt },
+              { 
+                type: 'image_url',
+                image_url: {
+                  url: `data:application/pdf;base64,${base64Pdf}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 2000,
       }),
     });
 
