@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Settings as SettingsIcon, Users, User, Shield, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, Users, User, Shield, AlertTriangle, Target } from 'lucide-react';
 import { UserManagement } from '@/components/settings/UserManagement';
 import { UserProfile } from '@/components/settings/UserProfile';
+import { ExpenseCategoryManager } from '@/components/settings/ExpenseCategoryManager';
 import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Settings() {
@@ -48,10 +49,14 @@ export default function Settings() {
 
       {/* Settings Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Il Mio Profilo
+          </TabsTrigger>
+          <TabsTrigger value="categories" className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Categorie Spesa
           </TabsTrigger>
           {isAdmin() && (
             <TabsTrigger value="users" className="flex items-center gap-2">
@@ -64,6 +69,11 @@ export default function Settings() {
         {/* User Profile Tab */}
         <TabsContent value="profile">
           <UserProfile />
+        </TabsContent>
+
+        {/* Expense Categories Tab */}
+        <TabsContent value="categories">
+          <ExpenseCategoryManager />
         </TabsContent>
 
         {/* User Management Tab (Admin Only) */}
