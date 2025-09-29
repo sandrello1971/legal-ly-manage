@@ -304,21 +304,52 @@ serve(async (req) => {
     }
 
     console.log('🔍 Extracting text from PDF...');
-    const pdfText = await extractTextFromPDF(pdfBuffer);
+    let pdfText = await extractTextFromPDF(pdfBuffer);
     console.log('📄 PDF text length:', pdfText.length);
     console.log('📄 PDF text preview:', pdfText.substring(0, 500));
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
     
+// Se l'estrazione testo fallisce, prova con OCR tramite Document Parse
+    if (pdfText.length < 200 || /^[^\w\s]{20,}/.test(pdfText.substring(0, 100))) {
+      console.log('📄 Testo estratto insufficiente, provo con Document Parse OCR...');
+      
+      try {
+        const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY') || ''}`,
+          },
+          body: JSON.stringify({
+            file_content: Array.from(new Uint8Array(pdfBuffer)),
+            file_name: fileName,
+            formats: ['markdown']
+          })
+        });
+        
+        if (documentParseResponse.ok) {
+          const parseResult = await documentParseResponse.json();
+          if (parseResult.content && parseResult.content.length > 200) {
+            pdfText = parseResult.content;
+            console.log('✅ OCR extraction successful, text length:', pdfText.length);
+          }
+        }
+      } catch (ocrError) {
+        console.error('❌ Document Parse OCR failed:', ocrError);
+      }
+    }
+
     const aiPrompt = `Analizza questo testo estratto da un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
 
 TESTO DEL BANDO:
-${pdfText.substring(0, 12000)}
+${pdfText.substring(0, 15000)}
 
 IMPORTANTE: 
 - NON usare categorie predefinite
 - Estrai ESATTAMENTE le categorie indicate nel testo
 - Se il testo non è chiaro, cerca pattern come "categorie ammissibili", "spese finanziabili", "voci di costo"
+- Cerca anche informazioni su: titolo bando, organizzazione, importi, scadenze, requisiti
 
 Rispondi SOLO con JSON valido:
 {
