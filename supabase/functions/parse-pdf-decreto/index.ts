@@ -311,8 +311,16 @@ serve(async (req) => {
     console.log('🤖 Calling OpenAI for PDF analysis...');
     
 // Se l'estrazione testo fallisce, prova con OCR tramite Document Parse
-    if (pdfText.length < 200 || /^[^\w\s]{20,}/.test(pdfText.substring(0, 100))) {
-      console.log('📄 Testo estratto insufficiente, provo con Document Parse OCR...');
+    // Controlli per testo di scarsa qualità:
+    // 1. Troppo corto
+    // 2. Troppi caratteri non leggibili nei primi 500 caratteri
+    // 3. Rapporto caratteri leggibili/totali troppo basso
+    const testSample = pdfText.substring(0, 500);
+    const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9\s]/g) || []).length;
+    const readableRatio = readableChars / testSample.length;
+    
+    if (pdfText.length < 200 || readableRatio < 0.3) {
+      console.log(`📄 Testo di scarsa qualità rilevato (${readableRatio.toFixed(2)} ratio), provo con OCR...`);
       
       try {
         const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
