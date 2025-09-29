@@ -11,7 +11,7 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo migliorata
+// Estrazione testo migliorata con supporto per PDF moderni
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
@@ -19,97 +19,113 @@ const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
     
-    // Prova multiple codifiche
-    const encodings = ['utf-8', 'latin1', 'windows-1252'];
+    // Converti in stringa per cercare i pattern
+    const textDecoder = new TextDecoder('latin1', { fatal: false });
+    const pdfString = textDecoder.decode(uint8Array);
     
-    for (const encoding of encodings) {
-      try {
-        const textDecoder = new TextDecoder(encoding);
-        const pdfString = textDecoder.decode(uint8Array);
+    console.log('🔍 Analyzing PDF structure...');
+    
+    // Pattern avanzati per estrazione testo
+    const advancedPatterns = [
+      // Testo tra parentesi con escape
+      /\(([^()\\]*(?:\\.[^()\\]*)*)\)/g,
+      // Testo esadecimale
+      /<([0-9A-Fa-f\s]+)>/g,
+      // Array di testo TJ
+      /\[\s*(?:\([^)]*\)\s*(?:-?\d+(?:\.\d+)?\s*)?)+\]\s*TJ/g,
+      // Singoli comandi Tj
+      /\(([^)]*)\)\s*Tj/g,
+      // Stream di contenuto
+      /stream\s*(.*?)\s*endstream/gs,
+      // Oggetti di testo
+      /BT\s+(.*?)\s+ET/gs
+    ];
+    
+    for (const pattern of advancedPatterns) {
+      const matches = [...pdfString.matchAll(pattern)];
+      console.log(`📄 Found ${matches.length} matches for pattern`);
+      
+      for (const match of matches) {
+        let text = match[1] || match[0];
         
-        console.log(`🔍 Trying ${encoding} encoding...`);
-        
-        // Estrai testo da oggetti BT/ET
-        const textObjPattern = /BT\s+(.*?)\s+ET/gs;
-        const textObjects = [...pdfString.matchAll(textObjPattern)];
-        console.log('📄 Found', textObjects.length, 'text objects');
-        
-        for (const textObj of textObjects) {
-          const content = textObj[1];
-          // Pattern più flessibili per stringhe
-          const stringPatterns = [
-            /\(([^)]*)\)/g,
-            /<([^>]*)>/g,
-            /\[([^\]]*)\]/g
-          ];
-          
-          for (const pattern of stringPatterns) {
-            const strings = [...content.matchAll(pattern)];
-            for (const str of strings) {
-              let text = str[1]
-                .replace(/\\n/g, ' ')
-                .replace(/\\r/g, ' ')
-                .replace(/\\t/g, ' ')
-                .replace(/\\\(/g, '(')
-                .replace(/\\\)/g, ')')
-                .trim();
-              
-              if (text.length >= 2) {
-                extractedText += text + ' ';
+        // Pulizia e decodifica
+        if (text.includes('(') && text.includes(')')) {
+          // Estrai stringhe tra parentesi
+          const stringMatches = [...text.matchAll(/\(([^)]*)\)/g)];
+          for (const strMatch of stringMatches) {
+            extractedText += strMatch[1]
+              .replace(/\\n/g, ' ')
+              .replace(/\\r/g, ' ')
+              .replace(/\\t/g, ' ')
+              .replace(/\\\(/g, '(')
+              .replace(/\\\)/g, ')')
+              .replace(/\\\\/g, '\\')
+              .trim() + ' ';
+          }
+        } else if (/^[0-9A-Fa-f\s]+$/.test(text)) {
+          // Decodifica esadecimale
+          try {
+            const hexText = text.replace(/\s/g, '');
+            if (hexText.length % 2 === 0) {
+              const bytes = [];
+              for (let i = 0; i < hexText.length; i += 2) {
+                bytes.push(parseInt(hexText.substr(i, 2), 16));
+              }
+              const decoded = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
+              if (decoded.length > 2 && /[A-Za-z]/.test(decoded)) {
+                extractedText += decoded + ' ';
               }
             }
+          } catch (e) {
+            // Ignore hex decode errors
+          }
+        } else {
+          // Testo normale
+          const cleanText = text
+            .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (cleanText.length >= 3 && /[A-Za-z]/.test(cleanText)) {
+            extractedText += cleanText + ' ';
           }
         }
-        
-        // Estrai da comandi Tj e TJ
-        const tjPatterns = [
-          /\(([^)]*)\)\s*Tj/g,
-          /\[([^\]]*)\]\s*TJ/g,
-          /<([^>]*)>\s*Tj/g
-        ];
-        
-        for (const pattern of tjPatterns) {
-          const matches = [...pdfString.matchAll(pattern)];
-          console.log('📄 Found', matches.length, 'text commands');
-          
-          for (const match of matches) {
-            let text = match[1].replace(/\\n/g, ' ').trim();
-            if (text.length >= 2) {
-              extractedText += text + ' ';
-            }
-          }
-        }
-        
-        // Se abbiamo estratto abbastanza testo, usiamo questa codifica
-        if (extractedText.length > 100) {
-          console.log(`✅ Successfully extracted text using ${encoding}`);
-          break;
-        }
-      } catch (encodingError) {
-        console.log(`❌ Failed with ${encoding}:`, (encodingError as Error).message);
-        continue;
+      }
+    }
+    
+    // Metodo alternativo: cerca direttamente parole italiane comuni
+    if (extractedText.length < 100) {
+      console.log('🔍 Trying word-based extraction...');
+      const wordPattern = /[A-Za-zÀ-ÿ]{3,}(?:\s+[A-Za-zÀ-ÿ]{3,}){2,}/g;
+      const words = pdfString.match(wordPattern);
+      if (words && words.length > 0) {
+        extractedText += words.join(' ') + ' ';
+        console.log('📄 Extracted', words.length, 'word sequences');
       }
     }
     
     // Pulizia finale
     extractedText = extractedText
       .replace(/\s+/g, ' ')
-      .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, ' ') // Mantieni solo caratteri leggibili
+      .replace(/(.)\1{4,}/g, '$1') // Rimuovi caratteri ripetuti
       .trim();
     
     console.log('✅ Final extracted text length:', extractedText.length, 'characters');
     console.log('📄 Text sample:', extractedText.substring(0, 500));
     
-    // Se non abbiamo estratto abbastanza testo, proviamo una strategia diversa
-    if (extractedText.length < 100) {
-      console.log('🔍 Low text extraction, trying fallback method...');
-      const fallbackText = extractFallbackText(uint8Array);
+    // Fallback se ancora non abbiamo abbastanza testo
+    if (extractedText.length < 200) {
+      console.log('🔍 Trying comprehensive fallback...');
+      const fallbackText = extractComprehensiveFallback(uint8Array, pdfString);
       if (fallbackText.length > extractedText.length) {
         extractedText = fallbackText;
       }
     }
     
-    return extractedText || 'Contenuto PDF non leggibile - provare con un PDF diverso';
+    if (extractedText.length < 50) {
+      return 'PDF complesso - impossibile estrarre testo leggibile. Provare con un PDF diverso o con testo selezionabile.';
+    }
+    
+    return extractedText;
     
   } catch (error) {
     console.error('❌ Extraction error:', error);
@@ -117,25 +133,72 @@ const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   }
 };
 
-// Metodo di fallback per estrazione testo
-const extractFallbackText = (uint8Array: Uint8Array): string => {
+// Metodo di fallback comprensivo
+const extractComprehensiveFallback = (uint8Array: Uint8Array, pdfString: string): string => {
   try {
-    const textDecoder = new TextDecoder('utf-8', { fatal: false });
-    const fullText = textDecoder.decode(uint8Array);
+    let fallbackText = '';
     
-    // Cerca pattern di testo leggibile
-    const readableTextPattern = /[A-Za-z]{3,}[A-Za-z0-9\s.,;:!?\-()]{10,}/g;
-    const matches = fullText.match(readableTextPattern);
-    
-    if (matches && matches.length > 0) {
-      const extractedText = matches.join(' ').substring(0, 5000);
-      console.log('✅ Fallback extraction successful:', extractedText.length, 'characters');
-      return extractedText;
+    // 1. Cerca oggetti di testo con Td/TD (posizionamento testo)
+    const tdPattern = /(\d+(?:\.\d+)?\s+){2}Td\s*\(([^)]*)\)/g;
+    const tdMatches = [...pdfString.matchAll(tdPattern)];
+    for (const match of tdMatches) {
+      fallbackText += match[2] + ' ';
     }
     
-    return '';
+    // 2. Cerca font e testo associato
+    const fontPattern = /\/F\d+\s+\d+(?:\.\d+)?\s+Tf\s*\(([^)]*)\)/g;
+    const fontMatches = [...pdfString.matchAll(fontPattern)];
+    for (const match of fontMatches) {
+      fallbackText += match[1] + ' ';
+    }
+    
+    // 3. Cerca stringhe letterali più lunghe
+    const literalPattern = /[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s.,;:()]{15,}/g;
+    const literals = pdfString.match(literalPattern);
+    if (literals) {
+      fallbackText += literals.join(' ') + ' ';
+    }
+    
+    // 4. Decompressione stream FlateDecode (semplificata)
+    const streamPattern = /FlateDecode.*?stream\s*(.*?)\s*endstream/gs;
+    const streams = [...pdfString.matchAll(streamPattern)];
+    for (const stream of streams) {
+      // Prova a decodificare come testo diretto (alcuni PDF non sono compressi)
+      const streamContent = stream[1];
+      const textPattern = /\(([^)]{5,})\)/g;
+      const textMatches = [...streamContent.matchAll(textPattern)];
+      for (const textMatch of textMatches) {
+        fallbackText += textMatch[1] + ' ';
+      }
+    }
+    
+    // 5. Ricerca pattern specifici per bandi italiani
+    const bandoPatterns = [
+      /bando[^a-z]*([A-Za-z\s]{10,})/gi,
+      /decreto[^a-z]*([A-Za-z\s]{10,})/gi,
+      /finanziamento[^a-z]*([A-Za-z\s]{10,})/gi,
+      /contributo[^a-z]*([A-Za-z\s]{10,})/gi,
+      /euro[^a-z]*([A-Za-z0-9\s.,]{10,})/gi
+    ];
+    
+    for (const pattern of bandoPatterns) {
+      const matches = [...pdfString.matchAll(pattern)];
+      for (const match of matches) {
+        fallbackText += match[0] + ' ' + match[1] + ' ';
+      }
+    }
+    
+    // Pulizia finale
+    fallbackText = fallbackText
+      .replace(/\s+/g, ' ')
+      .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, ' ')
+      .trim();
+    
+    console.log('✅ Comprehensive fallback extraction:', fallbackText.length, 'characters');
+    return fallbackText;
+    
   } catch (error) {
-    console.error('❌ Fallback extraction failed:', error);
+    console.error('❌ Comprehensive fallback failed:', error);
     return '';
   }
 };
