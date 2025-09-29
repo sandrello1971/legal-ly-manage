@@ -26,6 +26,7 @@ import {
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
 import { useProjects } from '@/hooks/useProjects';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/stores/auth';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -49,6 +50,7 @@ export function ExpenseReviewDashboard() {
 
   const { expenses, loading, approveExpense, rejectExpense, updateExpense, refetch } = useExpenses();
   const { projects } = useProjects();
+  const { user } = useAuth();
 
   // Filter and search expenses
   const filteredExpenses = useMemo(() => {
@@ -448,23 +450,21 @@ export function ExpenseReviewDashboard() {
                                <DialogTitle>
                                  <div className="flex items-center justify-between">
                                    <span>{isEditing ? 'Modifica Spesa' : 'Dettagli Spesa'}</span>
-                                   {selectedExpense?.is_approved === null && (
-                                     <Button
-                                       variant={isEditing ? "destructive" : "outline"}
-                                       size="sm"
-                                       onClick={() => {
-                                         if (isEditing) {
-                                           setIsEditing(false);
-                                           setEditForm({});
-                                         } else {
-                                           startEditing(selectedExpense);
-                                         }
-                                       }}
-                                     >
-                                       <Edit className="h-4 w-4 mr-2" />
-                                       {isEditing ? 'Annulla Modifica' : 'Modifica'}
-                                     </Button>
-                                   )}
+                                   <Button
+                                     variant={isEditing ? "destructive" : "outline"}
+                                     size="sm"
+                                     onClick={() => {
+                                       if (isEditing) {
+                                         setIsEditing(false);
+                                         setEditForm({});
+                                       } else {
+                                         startEditing(selectedExpense);
+                                       }
+                                     }}
+                                   >
+                                     <Edit className="h-4 w-4 mr-2" />
+                                     {isEditing ? 'Annulla Modifica' : 'Modifica'}
+                                   </Button>
                                  </div>
                                </DialogTitle>
                              </DialogHeader>
@@ -607,19 +607,20 @@ export function ExpenseReviewDashboard() {
                                      </div>
                                    )}
 
-                                  {selectedExpense.approval_notes && (
-                                    <div>
-                                      <Label>Note di Approvazione</Label>
-                                      <p className="text-sm bg-muted p-2 rounded">
-                                        {selectedExpense.approval_notes}
-                                      </p>
-                                    </div>
-                                  )}
+                                   {selectedExpense.approval_notes && (
+                                     <div>
+                                       <Label>Note di Approvazione</Label>
+                                       <p className="text-sm bg-muted p-2 rounded">
+                                         {selectedExpense.approval_notes}
+                                       </p>
+                                     </div>
+                                   )}
 
-                                  {selectedExpense.is_approved === null && (
-                                    <div className="space-y-4 border-t pt-4">
-                                      <div>
-                                        <Label htmlFor="review-notes">Note di Revisione</Label>
+                                   {/* Azioni di approvazione solo per spese in attesa */}
+                                   {selectedExpense.is_approved === null && !isEditing && (
+                                     <div className="space-y-4 border-t pt-4">
+                                       <div>
+                                         <Label htmlFor="review-notes">Note di Revisione</Label>
                                         <Textarea
                                           id="review-notes"
                                           value={reviewNotes}
