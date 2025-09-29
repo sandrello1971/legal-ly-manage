@@ -289,14 +289,16 @@ serve(async (req) => {
     console.log('📄 PDF text preview:', pdfText.substring(0, 500));
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
-
-    // Converti PDF in base64 per OpenAI
-    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
     
-    const aiPrompt = `Analizza questo documento PDF di un BANDO e estrai TUTTE le informazioni strutturate.
+    const aiPrompt = `Analizza questo testo estratto da un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
 
-IMPORTANTE: Identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
-NON usare categorie predefinite, ma estrai ESATTAMENTE quelle indicate nel bando.
+TESTO DEL BANDO:
+${pdfText.substring(0, 12000)}
+
+IMPORTANTE: 
+- NON usare categorie predefinite
+- Estrai ESATTAMENTE le categorie indicate nel testo
+- Se il testo non è chiaro, cerca pattern come "categorie ammissibili", "spese finanziabili", "voci di costo"
 
 Rispondi SOLO con JSON valido:
 {
@@ -333,23 +335,9 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ 
-          role: 'user', 
-          content: [
-            {
-              type: 'text',
-              text: aiPrompt
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:application/pdf;base64,${base64Pdf}`
-              }
-            }
-          ]
-        }],
-        max_tokens: 2000,
+        model: 'gpt-4.1-2025-04-14',
+        messages: [{ role: 'user', content: aiPrompt }],
+        max_completion_tokens: 2000,
       }),
     });
 
