@@ -20,7 +20,8 @@ import {
   MessageSquare,
   History,
   Eye,
-  Download
+  Download,
+  Edit
 } from 'lucide-react';
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
 import { useProjects } from '@/hooks/useProjects';
@@ -42,8 +43,10 @@ export function ExpenseReviewDashboard() {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Expense>>({});
 
-  const { expenses, loading, approveExpense, rejectExpense, refetch } = useExpenses();
+  const { expenses, loading, approveExpense, rejectExpense, updateExpense, refetch } = useExpenses();
   const { projects } = useProjects();
 
   // Filter and search expenses
@@ -126,6 +129,33 @@ export function ExpenseReviewDashboard() {
     } catch (error) {
       console.error('Error performing action:', error);
     }
+  };
+
+  const handleEditExpense = async () => {
+    if (!selectedExpense || !editForm) return;
+
+    try {
+      await updateExpense(selectedExpense.id, editForm);
+      setIsEditing(false);
+      setEditForm({});
+      setSelectedExpense(null);
+      refetch();
+    } catch (error) {
+      console.error('Error updating expense:', error);
+    }
+  };
+
+  const startEditing = (expense: Expense) => {
+    setEditForm({
+      description: expense.description,
+      amount: expense.amount,
+      category: expense.category,
+      supplier_name: expense.supplier_name,
+      receipt_number: expense.receipt_number,
+      expense_date: expense.expense_date,
+      project_id: expense.project_id
+    });
+    setIsEditing(true);
   };
 
   const getStatusBadge = (expense: Expense) => {
@@ -367,53 +397,173 @@ export function ExpenseReviewDashboard() {
                     <TableCell>
                       <div className="flex gap-1">
                         <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedExpense(expense)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>Dettagli Spesa</DialogTitle>
-                            </DialogHeader>
-                            {selectedExpense && (
-                              <Tabs defaultValue="details" className="w-full">
-                                <TabsList>
-                                  <TabsTrigger value="details">Dettagli</TabsTrigger>
-                                  <TabsTrigger value="history">Storico</TabsTrigger>
-                                </TabsList>
-                                
-                                <TabsContent value="details" className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label>Descrizione</Label>
-                                      <p className="text-sm">{selectedExpense.description}</p>
-                                    </div>
-                                    <div>
-                                      <Label>Importo</Label>
-                                      <p className="text-sm font-medium">€{selectedExpense.amount.toFixed(2)}</p>
-                                    </div>
-                                    <div>
-                                      <Label>Categoria</Label>
-                                      <p className="text-sm">{getCategoryLabel(selectedExpense.category)}</p>
-                                    </div>
-                                    <div>
-                                      <Label>Data Spesa</Label>
-                                      <p className="text-sm">{format(new Date(selectedExpense.expense_date), 'dd/MM/yyyy', { locale: it })}</p>
-                                    </div>
-                                    <div>
-                                      <Label>Fornitore</Label>
-                                      <p className="text-sm">{selectedExpense.supplier_name || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                      <Label>Numero Ricevuta</Label>
-                                      <p className="text-sm">{selectedExpense.receipt_number || 'N/A'}</p>
-                                    </div>
-                                  </div>
+                           <DialogTrigger asChild>
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => {
+                                 setSelectedExpense(expense);
+                                 setIsEditing(false);
+                                 setEditForm({});
+                               }}
+                             >
+                               <Eye className="h-4 w-4" />
+                             </Button>
+                           </DialogTrigger>
+                           <DialogContent className="max-w-3xl">
+                             <DialogHeader>
+                               <DialogTitle className="flex items-center justify-between">
+                                 <span>{isEditing ? 'Modifica Spesa' : 'Dettagli Spesa'}</span>
+                                 {selectedExpense?.is_approved === null && !isEditing && (
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => startEditing(selectedExpense)}
+                                   >
+                                     <Edit className="h-4 w-4 mr-2" />
+                                     Modifica
+                                   </Button>
+                                 )}
+                               </DialogTitle>
+                             </DialogHeader>
+                             {selectedExpense && (
+                               <Tabs defaultValue="details" className="w-full">
+                                 <TabsList>
+                                   <TabsTrigger value="details">Dettagli</TabsTrigger>
+                                   <TabsTrigger value="history">Storico</TabsTrigger>
+                                 </TabsList>
+                                 
+                                 <TabsContent value="details" className="space-y-4">
+                                   {isEditing ? (
+                                     <div className="grid grid-cols-2 gap-4">
+                                       <div>
+                                         <Label htmlFor="edit-description">Descrizione</Label>
+                                         <Input
+                                           id="edit-description"
+                                           value={editForm.description || ''}
+                                           onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label htmlFor="edit-amount">Importo</Label>
+                                         <Input
+                                           id="edit-amount"
+                                           type="number"
+                                           step="0.01"
+                                           value={editForm.amount || ''}
+                                           onChange={(e) => setEditForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label htmlFor="edit-category">Categoria</Label>
+                                         <Select 
+                                           value={editForm.category || ''} 
+                                           onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value as any }))}
+                                         >
+                                           <SelectTrigger>
+                                             <SelectValue />
+                                           </SelectTrigger>
+                                           <SelectContent>
+                                             <SelectItem value="personnel">Personale</SelectItem>
+                                             <SelectItem value="equipment">Attrezzature</SelectItem>
+                                             <SelectItem value="materials">Materiali</SelectItem>
+                                             <SelectItem value="services">Servizi</SelectItem>
+                                             <SelectItem value="travel">Viaggi</SelectItem>
+                                             <SelectItem value="other">Altro</SelectItem>
+                                           </SelectContent>
+                                         </Select>
+                                       </div>
+                                       <div>
+                                         <Label htmlFor="edit-date">Data Spesa</Label>
+                                         <Input
+                                           id="edit-date"
+                                           type="date"
+                                           value={editForm.expense_date || ''}
+                                           onChange={(e) => setEditForm(prev => ({ ...prev, expense_date: e.target.value }))}
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label htmlFor="edit-supplier">Fornitore</Label>
+                                         <Input
+                                           id="edit-supplier"
+                                           value={editForm.supplier_name || ''}
+                                           onChange={(e) => setEditForm(prev => ({ ...prev, supplier_name: e.target.value }))}
+                                         />
+                                       </div>
+                                       <div>
+                                         <Label htmlFor="edit-receipt">Numero Ricevuta</Label>
+                                         <Input
+                                           id="edit-receipt"
+                                           value={editForm.receipt_number || ''}
+                                           onChange={(e) => setEditForm(prev => ({ ...prev, receipt_number: e.target.value }))}
+                                         />
+                                       </div>
+                                       <div className="col-span-2">
+                                         <Label htmlFor="edit-project">Progetto</Label>
+                                         <Select 
+                                           value={editForm.project_id || ''} 
+                                           onValueChange={(value) => setEditForm(prev => ({ ...prev, project_id: value }))}
+                                         >
+                                           <SelectTrigger>
+                                             <SelectValue />
+                                           </SelectTrigger>
+                                           <SelectContent>
+                                             {projects.map((project) => (
+                                               <SelectItem key={project.id} value={project.id}>
+                                                 {project.title}
+                                               </SelectItem>
+                                             ))}
+                                           </SelectContent>
+                                         </Select>
+                                       </div>
+                                       <div className="col-span-2 flex gap-2 pt-4">
+                                         <Button onClick={handleEditExpense} className="flex-1">
+                                           Salva Modifiche
+                                         </Button>
+                                         <Button 
+                                           variant="outline" 
+                                           onClick={() => {
+                                             setIsEditing(false);
+                                             setEditForm({});
+                                           }}
+                                           className="flex-1"
+                                         >
+                                           Annulla
+                                         </Button>
+                                       </div>
+                                     </div>
+                                   ) : (
+                                     <div className="grid grid-cols-2 gap-4">
+                                       <div>
+                                         <Label>Descrizione</Label>
+                                         <p className="text-sm">{selectedExpense.description}</p>
+                                       </div>
+                                       <div>
+                                         <Label>Importo</Label>
+                                         <p className="text-sm font-medium">€{selectedExpense.amount.toFixed(2)}</p>
+                                       </div>
+                                       <div>
+                                         <Label>Categoria</Label>
+                                         <p className="text-sm">{getCategoryLabel(selectedExpense.category)}</p>
+                                       </div>
+                                       <div>
+                                         <Label>Data Spesa</Label>
+                                         <p className="text-sm">{format(new Date(selectedExpense.expense_date), 'dd/MM/yyyy', { locale: it })}</p>
+                                       </div>
+                                       <div>
+                                         <Label>Fornitore</Label>
+                                         <p className="text-sm">{selectedExpense.supplier_name || 'N/A'}</p>
+                                       </div>
+                                       <div>
+                                         <Label>Numero Ricevuta</Label>
+                                         <p className="text-sm">{selectedExpense.receipt_number || 'N/A'}</p>
+                                       </div>
+                                       <div>
+                                         <Label>Progetto</Label>
+                                         <p className="text-sm">{projects.find(p => p.id === selectedExpense.project_id)?.title || 'N/A'}</p>
+                                       </div>
+                                     </div>
+                                   )}
 
                                   {selectedExpense.approval_notes && (
                                     <div>
