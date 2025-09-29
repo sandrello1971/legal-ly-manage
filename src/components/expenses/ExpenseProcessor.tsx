@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Upload, FileText, CheckCircle, AlertCircle, Edit2, Trash2 } from 'lucide-react';
+import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { useExpenses, type ExpenseUpload } from '@/hooks/useExpenses';
 import { useProjects } from '@/hooks/useProjects';
 
@@ -412,12 +413,12 @@ export function ExpenseProcessor() {
                                   <SelectValue placeholder="Seleziona categoria" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="personnel">Personale</SelectItem>
-                                  <SelectItem value="equipment">Attrezzature</SelectItem>
-                                  <SelectItem value="materials">Materiali</SelectItem>
-                                  <SelectItem value="services">Servizi</SelectItem>
-                                  <SelectItem value="travel">Viaggi</SelectItem>
-                                  <SelectItem value="other">Altro</SelectItem>
+                                  <SelectItem value="consulting">Consulenza</SelectItem>
+                                  <SelectItem value="training">Formazione</SelectItem>
+                                  <SelectItem value="equipment">Attrezzature tecnologiche</SelectItem>
+                                  <SelectItem value="engineering">Ingegnerizzazione SW/HW</SelectItem>
+                                  <SelectItem value="intellectual_property">Proprietà industriale</SelectItem>
+                                  <SelectItem value="personnel">Personale dedicato</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>

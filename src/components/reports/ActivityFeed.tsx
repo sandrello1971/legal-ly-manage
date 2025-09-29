@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -308,12 +309,12 @@ export function ActivityFeed({ data, onExport, onRefresh }: ActivityFeedProps) {
                         <SelectValue placeholder="Seleziona categoria" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="personnel">Personale</SelectItem>
-                        <SelectItem value="equipment">Attrezzature</SelectItem>
-                        <SelectItem value="materials">Materiali</SelectItem>
-                        <SelectItem value="services">Servizi</SelectItem>
-                        <SelectItem value="travel">Viaggi</SelectItem>
-                        <SelectItem value="other">Altro</SelectItem>
+                        <SelectItem value="consulting">Consulenza</SelectItem>
+                        <SelectItem value="training">Formazione</SelectItem>
+                        <SelectItem value="equipment">Attrezzature tecnologiche</SelectItem>
+                        <SelectItem value="engineering">Ingegnerizzazione SW/HW</SelectItem>
+                        <SelectItem value="intellectual_property">Proprietà industriale</SelectItem>
+                        <SelectItem value="personnel">Personale dedicato</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

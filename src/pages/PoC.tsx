@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBandi } from '@/hooks/useBandi';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
+import { LEGACY_CATEGORY_MAPPING } from '@/config/expenseCategories';
 
 interface Phase {
   id: string;
@@ -41,7 +42,12 @@ export default function PoC() {
   // Calculate completion status based on actual data
   const calculatePhaseStatus = (phaseId: string): 'pending' | 'in-progress' | 'completed' => {
     // Pre-calculate filtered arrays to avoid scope issues
-    const invoiceExpenses = expenses.filter(e => e.category === 'services' || e.category === 'materials' || e.category === 'equipment');
+    // Spese documento (categorie che richiedono documentazione - usando categorie esistenti per ora)
+    const documentExpenses = expenses.filter(e => 
+      e.category === 'services' || 
+      e.category === 'materials' || 
+      e.category === 'equipment'
+    );
     const personnelExpenses = expenses.filter(e => e.category === 'personnel');
     const approvedExpenses = expenses.filter(e => e.is_approved === true);
     
@@ -51,7 +57,7 @@ export default function PoC() {
       case '2b':
         return projects.length > 0 ? 'completed' : bandi.length > 0 ? 'in-progress' : 'pending';
       case '3':
-        return invoiceExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
+        return documentExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
       case '5':
         return personnelExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
       case '6':

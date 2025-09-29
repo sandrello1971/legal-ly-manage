@@ -1,4 +1,5 @@
 import React from 'react';
+import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   ChartContainer, 
@@ -39,15 +40,7 @@ export function AnalyticsCharts({ data }: AnalyticsChartsProps) {
   };
 
   const getCategoryLabel = (category: string) => {
-    const labels = {
-      personnel: 'Personale',
-      equipment: 'Attrezzature',
-      materials: 'Materiali',
-      services: 'Servizi',
-      travel: 'Viaggi',
-      other: 'Altro'
-    };
-    return labels[category as keyof typeof labels] || category;
+    return EXPENSE_CATEGORY_LABELS[category as ExpenseCategory] || category;
   };
 
   // Chart configurations

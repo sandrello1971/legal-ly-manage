@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { 
   CheckCircle, 
   XCircle, 
@@ -172,15 +173,7 @@ export function ExpenseReviewDashboard() {
   };
 
   const getCategoryLabel = (category: string) => {
-    const labels = {
-      personnel: 'Personale',
-      equipment: 'Attrezzature',
-      materials: 'Materiali',
-      services: 'Servizi',
-      travel: 'Viaggi',
-      other: 'Altro'
-    };
-    return labels[category as keyof typeof labels] || category;
+    return EXPENSE_CATEGORY_LABELS[category as ExpenseCategory] || category;
   };
 
   if (loading) {
@@ -513,14 +506,14 @@ export function ExpenseReviewDashboard() {
                                            <SelectTrigger>
                                              <SelectValue />
                                            </SelectTrigger>
-                                           <SelectContent>
-                                             <SelectItem value="personnel">Personale</SelectItem>
-                                             <SelectItem value="equipment">Attrezzature</SelectItem>
-                                             <SelectItem value="materials">Materiali</SelectItem>
-                                             <SelectItem value="services">Servizi</SelectItem>
-                                             <SelectItem value="travel">Viaggi</SelectItem>
-                                             <SelectItem value="other">Altro</SelectItem>
-                                           </SelectContent>
+                                            <SelectContent>
+                                              <SelectItem value="consulting">Consulenza</SelectItem>
+                                              <SelectItem value="training">Formazione</SelectItem>
+                                              <SelectItem value="equipment">Attrezzature tecnologiche</SelectItem>
+                                              <SelectItem value="engineering">Ingegnerizzazione SW/HW</SelectItem>
+                                              <SelectItem value="intellectual_property">Proprietà industriale</SelectItem>
+                                              <SelectItem value="personnel">Personale dedicato</SelectItem>
+                                            </SelectContent>
                                          </Select>
                                        </div>
                                        <div>
