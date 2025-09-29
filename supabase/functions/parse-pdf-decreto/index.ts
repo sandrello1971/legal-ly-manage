@@ -316,12 +316,14 @@ serve(async (req) => {
     // 2. Troppi caratteri non leggibili nei primi 500 caratteri  
     // 3. Rapporto caratteri leggibili/totali troppo basso
     const testSample = pdfText.substring(0, Math.min(500, pdfText.length));
-    const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9\s.,;:!?()-]/g) || []).length;
+    // Conta SOLO lettere e numeri, NO spazi/punteggiatura che possono ingannare il rilevamento
+    const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9]/g) || []).length;
     const readableRatio = testSample.length > 0 ? readableChars / testSample.length : 0;
     
     console.log(`📊 Analisi qualità testo - Lunghezza: ${pdfText.length}, Campione: ${testSample.length}, Leggibili: ${readableChars}, Ratio: ${readableRatio.toFixed(3)}`);
     
-    if (pdfText.length < 200 || readableRatio < 0.4) {
+    // Soglia più rigorosa: se meno del 20% sono caratteri alfanumerici, usa OCR
+    if (pdfText.length < 200 || readableRatio < 0.2) {
       console.log(`📄 Testo di scarsa qualità rilevato (ratio: ${readableRatio.toFixed(3)}), provo con OCR...`);
       
       try {
