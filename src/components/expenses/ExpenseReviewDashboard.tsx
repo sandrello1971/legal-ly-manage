@@ -353,6 +353,13 @@ export function ExpenseReviewDashboard() {
             variant="outline" 
             onClick={async () => {
               // Crea una spesa di test in attesa di revisione usando Supabase
+              if (!user) {
+                console.error('User not authenticated');
+                return;
+              }
+              
+              console.log('Creating test expense with user ID:', user.id);
+              
               try {
                 const { error } = await supabase
                   .from('project_expenses')
@@ -365,7 +372,7 @@ export function ExpenseReviewDashboard() {
                     supplier_name: "Fornitore Test",
                     receipt_number: "TEST-001",
                     is_approved: null, // Questo la mette in attesa di revisione
-                    created_by: 'current-user-id' // Dovrebbe essere l'ID dell'utente corrente
+                    created_by: user?.id || null // Usa l'ID reale dell'utente autenticato
                   });
                 
                 if (error) {
@@ -373,6 +380,7 @@ export function ExpenseReviewDashboard() {
                   throw error;
                 }
                 
+                console.log('Test expense created successfully');
                 refetch();
               } catch (error) {
                 console.error('Error creating test expense:', error);
