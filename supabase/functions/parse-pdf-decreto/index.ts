@@ -227,16 +227,19 @@ serve(async (req) => {
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
-    const aiPrompt = `Estrai le informazioni principali da questo BANDO SI4.0 2025 includendo TUTTI i dati economici disponibili:
+    const aiPrompt = `Estrai le informazioni principali da questo BANDO includendo TUTTI i dati economici e le categorie di spesa specifiche:
 
 TESTO DEL BANDO:
 ${pdfText.substring(0, 8000)}
+
+ANALIZZA ATTENTAMENTE il testo del bando e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
+NON usare categorie predefinite, ma estrai ESATTAMENTE quelle indicate nel bando.
 
 Rispondi SOLO con JSON valido con queste informazioni complete:
 {
   "title": "titolo completo del bando",
   "description": "descrizione dettagliata del bando",
-  "organization": "ente organizzatore",
+  "organization": "ente organizzatore", 
   "total_amount": "importo totale disponibile come numero",
   "min_funding": "importo minimo finanziabile come numero", 
   "max_funding": "importo massimo finanziabile come numero",
@@ -248,51 +251,16 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
   "required_documents": ["lista", "documenti", "richiesti"],
   "expense_categories": [
     {
-      "name": "Consulenza",
-      "description": "Consulenza erogata direttamente da fornitori qualificati su tecnologie 4.0", 
-      "max_percentage": null,
-      "max_amount": null,
-      "eligible_expenses": ["consulenza", "supporto tecnico", "advisory"]
-    },
-    {
-      "name": "Formazione",
-      "description": "Formazione specifica su tecnologie 4.0 con attestato di frequenza", 
-      "max_percentage": null,
-      "max_amount": null,
-      "eligible_expenses": ["corsi", "formazione", "training", "certificazioni"]
-    },
-    {
-      "name": "Attrezzature tecnologiche",
-      "description": "Investimenti in attrezzature tecnologiche e programmi informatici necessari al progetto", 
-      "max_percentage": null,
-      "max_amount": null,
-      "eligible_expenses": ["hardware", "software", "attrezzature", "licenze", "computer"]
-    },
-    {
-      "name": "Ingegnerizzazione SW/HW",
-      "description": "Servizi e tecnologie per ingegnerizzazione di software/hardware del progetto", 
-      "max_percentage": null,
-      "max_amount": null,
-      "eligible_expenses": ["sviluppo", "ingegnerizzazione", "prototipazione", "customizzazione"]
-    },
-    {
-      "name": "Proprietà industriale",
-      "description": "Spese per la tutela della proprietà industriale", 
-      "max_percentage": null,
-      "max_amount": null,
-      "eligible_expenses": ["brevetti", "marchi", "proprietà intellettuale", "tutela IP"]
-    },
-    {
-      "name": "Personale dedicato",
-      "description": "Spese del personale aziendale dedicato esclusivamente al progetto (max 30%)", 
-      "max_percentage": 30,
-      "max_amount": null,
-      "eligible_expenses": ["stipendi", "personale", "retribuzioni", "salari"]
+      "name": "Nome categoria come scritto nel bando",
+      "description": "Descrizione dettagliata della categoria dal bando", 
+      "max_percentage": "percentuale massima se specificata (come numero) o null",
+      "max_amount": "importo massimo se specificato (come numero) o null",
+      "eligible_expenses": ["lista", "spese", "ammissibili", "specifiche"]
     }
   ],
   "target_companies": "tipologie aziende destinatarie",
   "geographic_scope": "ambito geografico",
-  "innovation_areas": ["aree", "di", "innovazione"]
+  "innovation_areas": ["aree", "di", "innovazione", "se", "presenti"]
 }`;
 
 const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -312,9 +280,9 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     if (!aiResponse.ok) {
       console.error('❌ OpenAI API error:', aiResponse.status);
       testData = {
-        title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
+        title: 'BANDO - Errore nella chiamata OpenAI',
         description: 'Errore nella chiamata OpenAI - usando dati fallback',
-        organization: 'UNIONCAMERE Regione Lombardia',
+        organization: 'Ente Pubblico',
         total_amount: null,
         min_funding: null,
         max_funding: null,
@@ -327,9 +295,9 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         contact_email: null,
         contact_phone: null,
         website_url: null,
-        eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
-        evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
-        required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori'],
+        eligibility_criteria: 'Criteri non disponibili',
+        evaluation_criteria: 'Criteri non disponibili',
+        required_documents: ['Documenti non disponibili'],
         expense_categories: [],
         target_companies: null,
         geographic_scope: null,
@@ -371,9 +339,9 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       } catch (parseError) {
         console.error('❌ Error parsing AI response:', parseError);
         testData = {
-          title: 'BANDO SI4.0 2025 - Sviluppo di Soluzioni Innovative 4.0',
+          title: 'BANDO - Errore nel parsing AI',
           description: 'Errore nel parsing AI - usando dati fallback',
-          organization: 'UNIONCAMERE Regione Lombardia',
+          organization: 'Ente Pubblico',
           total_amount: null,
           min_funding: null,
           max_funding: null,
@@ -386,9 +354,9 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           contact_email: null,
           contact_phone: null,
           website_url: null,
-          eligibility_criteria: 'PMI e micro imprese con sede in Lombardia',
-          evaluation_criteria: 'Innovatività della soluzione e impatto sul business',
-          required_documents: ['Visura camerale', 'Piano di sviluppo', 'Preventivi fornitori'],
+          eligibility_criteria: 'Criteri non disponibili',
+          evaluation_criteria: 'Criteri non disponibili', 
+          required_documents: ['Documenti non disponibili'],
           expense_categories: [],
           target_companies: null,
           geographic_scope: null,
@@ -441,7 +409,7 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
     return new Response(JSON.stringify({ 
       success: true, 
       data: testData,
-      message: 'Test completato con successo!'
+      message: 'Analisi completata con successo!'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
