@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
 import { useProjects } from '@/hooks/useProjects';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -344,8 +345,40 @@ export function ExpenseReviewDashboard() {
 
       {/* Expenses Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Spese da Revisionare</CardTitle>
+          <Button 
+            variant="outline" 
+            onClick={async () => {
+              // Crea una spesa di test in attesa di revisione usando Supabase
+              try {
+                const { error } = await supabase
+                  .from('project_expenses')
+                  .insert({
+                    project_id: projects[0]?.id || null,
+                    description: "Spesa di test - In attesa di revisione",
+                    amount: 150.00,
+                    expense_date: new Date().toISOString().split('T')[0],
+                    category: "materials",
+                    supplier_name: "Fornitore Test",
+                    receipt_number: "TEST-001",
+                    is_approved: null, // Questo la mette in attesa di revisione
+                    created_by: 'current-user-id' // Dovrebbe essere l'ID dell'utente corrente
+                  });
+                
+                if (error) {
+                  console.error('Supabase error:', error);
+                  throw error;
+                }
+                
+                refetch();
+              } catch (error) {
+                console.error('Error creating test expense:', error);
+              }
+            }}
+          >
+            + Aggiungi Spesa Test (In Attesa)
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -412,18 +445,27 @@ export function ExpenseReviewDashboard() {
                            </DialogTrigger>
                            <DialogContent className="max-w-3xl">
                              <DialogHeader>
-                               <DialogTitle className="flex items-center justify-between">
-                                 <span>{isEditing ? 'Modifica Spesa' : 'Dettagli Spesa'}</span>
-                                 {selectedExpense?.is_approved === null && !isEditing && (
-                                   <Button
-                                     variant="outline"
-                                     size="sm"
-                                     onClick={() => startEditing(selectedExpense)}
-                                   >
-                                     <Edit className="h-4 w-4 mr-2" />
-                                     Modifica
-                                   </Button>
-                                 )}
+                               <DialogTitle>
+                                 <div className="flex items-center justify-between">
+                                   <span>{isEditing ? 'Modifica Spesa' : 'Dettagli Spesa'}</span>
+                                   {selectedExpense?.is_approved === null && (
+                                     <Button
+                                       variant={isEditing ? "destructive" : "outline"}
+                                       size="sm"
+                                       onClick={() => {
+                                         if (isEditing) {
+                                           setIsEditing(false);
+                                           setEditForm({});
+                                         } else {
+                                           startEditing(selectedExpense);
+                                         }
+                                       }}
+                                     >
+                                       <Edit className="h-4 w-4 mr-2" />
+                                       {isEditing ? 'Annulla Modifica' : 'Modifica'}
+                                     </Button>
+                                   )}
+                                 </div>
                                </DialogTitle>
                              </DialogHeader>
                              {selectedExpense && (
