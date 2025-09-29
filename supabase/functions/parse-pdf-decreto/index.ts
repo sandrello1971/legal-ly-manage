@@ -303,54 +303,26 @@ serve(async (req) => {
       });
     }
 
-    console.log('🔍 Using Lovable Document Parse API for reliable PDF extraction...');
+    console.log('🔍 Extracting text from PDF using improved manual extraction...');
+    let pdfText = await extractTextFromPDF(pdfBuffer);
     
-    let pdfText = '';
+    console.log('📊 Extracted text stats:');
+    console.log('  - Length:', pdfText.length);
+    console.log('  - First 300 chars:', pdfText.substring(0, 300));
+    console.log('  - Last 200 chars:', pdfText.substring(Math.max(0, pdfText.length - 200)));
     
-    try {
-      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-      if (!lovableApiKey) {
-        throw new Error('LOVABLE_API_KEY not configured');
-      }
-      
-      console.log('📤 Sending PDF to Document Parse API...');
-      
-      const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${lovableApiKey}`,
-        },
-        body: JSON.stringify({
-          file_content: Array.from(new Uint8Array(pdfBuffer)),
-          file_name: fileName,
-          formats: ['markdown']
-        })
+    // Se il testo estratto è troppo corto o sembra essere garbage, fallisce
+    if (pdfText.length < 100) {
+      console.error('❌ Extracted text is too short:', pdfText.length, 'characters');
+      return new Response(JSON.stringify({ 
+        error: 'Il PDF non contiene testo leggibile. Potrebbe essere un\'immagine scansionata. Si prega di fornire un PDF con testo selezionabile.',
+        details: `Only ${pdfText.length} characters extracted`
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-      
-      console.log('📥 Document Parse response status:', documentParseResponse.status);
-      
-      if (documentParseResponse.ok) {
-        const parseResult = await documentParseResponse.json();
-        console.log('📄 Parse result keys:', Object.keys(parseResult));
-        
-        if (parseResult.content && parseResult.content.length > 50) {
-          pdfText = parseResult.content;
-          console.log('✅ Document Parse successful, text length:', pdfText.length);
-          console.log('📄 Text preview (first 500 chars):', pdfText.substring(0, 500));
-        } else {
-          throw new Error(`Document Parse returned insufficient content (length: ${parseResult.content?.length || 0})`);
-        }
-      } else {
-        const errorText = await documentParseResponse.text();
-        console.error('❌ Document Parse HTTP error:', documentParseResponse.status, errorText);
-        throw new Error(`Document Parse failed: ${documentParseResponse.status} - ${errorText}`);
-      }
-    } catch (parseError) {
-      console.error('❌ Document Parse error:', parseError);
-      pdfText = 'Errore nell\'estrazione del testo PDF. Il documento potrebbe essere danneggiato o avere una codifica non standard.';
     }
-
+    
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
     const aiPrompt = `Analizza questo testo estratto da un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
