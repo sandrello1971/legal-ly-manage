@@ -313,14 +313,16 @@ serve(async (req) => {
 // Se l'estrazione testo fallisce, prova con OCR tramite Document Parse
     // Controlli per testo di scarsa qualità:
     // 1. Troppo corto
-    // 2. Troppi caratteri non leggibili nei primi 500 caratteri
+    // 2. Troppi caratteri non leggibili nei primi 500 caratteri  
     // 3. Rapporto caratteri leggibili/totali troppo basso
-    const testSample = pdfText.substring(0, 500);
-    const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9\s]/g) || []).length;
-    const readableRatio = readableChars / testSample.length;
+    const testSample = pdfText.substring(0, Math.min(500, pdfText.length));
+    const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9\s.,;:!?()-]/g) || []).length;
+    const readableRatio = testSample.length > 0 ? readableChars / testSample.length : 0;
     
-    if (pdfText.length < 200 || readableRatio < 0.3) {
-      console.log(`📄 Testo di scarsa qualità rilevato (${readableRatio.toFixed(2)} ratio), provo con OCR...`);
+    console.log(`📊 Analisi qualità testo - Lunghezza: ${pdfText.length}, Campione: ${testSample.length}, Leggibili: ${readableChars}, Ratio: ${readableRatio.toFixed(3)}`);
+    
+    if (pdfText.length < 200 || readableRatio < 0.4) {
+      console.log(`📄 Testo di scarsa qualità rilevato (ratio: ${readableRatio.toFixed(3)}), provo con OCR...`);
       
       try {
         const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
