@@ -40,19 +40,21 @@ export default function PoC() {
 
   // Calculate completion status based on actual data
   const calculatePhaseStatus = (phaseId: string): 'pending' | 'in-progress' | 'completed' => {
+    // Pre-calculate filtered arrays to avoid scope issues
+    const invoiceExpenses = expenses.filter(e => e.category === 'services' || e.category === 'materials' || e.category === 'equipment');
+    const personnelExpenses = expenses.filter(e => e.category === 'personnel');
+    const approvedExpenses = expenses.filter(e => e.is_approved === true);
+    
     switch (phaseId) {
       case '1b':
         return bandi.length > 0 ? 'completed' : 'pending';
       case '2b':
         return projects.length > 0 ? 'completed' : bandi.length > 0 ? 'in-progress' : 'pending';
       case '3':
-        const invoiceExpenses = expenses.filter(e => e.category === 'services' || e.category === 'materials' || e.category === 'equipment');
         return invoiceExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
       case '5':
-        const personnelExpenses = expenses.filter(e => e.category === 'personnel');
         return personnelExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
       case '6':
-        const approvedExpenses = expenses.filter(e => e.is_approved === true);
         return approvedExpenses.length > 0 ? 'completed' : expenses.length > 0 ? 'in-progress' : 'pending';
       case '7':
         return approvedExpenses.length > 0 ? 'in-progress' : 'pending';
