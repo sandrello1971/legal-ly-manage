@@ -1516,6 +1516,45 @@ export type Database = {
           },
         ]
       }
+      expense_categories: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          eligible_expenses: string[] | null
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          max_percentage: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          eligible_expenses?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          max_percentage?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          eligible_expenses?: string[] | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          max_percentage?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integration_sync_logs: {
         Row: {
           created_at: string

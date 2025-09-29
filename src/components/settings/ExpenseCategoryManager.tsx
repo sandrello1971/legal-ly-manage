@@ -6,21 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Tables } from '@/integrations/supabase/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Edit2, Trash2, Target, Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-interface ExpenseCategory {
-  id?: string;
-  name: string;
-  description?: string;
-  max_percentage?: number;
-  max_amount?: number;
-  eligible_expenses?: string[];
-  is_active: boolean;
-}
+type ExpenseCategory = Tables<'expense_categories'>;
 
 export function ExpenseCategoryManager() {
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
@@ -29,13 +22,14 @@ export function ExpenseCategoryManager() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState<ExpenseCategory>({
+  const [formData, setFormData] = useState<Partial<ExpenseCategory>>({
     name: '',
     description: '',
     max_percentage: undefined,
     max_amount: undefined,
     eligible_expenses: [],
-    is_active: true
+    is_active: true,
+    created_by: undefined
   });
 
   useEffect(() => {
@@ -71,7 +65,8 @@ export function ExpenseCategoryManager() {
       max_percentage: undefined,
       max_amount: undefined,
       eligible_expenses: [],
-      is_active: true
+      is_active: true,
+      created_by: undefined
     });
     setEditingCategory(null);
   };
@@ -88,7 +83,7 @@ export function ExpenseCategoryManager() {
 
   const handleSaveCategory = async () => {
     try {
-      if (!formData.name.trim()) {
+      if (!formData.name?.trim()) {
         toast({
           title: "Errore",
           description: "Il nome della categoria è obbligatorio",
@@ -98,12 +93,13 @@ export function ExpenseCategoryManager() {
       }
 
       const categoryData = {
-        name: formData.name.trim(),
+        name: formData.name?.trim() || '',
         description: formData.description?.trim() || null,
         max_percentage: formData.max_percentage || null,
         max_amount: formData.max_amount || null,
         eligible_expenses: formData.eligible_expenses || [],
-        is_active: formData.is_active
+        is_active: formData.is_active ?? true,
+        created_by: editingCategory?.created_by || (await supabase.auth.getUser()).data.user?.id
       };
 
       let error;
@@ -167,45 +163,65 @@ export function ExpenseCategoryManager() {
     }
   };
 
-  const loadBandoSI40Categories = () => {
-    const si40Categories: ExpenseCategory[] = [
+  const loadBandoSI40Categories = async () => {
+    const si40Categories = [
       {
         name: 'Consulenza',
         description: 'Consulenza erogata direttamente da fornitori qualificati su tecnologie 4.0',
-        is_active: true
+        is_active: true,
+        created_by: (await supabase.auth.getUser()).data.user?.id
       },
       {
         name: 'Formazione',
         description: 'Formazione specifica su tecnologie 4.0 con attestato di frequenza',
-        is_active: true
+        is_active: true,
+        created_by: (await supabase.auth.getUser()).data.user?.id
       },
       {
         name: 'Attrezzature tecnologiche',
         description: 'Investimenti in attrezzature tecnologiche e programmi informatici necessari al progetto',
-        is_active: true
+        is_active: true,
+        created_by: (await supabase.auth.getUser()).data.user?.id
       },
       {
         name: 'Ingegnerizzazione SW/HW',
         description: 'Servizi e tecnologie per ingegnerizzazione di software/hardware del progetto',
-        is_active: true
+        is_active: true,
+        created_by: (await supabase.auth.getUser()).data.user?.id
       },
       {
         name: 'Proprietà industriale',
         description: 'Spese per la tutela della proprietà industriale (brevetti, marchi, etc.)',
-        is_active: true
+        is_active: true,
+        created_by: (await supabase.auth.getUser()).data.user?.id
       },
       {
         name: 'Personale dedicato',
         description: 'Spese del personale aziendale dedicato esclusivamente al progetto',
         max_percentage: 30,
-        is_active: true
+        is_active: true,
+        created_by: (await supabase.auth.getUser()).data.user?.id
       }
     ];
 
-    si40Categories.forEach(category => {
-      setFormData(category);
-      handleSaveCategory();
+    for (const category of si40Categories) {
+      try {
+        const { error } = await supabase
+          .from('expense_categories')
+          .insert(category);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error inserting category:', error);
+      }
+    }
+
+    toast({
+      title: "Successo",
+      description: "Categorie del Bando SI4.0 caricate con successo"
     });
+
+    loadCategories();
   };
 
   if (loading) {
@@ -259,7 +275,7 @@ export function ExpenseCategoryManager() {
                     <Label htmlFor="name">Nome Categoria *</Label>
                     <Input
                       id="name"
-                      value={formData.name}
+                      value={formData.name || ''}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="es. Consulenza"
                     />

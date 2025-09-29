@@ -182,11 +182,46 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
   "required_documents": ["lista", "documenti", "richiesti"],
   "expense_categories": [
     {
-      "name": "nome categoria",
-      "description": "descrizione categoria", 
-      "max_percentage": "percentuale massima come numero",
-      "max_amount": "importo massimo come numero",
-      "eligible_expenses": ["spese", "ammissibili"]
+      "name": "Consulenza",
+      "description": "Consulenza erogata direttamente da fornitori qualificati su tecnologie 4.0", 
+      "max_percentage": null,
+      "max_amount": null,
+      "eligible_expenses": ["consulenza", "supporto tecnico", "advisory"]
+    },
+    {
+      "name": "Formazione",
+      "description": "Formazione specifica su tecnologie 4.0 con attestato di frequenza", 
+      "max_percentage": null,
+      "max_amount": null,
+      "eligible_expenses": ["corsi", "formazione", "training", "certificazioni"]
+    },
+    {
+      "name": "Attrezzature tecnologiche",
+      "description": "Investimenti in attrezzature tecnologiche e programmi informatici necessari al progetto", 
+      "max_percentage": null,
+      "max_amount": null,
+      "eligible_expenses": ["hardware", "software", "attrezzature", "licenze", "computer"]
+    },
+    {
+      "name": "Ingegnerizzazione SW/HW",
+      "description": "Servizi e tecnologie per ingegnerizzazione di software/hardware del progetto", 
+      "max_percentage": null,
+      "max_amount": null,
+      "eligible_expenses": ["sviluppo", "ingegnerizzazione", "prototipazione", "customizzazione"]
+    },
+    {
+      "name": "Proprietà industriale",
+      "description": "Spese per la tutela della proprietà industriale", 
+      "max_percentage": null,
+      "max_amount": null,
+      "eligible_expenses": ["brevetti", "marchi", "proprietà intellettuale", "tutela IP"]
+    },
+    {
+      "name": "Personale dedicato",
+      "description": "Spese del personale aziendale dedicato esclusivamente al progetto (max 30%)", 
+      "max_percentage": 30,
+      "max_amount": null,
+      "eligible_expenses": ["stipendi", "personale", "retribuzioni", "salari"]
     }
   ],
   "target_companies": "tipologie aziende destinatarie",
