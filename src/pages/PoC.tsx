@@ -52,11 +52,11 @@ export default function PoC() {
         return projects.length > 0 ? 'completed' : bandi.length > 0 ? 'in-progress' : 'pending';
       case '3':
         return invoiceExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
-      case '4':
-        return personnelExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
       case '5':
-        return approvedExpenses.length > 0 ? 'completed' : expenses.length > 0 ? 'in-progress' : 'pending';
+        return personnelExpenses.length > 0 ? 'completed' : projects.length > 0 ? 'in-progress' : 'pending';
       case '6':
+        return approvedExpenses.length > 0 ? 'completed' : expenses.length > 0 ? 'in-progress' : 'pending';
+      case '7':
         return approvedExpenses.length > 0 ? 'in-progress' : 'pending';
       default:
         return 'pending';
@@ -93,26 +93,26 @@ export default function PoC() {
       route: '/expenses'
     },
     {
-      id: '4',
+      id: '5',
       title: 'Personnel Expenses',
       description: 'Caricamento spese del personale (timesheet)',
-      status: calculatePhaseStatus('4'),
+      status: calculatePhaseStatus('5'),
       icon: Clock,
       route: '/expenses'
     },
     {
-      id: '5',
+      id: '6',
       title: 'Documentation Verification',
       description: 'Verifica e approvazione della documentazione',
-      status: calculatePhaseStatus('5'),
+      status: calculatePhaseStatus('6'),
       icon: CheckSquare,
       route: '/expenses'
     },
     {
-      id: '6',
+      id: '7',
       title: 'Reporting Outcome',
       description: 'Generazione report e risultati finali',
-      status: calculatePhaseStatus('6'),
+      status: calculatePhaseStatus('7'),
       icon: BarChart3,
       route: '/reports'
     }
