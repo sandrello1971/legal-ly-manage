@@ -312,19 +312,19 @@ serve(async (req) => {
     
 // Se l'estrazione testo fallisce, prova con OCR tramite Document Parse
     // Controlli per testo di scarsa qualità:
-    // 1. Troppo corto
-    // 2. Troppi caratteri non leggibili nei primi 500 caratteri  
-    // 3. Rapporto caratteri leggibili/totali troppo basso
-    const testSample = pdfText.substring(0, Math.min(500, pdfText.length));
-    // Conta SOLO lettere e numeri, NO spazi/punteggiatura che possono ingannare il rilevamento
+    const testSample = pdfText.substring(0, Math.min(1000, pdfText.length));
     const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9]/g) || []).length;
     const readableRatio = testSample.length > 0 ? readableChars / testSample.length : 0;
     
-    console.log(`📊 Analisi qualità testo - Lunghezza: ${pdfText.length}, Campione: ${testSample.length}, Leggibili: ${readableChars}, Ratio: ${readableRatio.toFixed(3)}`);
+    // Controllo più intelligente: cerca parole italiane comuni nei bandi
+    const italianWords = testSample.match(/\b(?:bando|decreto|contribut[oi]|finanziamento|progett[oi]|impres[ae]|euro|articolo|comma|allegato|domanda|requisiti|scadenza|maggio|aprile|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|regione|lombardia|italia|pubblic[oa]|amministrazione|ufficio|dipartimento|direzione|assessorato)\b/gi) || [];
     
-    // Soglia più rigorosa: se meno del 20% sono caratteri alfanumerici, usa OCR
-    if (pdfText.length < 200 || readableRatio < 0.2) {
-      console.log(`📄 Testo di scarsa qualità rilevato (ratio: ${readableRatio.toFixed(3)}), provo con OCR...`);
+    console.log(`📊 Analisi qualità testo - Lunghezza: ${pdfText.length}, Ratio: ${readableRatio.toFixed(3)}, Parole italiane: ${italianWords.length}`);
+    console.log(`📝 Parole trovate: ${italianWords.slice(0, 5).join(', ')}${italianWords.length > 5 ? '...' : ''}`);
+    
+    // OCR se: testo corto OPPURE (ratio basso E nessuna parola italiana trovata)
+    if (pdfText.length < 200 || (readableRatio < 0.3 && italianWords.length < 3)) {
+      console.log(`📄 Testo di scarsa qualità rilevato - Attivo OCR`);
       
       try {
         const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
