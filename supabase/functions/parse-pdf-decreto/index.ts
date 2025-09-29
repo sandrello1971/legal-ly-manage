@@ -430,33 +430,36 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       }
     }
 
-    console.log('📝 Using extracted data:', testData);
+    // Pulisci e valida i dati prima dell'inserimento
+    const cleanData = {
+      title: testData.title || 'Bando da Analizzare',
+      description: testData.description || '',
+      organization: testData.organization || '',
+      total_amount: testData.total_amount && testData.total_amount !== "" ? parseFloat(testData.total_amount) : null,
+      application_deadline: testData.application_deadline && testData.application_deadline !== "" ? testData.application_deadline : null,
+      project_start_date: testData.project_start_date && testData.project_start_date !== "" ? testData.project_start_date : null,
+      project_end_date: testData.project_end_date && testData.project_end_date !== "" ? testData.project_end_date : null,
+      contact_person: testData.contact_person || '',
+      contact_email: testData.contact_email || '',
+      contact_phone: testData.contact_phone || '',
+      website_url: testData.website_url || '',
+      eligibility_criteria: testData.eligibility_criteria || '',
+      evaluation_criteria: testData.evaluation_criteria || '',
+      required_documents: Array.isArray(testData.required_documents) ? testData.required_documents : [],
+      parsed_data: testData,
+      decree_file_name: fileName,
+      status: 'active',
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('📝 Using cleaned data:', cleanData);
 
     if (bandoId) {
-      console.log('📝 Updating bando with test data...');
+      console.log('📝 Updating bando with cleaned data...');
       
       const { error: updateError } = await supabase
         .from('bandi')
-        .update({
-          title: testData.title,
-          description: testData.description,
-          organization: testData.organization,
-          total_amount: testData.total_amount,
-          application_deadline: testData.application_deadline,
-          project_start_date: testData.project_start_date,
-          project_end_date: testData.project_end_date,
-          contact_person: testData.contact_person,
-          contact_email: testData.contact_email,
-          contact_phone: testData.contact_phone,
-          website_url: testData.website_url,
-          eligibility_criteria: testData.eligibility_criteria,
-          evaluation_criteria: testData.evaluation_criteria,
-          required_documents: testData.required_documents,
-          parsed_data: testData,
-          decree_file_name: fileName,
-          status: 'active',
-          updated_at: new Date().toISOString()
-        })
+        .update(cleanData)
         .eq('id', bandoId)
         .eq('created_by', user.id);
 
