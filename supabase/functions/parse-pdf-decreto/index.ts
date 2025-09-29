@@ -11,7 +11,7 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo migliorata con supporto per PDF moderni
+// Estrazione testo migliorata con supporto per PDF moderni e scansionati
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
@@ -19,87 +19,110 @@ const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
     const uint8Array = new Uint8Array(pdfBuffer);
     let extractedText = '';
     
-    // Converti in stringa per cercare i pattern
-    const textDecoder = new TextDecoder('latin1', { fatal: false });
-    const pdfString = textDecoder.decode(uint8Array);
+    // Prova diversi metodi di decodifica
+    const decoders = [
+      new TextDecoder('utf-8', { fatal: false }),
+      new TextDecoder('latin1', { fatal: false }),
+      new TextDecoder('windows-1252', { fatal: false }),
+      new TextDecoder('iso-8859-1', { fatal: false })
+    ];
+    
+    let pdfString = '';
+    for (const decoder of decoders) {
+      try {
+        pdfString = decoder.decode(uint8Array);
+        if (pdfString.includes('obj') && pdfString.includes('stream')) {
+          console.log('🎯 Successfully decoded with:', decoder.encoding);
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
     
     console.log('🔍 Analyzing PDF structure...');
     
-    // Pattern avanzati per estrazione testo
-    const advancedPatterns = [
-      // Testo tra parentesi con escape
-      /\(([^()\\]*(?:\\.[^()\\]*)*)\)/g,
-      // Testo esadecimale
-      /<([0-9A-Fa-f\s]+)>/g,
-      // Array di testo TJ
-      /\[\s*(?:\([^)]*\)\s*(?:-?\d+(?:\.\d+)?\s*)?)+\]\s*TJ/g,
+    // Pattern migliorati per l'estrazione del testo
+    const textPatterns = [
+      // Stream decodificati
+      /stream\s*([\s\S]*?)\s*endstream/g,
+      // Testo tra parentesi (più robusto)
+      /\(([^)]{3,})\)/g,
+      // Testo con comandi di posizionamento
+      /(\d+(?:\.\d+)?\s+){2,6}Td\s*\(([^)]+)\)/g,
+      // Testo con font
+      /\/F\d+\s+\d+(?:\.\d+)?\s+Tf\s*\(([^)]+)\)/g,
+      // Array di stringhe TJ
+      /\[\s*(\([^)]*\)\s*(?:-?\d+(?:\.\d+)?\s*)?)+\]\s*TJ/g,
       // Singoli comandi Tj
-      /\(([^)]*)\)\s*Tj/g,
-      // Stream di contenuto
-      /stream\s*(.*?)\s*endstream/gs,
-      // Oggetti di testo
-      /BT\s+(.*?)\s+ET/gs
+      /\(([^)]{2,})\)\s*Tj/g
     ];
     
-    for (const pattern of advancedPatterns) {
+    for (const pattern of textPatterns) {
       const matches = [...pdfString.matchAll(pattern)];
-      console.log(`📄 Found ${matches.length} matches for pattern`);
+      console.log(`📄 Found ${matches.length} matches for pattern ${pattern.source.substring(0, 20)}...`);
       
       for (const match of matches) {
-        let text = match[1] || match[0];
+        let text = match[2] || match[1] || match[0];
         
-        // Pulizia e decodifica
-        if (text.includes('(') && text.includes(')')) {
-          // Estrai stringhe tra parentesi
-          const stringMatches = [...text.matchAll(/\(([^)]*)\)/g)];
-          for (const strMatch of stringMatches) {
-            extractedText += strMatch[1]
-              .replace(/\\n/g, ' ')
-              .replace(/\\r/g, ' ')
-              .replace(/\\t/g, ' ')
-              .replace(/\\\(/g, '(')
-              .replace(/\\\)/g, ')')
-              .replace(/\\\\/g, '\\')
-              .trim() + ' ';
-          }
-        } else if (/^[0-9A-Fa-f\s]+$/.test(text)) {
-          // Decodifica esadecimale
-          try {
-            const hexText = text.replace(/\s/g, '');
-            if (hexText.length % 2 === 0) {
-              const bytes = [];
-              for (let i = 0; i < hexText.length; i += 2) {
-                bytes.push(parseInt(hexText.substr(i, 2), 16));
-              }
-              const decoded = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
-              if (decoded.length > 2 && /[A-Za-z]/.test(decoded)) {
-                extractedText += decoded + ' ';
-              }
-            }
-          } catch (e) {
-            // Ignore hex decode errors
-          }
-        } else {
-          // Testo normale
-          const cleanText = text
-            .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, ' ')
+        if (text && typeof text === 'string') {
+          // Pulizia del testo estratto
+          text = text
+            .replace(/\\n/g, ' ')
+            .replace(/\\r/g, ' ')
+            .replace(/\\t/g, ' ')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\')
             .replace(/\s+/g, ' ')
             .trim();
-          if (cleanText.length >= 3 && /[A-Za-z]/.test(cleanText)) {
-            extractedText += cleanText + ' ';
+          
+          // Solo se contiene caratteri leggibili
+          if (text.length >= 3 && /[A-Za-zÀ-ÿ]/.test(text)) {
+            extractedText += text + ' ';
           }
         }
       }
     }
     
-    // Metodo alternativo: cerca direttamente parole italiane comuni
-    if (extractedText.length < 100) {
-      console.log('🔍 Trying word-based extraction...');
-      const wordPattern = /[A-Za-zÀ-ÿ]{3,}(?:\s+[A-Za-zÀ-ÿ]{3,}){2,}/g;
-      const words = pdfString.match(wordPattern);
-      if (words && words.length > 0) {
-        extractedText += words.join(' ') + ' ';
-        console.log('📄 Extracted', words.length, 'word sequences');
+    // Metodo alternativo: cerca parole italiane direttamente
+    if (extractedText.length < 200) {
+      console.log('🔍 Trying direct Italian word extraction...');
+      
+      // Pattern per parole italiane comuni nei bandi
+      const italianPatterns = [
+        /\b(?:bando|decreto|finanziamento|contribut[oi]|fondi|euro|progett[oi]|impres[ea]|attivit[àa]|servizi|formazione|sviluppo|innovazione|ricerca)\b/gi,
+        /\b[A-Za-zÀ-ÿ]{4,}\s+[A-Za-zÀ-ÿ]{4,}(?:\s+[A-Za-zÀ-ÿ]{3,}){0,3}/g,
+        /(?:art\.|articolo)\s*\d+/gi,
+        /\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4}/g, // Date
+        /€?\s*\d{1,3}(?:\.\d{3})*(?:,\d{2})?/g, // Importi
+      ];
+      
+      for (const pattern of italianPatterns) {
+        const matches = pdfString.match(pattern);
+        if (matches) {
+          extractedText += matches.join(' ') + ' ';
+          console.log(`📄 Extracted ${matches.length} Italian words/phrases`);
+        }
+      }
+    }
+    
+    // Estrazione da metadati del PDF
+    const metadataPatterns = [
+      /\/Title\s*\(([^)]+)\)/g,
+      /\/Subject\s*\(([^)]+)\)/g,
+      /\/Keywords\s*\(([^)]+)\)/g,
+      /\/Creator\s*\(([^)]+)\)/g,
+      /\/Producer\s*\(([^)]+)\)/g
+    ];
+    
+    for (const pattern of metadataPatterns) {
+      const matches = [...pdfString.matchAll(pattern)];
+      for (const match of matches) {
+        if (match[1]) {
+          extractedText += match[1] + ' ';
+          console.log('📄 Extracted from metadata:', match[1]);
+        }
       }
     }
     
@@ -107,29 +130,26 @@ const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
     extractedText = extractedText
       .replace(/\s+/g, ' ')
       .replace(/(.)\1{4,}/g, '$1') // Rimuovi caratteri ripetuti
+      .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF\u0100-\u017F]/g, ' ') // Mantieni solo caratteri leggibili
       .trim();
     
     console.log('✅ Final extracted text length:', extractedText.length, 'characters');
-    console.log('📄 Text sample:', extractedText.substring(0, 500));
     
-    // Fallback se ancora non abbiamo abbastanza testo
-    if (extractedText.length < 200) {
-      console.log('🔍 Trying comprehensive fallback...');
-      const fallbackText = extractComprehensiveFallback(uint8Array, pdfString);
-      if (fallbackText.length > extractedText.length) {
-        extractedText = fallbackText;
-      }
+    if (extractedText.length > 50) {
+      console.log('📄 Text preview:', extractedText.substring(0, 200) + '...');
+    } else {
+      console.log('📄 Full extracted text:', extractedText);
     }
     
-    if (extractedText.length < 50) {
-      return 'PDF complesso - impossibile estrarre testo leggibile. Provare con un PDF diverso o con testo selezionabile.';
+    if (extractedText.length < 30) {
+      return 'PDF non leggibile - il documento potrebbe essere una scansione o avere una codifica non standard. Si prega di fornire un PDF con testo selezionabile.';
     }
     
     return extractedText;
     
   } catch (error) {
     console.error('❌ Extraction error:', error);
-    return 'Errore nell\'estrazione del testo PDF';
+    return 'Errore nell\'estrazione del testo PDF: ' + error.message;
   }
 };
 
