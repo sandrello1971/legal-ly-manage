@@ -290,15 +290,15 @@ serve(async (req) => {
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
 
-    const aiPrompt = `Estrai le informazioni principali da questo BANDO includendo TUTTI i dati economici e le categorie di spesa specifiche:
+    // Converti PDF in base64 per OpenAI
+    const base64Pdf = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
+    
+    const aiPrompt = `Analizza questo documento PDF di un BANDO e estrai TUTTE le informazioni strutturate.
 
-TESTO DEL BANDO:
-${pdfText.substring(0, 8000)}
-
-ANALIZZA ATTENTAMENTE il testo del bando e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
+IMPORTANTE: Identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
 NON usare categorie predefinite, ma estrai ESATTAMENTE quelle indicate nel bando.
 
-Rispondi SOLO con JSON valido con queste informazioni complete:
+Rispondi SOLO con JSON valido:
 {
   "title": "titolo completo del bando",
   "description": "descrizione dettagliata del bando",
@@ -314,7 +314,7 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
   "required_documents": ["lista", "documenti", "richiesti"],
   "expense_categories": [
     {
-      "name": "Nome categoria come scritto nel bando",
+      "name": "Nome categoria ESATTO dal bando",
       "description": "Descrizione dettagliata della categoria dal bando", 
       "max_percentage": "percentuale massima se specificata (come numero) o null",
       "max_amount": "importo massimo se specificato (come numero) o null",
@@ -333,9 +333,23 @@ const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',
-        messages: [{ role: 'user', content: aiPrompt }],
-        max_completion_tokens: 2000,
+        model: 'gpt-4o',
+        messages: [{ 
+          role: 'user', 
+          content: [
+            {
+              type: 'text',
+              text: aiPrompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:application/pdf;base64,${base64Pdf}`
+              }
+            }
+          ]
+        }],
+        max_tokens: 2000,
       }),
     });
 
