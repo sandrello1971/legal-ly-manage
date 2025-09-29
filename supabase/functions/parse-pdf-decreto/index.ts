@@ -308,11 +308,18 @@ serve(async (req) => {
     let pdfText = '';
     
     try {
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (!lovableApiKey) {
+        throw new Error('LOVABLE_API_KEY not configured');
+      }
+      
+      console.log('📤 Sending PDF to Document Parse API...');
+      
       const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY') || ''}`,
+          'Authorization': `Bearer ${lovableApiKey}`,
         },
         body: JSON.stringify({
           file_content: Array.from(new Uint8Array(pdfBuffer)),
@@ -321,21 +328,26 @@ serve(async (req) => {
         })
       });
       
+      console.log('📥 Document Parse response status:', documentParseResponse.status);
+      
       if (documentParseResponse.ok) {
         const parseResult = await documentParseResponse.json();
+        console.log('📄 Parse result keys:', Object.keys(parseResult));
+        
         if (parseResult.content && parseResult.content.length > 50) {
           pdfText = parseResult.content;
           console.log('✅ Document Parse successful, text length:', pdfText.length);
-          console.log('📄 Text preview:', pdfText.substring(0, 500));
+          console.log('📄 Text preview (first 500 chars):', pdfText.substring(0, 500));
         } else {
-          throw new Error('Document Parse returned empty content');
+          throw new Error(`Document Parse returned insufficient content (length: ${parseResult.content?.length || 0})`);
         }
       } else {
         const errorText = await documentParseResponse.text();
+        console.error('❌ Document Parse HTTP error:', documentParseResponse.status, errorText);
         throw new Error(`Document Parse failed: ${documentParseResponse.status} - ${errorText}`);
       }
     } catch (parseError) {
-      console.error('❌ Document Parse failed:', parseError);
+      console.error('❌ Document Parse error:', parseError);
       pdfText = 'Errore nell\'estrazione del testo PDF. Il documento potrebbe essere danneggiato o avere una codifica non standard.';
     }
 
