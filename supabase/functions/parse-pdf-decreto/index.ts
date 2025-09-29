@@ -303,56 +303,43 @@ serve(async (req) => {
       });
     }
 
-    console.log('🔍 Extracting text from PDF...');
-    let pdfText = await extractTextFromPDF(pdfBuffer);
-    console.log('📄 PDF text length:', pdfText.length);
-    console.log('📄 PDF text preview:', pdfText.substring(0, 500));
+    console.log('🔍 Using Lovable Document Parse API for reliable PDF extraction...');
+    
+    let pdfText = '';
+    
+    try {
+      const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY') || ''}`,
+        },
+        body: JSON.stringify({
+          file_content: Array.from(new Uint8Array(pdfBuffer)),
+          file_name: fileName,
+          formats: ['markdown']
+        })
+      });
+      
+      if (documentParseResponse.ok) {
+        const parseResult = await documentParseResponse.json();
+        if (parseResult.content && parseResult.content.length > 50) {
+          pdfText = parseResult.content;
+          console.log('✅ Document Parse successful, text length:', pdfText.length);
+          console.log('📄 Text preview:', pdfText.substring(0, 500));
+        } else {
+          throw new Error('Document Parse returned empty content');
+        }
+      } else {
+        const errorText = await documentParseResponse.text();
+        throw new Error(`Document Parse failed: ${documentParseResponse.status} - ${errorText}`);
+      }
+    } catch (parseError) {
+      console.error('❌ Document Parse failed:', parseError);
+      pdfText = 'Errore nell\'estrazione del testo PDF. Il documento potrebbe essere danneggiato o avere una codifica non standard.';
+    }
 
     console.log('🤖 Calling OpenAI for PDF analysis...');
-    
-// Se l'estrazione testo fallisce, prova con OCR tramite Document Parse
-    // Controlli per testo di scarsa qualità:
-    const testSample = pdfText.substring(0, Math.min(1000, pdfText.length));
-    const readableChars = (testSample.match(/[A-Za-zÀ-ÿ0-9]/g) || []).length;
-    const readableRatio = testSample.length > 0 ? readableChars / testSample.length : 0;
-    
-    // Controllo più intelligente: cerca parole italiane comuni nei bandi
-    const italianWords = testSample.match(/\b(?:bando|decreto|contribut[oi]|finanziamento|progett[oi]|impres[ae]|euro|articolo|comma|allegato|domanda|requisiti|scadenza|maggio|aprile|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|regione|lombardia|italia|pubblic[oa]|amministrazione|ufficio|dipartimento|direzione|assessorato)\b/gi) || [];
-    
-    console.log(`📊 Analisi qualità testo - Lunghezza: ${pdfText.length}, Ratio: ${readableRatio.toFixed(3)}, Parole italiane: ${italianWords.length}`);
-    console.log(`📝 Parole trovate: ${italianWords.slice(0, 5).join(', ')}${italianWords.length > 5 ? '...' : ''}`);
-    
-    // OCR se: testo corto O nessuna parola italiana (indipendentemente dal ratio)
-    const shouldUseOCR = pdfText.length < 200 || italianWords.length === 0;
-    
-    if (shouldUseOCR) {
-      console.log(`📄 Testo non leggibile (parole italiane: ${italianWords.length}) - Attivo OCR`);
-      
-      try {
-        const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY') || ''}`,
-          },
-          body: JSON.stringify({
-            file_content: Array.from(new Uint8Array(pdfBuffer)),
-            file_name: fileName,
-            formats: ['markdown']
-          })
-        });
-        
-        if (documentParseResponse.ok) {
-          const parseResult = await documentParseResponse.json();
-          if (parseResult.content && parseResult.content.length > 200) {
-            pdfText = parseResult.content;
-            console.log('✅ OCR extraction successful, text length:', pdfText.length);
-          }
-        }
-      } catch (ocrError) {
-        console.error('❌ Document Parse OCR failed:', ocrError);
-      }
-    }
 
     const aiPrompt = `Analizza questo testo estratto da un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
 
