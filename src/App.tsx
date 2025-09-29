@@ -12,6 +12,7 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import PoC from "./pages/PoC";
 import Bandi from "./pages/Bandi";
 import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
@@ -27,7 +28,7 @@ const App = () => {
       <TooltipProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/poc" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -39,6 +40,7 @@ const App = () => {
                 </ProtectedRoute>
               }
             >
+              <Route path="poc" element={<PoC />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="profile" element={<Profile />} />
               <Route path="bandi" element={<Bandi />} />
