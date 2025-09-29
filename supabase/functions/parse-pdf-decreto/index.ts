@@ -11,66 +11,132 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Estrazione testo semplificata
+// Estrazione testo migliorata
 const extractTextFromPDF = async (pdfBuffer: ArrayBuffer): Promise<string> => {
   try {
     console.log('📝 PDF size:', pdfBuffer.byteLength, 'bytes');
     
     const uint8Array = new Uint8Array(pdfBuffer);
-    const textDecoder = new TextDecoder('latin1');
-    const pdfString = textDecoder.decode(uint8Array);
-    
     let extractedText = '';
-    console.log('🔍 Starting PDF text extraction...');
     
-    // Estrai testo da oggetti BT/ET
-    const textObjPattern = /BT\s+(.*?)\s+ET/gs;
-    const textObjects = [...pdfString.matchAll(textObjPattern)];
-    console.log('📄 Found', textObjects.length, 'text objects');
+    // Prova multiple codifiche
+    const encodings = ['utf-8', 'latin1', 'windows-1252'];
     
-    for (const textObj of textObjects) {
-      const content = textObj[1];
-      const stringPattern = /\(([^)]*)\)/g;
-      const strings = [...content.matchAll(stringPattern)];
-      
-      for (const str of strings) {
-        let text = str[1]
-          .replace(/\\n/g, ' ')
-          .replace(/\\r/g, ' ')
-          .replace(/\\t/g, ' ')
-          .trim();
+    for (const encoding of encodings) {
+      try {
+        const textDecoder = new TextDecoder(encoding);
+        const pdfString = textDecoder.decode(uint8Array);
         
-        if (text.length >= 2) {
-          extractedText += text + ' ';
+        console.log(`🔍 Trying ${encoding} encoding...`);
+        
+        // Estrai testo da oggetti BT/ET
+        const textObjPattern = /BT\s+(.*?)\s+ET/gs;
+        const textObjects = [...pdfString.matchAll(textObjPattern)];
+        console.log('📄 Found', textObjects.length, 'text objects');
+        
+        for (const textObj of textObjects) {
+          const content = textObj[1];
+          // Pattern più flessibili per stringhe
+          const stringPatterns = [
+            /\(([^)]*)\)/g,
+            /<([^>]*)>/g,
+            /\[([^\]]*)\]/g
+          ];
+          
+          for (const pattern of stringPatterns) {
+            const strings = [...content.matchAll(pattern)];
+            for (const str of strings) {
+              let text = str[1]
+                .replace(/\\n/g, ' ')
+                .replace(/\\r/g, ' ')
+                .replace(/\\t/g, ' ')
+                .replace(/\\\(/g, '(')
+                .replace(/\\\)/g, ')')
+                .trim();
+              
+              if (text.length >= 2) {
+                extractedText += text + ' ';
+              }
+            }
+          }
         }
-      }
-    }
-    
-    // Estrai da comandi Tj
-    const tjPattern = /\(([^)]*)\)\s*Tj/g;
-    const tjMatches = [...pdfString.matchAll(tjPattern)];
-    console.log('📄 Found', tjMatches.length, 'Tj commands');
-    
-    for (const match of tjMatches) {
-      let text = match[1].replace(/\\n/g, ' ').trim();
-      if (text.length >= 2) {
-        extractedText += text + ' ';
+        
+        // Estrai da comandi Tj e TJ
+        const tjPatterns = [
+          /\(([^)]*)\)\s*Tj/g,
+          /\[([^\]]*)\]\s*TJ/g,
+          /<([^>]*)>\s*Tj/g
+        ];
+        
+        for (const pattern of tjPatterns) {
+          const matches = [...pdfString.matchAll(pattern)];
+          console.log('📄 Found', matches.length, 'text commands');
+          
+          for (const match of matches) {
+            let text = match[1].replace(/\\n/g, ' ').trim();
+            if (text.length >= 2) {
+              extractedText += text + ' ';
+            }
+          }
+        }
+        
+        // Se abbiamo estratto abbastanza testo, usiamo questa codifica
+        if (extractedText.length > 100) {
+          console.log(`✅ Successfully extracted text using ${encoding}`);
+          break;
+        }
+      } catch (encodingError) {
+        console.log(`❌ Failed with ${encoding}:`, (encodingError as Error).message);
+        continue;
       }
     }
     
     // Pulizia finale
     extractedText = extractedText
       .replace(/\s+/g, ' ')
+      .replace(/[^\x20-\x7E\u00A0-\u024F\u1E00-\u1EFF]/g, ' ') // Mantieni solo caratteri leggibili
       .trim();
     
-    console.log('✅ Extracted text length:', extractedText.length, 'characters');
-    console.log('📄 Text sample:', extractedText.substring(0, 300));
+    console.log('✅ Final extracted text length:', extractedText.length, 'characters');
+    console.log('📄 Text sample:', extractedText.substring(0, 500));
     
-    return extractedText || 'Contenuto PDF non leggibile';
+    // Se non abbiamo estratto abbastanza testo, proviamo una strategia diversa
+    if (extractedText.length < 100) {
+      console.log('🔍 Low text extraction, trying fallback method...');
+      const fallbackText = extractFallbackText(uint8Array);
+      if (fallbackText.length > extractedText.length) {
+        extractedText = fallbackText;
+      }
+    }
+    
+    return extractedText || 'Contenuto PDF non leggibile - provare con un PDF diverso';
     
   } catch (error) {
     console.error('❌ Extraction error:', error);
     return 'Errore nell\'estrazione del testo PDF';
+  }
+};
+
+// Metodo di fallback per estrazione testo
+const extractFallbackText = (uint8Array: Uint8Array): string => {
+  try {
+    const textDecoder = new TextDecoder('utf-8', { fatal: false });
+    const fullText = textDecoder.decode(uint8Array);
+    
+    // Cerca pattern di testo leggibile
+    const readableTextPattern = /[A-Za-z]{3,}[A-Za-z0-9\s.,;:!?\-()]{10,}/g;
+    const matches = fullText.match(readableTextPattern);
+    
+    if (matches && matches.length > 0) {
+      const extractedText = matches.join(' ').substring(0, 5000);
+      console.log('✅ Fallback extraction successful:', extractedText.length, 'characters');
+      return extractedText;
+    }
+    
+    return '';
+  } catch (error) {
+    console.error('❌ Fallback extraction failed:', error);
+    return '';
   }
 };
 
@@ -229,7 +295,7 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
   "innovation_areas": ["aree", "di", "innovazione"]
 }`;
 
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
@@ -238,7 +304,7 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
       body: JSON.stringify({
         model: 'gpt-4.1-2025-04-14',
         messages: [{ role: 'user', content: aiPrompt }],
-        max_completion_tokens: 800,
+        max_completion_tokens: 2000,
       }),
     });
 
@@ -276,9 +342,28 @@ Rispondi SOLO con JSON valido con queste informazioni complete:
       console.log('🔍 AI Content:', aiContent);
       
       try {
-        const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
+        // Trova e pulisce il JSON nella risposta
+        let jsonStr = aiContent;
+        if (aiContent.startsWith('```json')) {
+          jsonStr = aiContent.replace(/```json\s*/, '').replace(/```\s*$/, '');
+        }
+        
+        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          testData = JSON.parse(jsonMatch[0]);
+          let cleanJson = jsonMatch[0];
+          
+          // Rimuovi caratteri di troncatura e chiudi JSON se necessario
+          if (!cleanJson.endsWith('}')) {
+            // Trova l'ultimo campo completo e chiudi il JSON
+            const lastCommaIndex = cleanJson.lastIndexOf(',');
+            if (lastCommaIndex > 0) {
+              cleanJson = cleanJson.substring(0, lastCommaIndex) + '}';
+            } else {
+              cleanJson += '}';
+            }
+          }
+          
+          testData = JSON.parse(cleanJson);
           console.log('✅ Successfully parsed AI response');
         } else {
           throw new Error('No JSON found in AI response');
