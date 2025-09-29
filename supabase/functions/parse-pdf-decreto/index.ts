@@ -322,9 +322,11 @@ serve(async (req) => {
     console.log(`📊 Analisi qualità testo - Lunghezza: ${pdfText.length}, Ratio: ${readableRatio.toFixed(3)}, Parole italiane: ${italianWords.length}`);
     console.log(`📝 Parole trovate: ${italianWords.slice(0, 5).join(', ')}${italianWords.length > 5 ? '...' : ''}`);
     
-    // OCR se: testo corto OPPURE (ratio basso E nessuna parola italiana trovata)
-    if (pdfText.length < 200 || (readableRatio < 0.3 && italianWords.length < 3)) {
-      console.log(`📄 Testo di scarsa qualità rilevato - Attivo OCR`);
+    // OCR se: testo corto O nessuna parola italiana (indipendentemente dal ratio)
+    const shouldUseOCR = pdfText.length < 200 || italianWords.length === 0;
+    
+    if (shouldUseOCR) {
+      console.log(`📄 Testo non leggibile (parole italiane: ${italianWords.length}) - Attivo OCR`);
       
       try {
         const documentParseResponse = await fetch('https://api.lovable.dev/api/document/parse', {
