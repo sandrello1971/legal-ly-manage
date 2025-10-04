@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PoC from "./pages/PoC";
 import Bandi from "./pages/Bandi";
+import Projects from "./pages/Projects";
 import Expenses from "./pages/Expenses";
 import Reports from "./pages/Reports";
 import Documents from "./pages/Documents";
@@ -41,6 +42,7 @@ const App = () => {
               }
             >
               <Route path="bandi" element={<Bandi />} />
+              <Route path="projects" element={<Projects />} />
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
             </Route>
