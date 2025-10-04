@@ -8,14 +8,16 @@ interface BandoDetailTabsProps {
   bando: Bando;
   overviewContent: React.ReactNode;
   projectsContent: React.ReactNode;
+  documentsContent: React.ReactNode;
+  budgetContent: React.ReactNode;
 }
 
-export const BandoDetailTabs = ({ bando, overviewContent, projectsContent }: BandoDetailTabsProps) => {
+export const BandoDetailTabs = ({ bando, overviewContent, projectsContent, documentsContent, budgetContent }: BandoDetailTabsProps) => {
   const [activeTab, setActiveTab] = useState("overview");
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-6">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="overview" className="flex items-center gap-2">
           <LayoutDashboard className="h-4 w-4" />
           <span className="hidden sm:inline">Overview</span>
@@ -28,17 +30,9 @@ export const BandoDetailTabs = ({ bando, overviewContent, projectsContent }: Ban
           <FileText className="h-4 w-4" />
           <span className="hidden sm:inline">Documenti</span>
         </TabsTrigger>
-        <TabsTrigger value="expenses" className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4" />
-          <span className="hidden sm:inline">Spese</span>
-        </TabsTrigger>
-        <TabsTrigger value="banking" className="flex items-center gap-2">
-          <Banknote className="h-4 w-4" />
-          <span className="hidden sm:inline">Banking</span>
-        </TabsTrigger>
-        <TabsTrigger value="reports" className="flex items-center gap-2">
+        <TabsTrigger value="budget" className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
-          <span className="hidden sm:inline">Reports</span>
+          <span className="hidden sm:inline">Budget</span>
         </TabsTrigger>
       </TabsList>
 
@@ -51,51 +45,11 @@ export const BandoDetailTabs = ({ bando, overviewContent, projectsContent }: Ban
       </TabsContent>
 
       <TabsContent value="documents" className="mt-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="font-semibold mb-2">Documenti del Bando</h3>
-              <p className="text-sm">Gestisci i documenti relativi a questo bando</p>
-            </div>
-          </CardContent>
-        </Card>
+        {documentsContent}
       </TabsContent>
 
-      <TabsContent value="expenses" className="mt-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-muted-foreground">
-              <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="font-semibold mb-2">Spese del Bando</h3>
-              <p className="text-sm">Gestisci le spese relative a questo bando</p>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="banking" className="mt-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-muted-foreground">
-              <Banknote className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="font-semibold mb-2">Banking del Bando</h3>
-              <p className="text-sm">Gestisci le transazioni bancarie relative a questo bando</p>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="reports" className="mt-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-muted-foreground">
-              <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="font-semibold mb-2">Reports del Bando</h3>
-              <p className="text-sm">Visualizza i report e le analisi di questo bando</p>
-            </div>
-          </CardContent>
-        </Card>
+      <TabsContent value="budget" className="mt-6">
+        {budgetContent}
       </TabsContent>
     </Tabs>
   );

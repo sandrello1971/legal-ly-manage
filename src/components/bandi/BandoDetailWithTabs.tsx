@@ -2,11 +2,6 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowLeft,
   Edit,
@@ -16,13 +11,15 @@ import {
 } from "lucide-react";
 import { useBandi, type Bando } from "@/hooks/useBandi";
 import { useProjects, type Project } from "@/hooks/useProjects";
-import { useExpenses } from "@/hooks/useExpenses";
 import { useToast } from "@/hooks/use-toast";
 import { ProjectForm } from "@/components/projects/ProjectForm";
 import { ProjectDashboard } from "@/components/projects/ProjectDashboard";
 import { BandoDetailTabs } from "./BandoDetailTabs";
 import { BandoDetailOverview } from "./BandoDetailOverview";
 import { BandoDetailProjects } from "./BandoDetailProjects";
+import { ExpenseProcessor } from "@/components/expenses/ExpenseProcessor";
+import { BandoDocuments } from "./BandoDocuments";
+import { BandoBudgetView } from "./BandoBudgetView";
 
 interface BandoDetailWithTabsProps {
   bandoId: string;
@@ -37,24 +34,10 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [showExpenseDialog, setShowExpenseDialog] = useState(false);
-  const [expenseData, setExpenseData] = useState<{
-    description: string;
-    amount: number;
-    expense_date: string;
-    category: 'personnel' | 'equipment' | 'materials' | 'services' | 'travel' | 'other';
-    notes?: string;
-  }>({
-    description: '',
-    amount: 0,
-    expense_date: '',
-    category: 'other',
-    notes: ''
-  });
+  const [showExpenseProcessor, setShowExpenseProcessor] = useState(false);
   
   const { getBandoById } = useBandi();
   const { projects, refetch: refetchProjects } = useProjects(bandoId);
-  const { createExpense } = useExpenses();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -143,41 +126,7 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
   };
 
   const handleAddExpense = () => {
-    setShowExpenseDialog(true);
-  };
-
-  const handleSaveExpense = async () => {
-    if (!selectedProject) return;
-    
-    try {
-      await createExpense({
-        ...expenseData,
-        project_id: selectedProject.id,
-        is_approved: false
-      });
-      
-      toast({
-        title: 'Successo',
-        description: 'Spesa aggiunta con successo',
-      });
-      
-      setShowExpenseDialog(false);
-      setExpenseData({
-        description: '',
-        amount: 0,
-        expense_date: '',
-        category: 'other',
-        notes: ''
-      });
-      
-      refetchProjects();
-    } catch (error: any) {
-      toast({
-        title: 'Errore',
-        description: error.message || 'Errore durante il salvataggio della spesa',
-        variant: 'destructive',
-      });
-    }
+    setShowExpenseProcessor(true);
   };
 
   // Show project form
@@ -202,6 +151,22 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
           }}
           initialData={editingProject || undefined}
         />
+      </div>
+    );
+  }
+
+  // Show expense processor
+  if (showExpenseProcessor && selectedProject) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="ghost" onClick={() => setShowExpenseProcessor(false)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Indietro al Progetto
+          </Button>
+          <h1 className="text-2xl font-bold">Carica Fatture - {selectedProject.title}</h1>
+        </div>
+        <ExpenseProcessor defaultProjectId={selectedProject.id} />
       </div>
     );
   }
@@ -276,90 +241,14 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
               onSelectProject={setSelectedProject}
             />
           }
+          documentsContent={
+            <BandoDocuments bandoId={bandoId} />
+          }
+          budgetContent={
+            <BandoBudgetView bando={bando} projects={projects || []} />
+          }
         />
       </div>
-
-      {/* Expense Dialog */}
-      <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Aggiungi Spesa</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="description">Descrizione *</Label>
-              <Input
-                id="description"
-                value={expenseData.description}
-                onChange={(e) => setExpenseData({ ...expenseData, description: e.target.value })}
-                placeholder="Descrizione della spesa"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount">Importo (€) *</Label>
-              <Input
-                id="amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={expenseData.amount}
-                onChange={(e) => setExpenseData({ ...expenseData, amount: Number(e.target.value) })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="expense_date">Data Spesa *</Label>
-              <Input
-                id="expense_date"
-                type="date"
-                value={expenseData.expense_date}
-                onChange={(e) => setExpenseData({ ...expenseData, expense_date: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="category">Categoria *</Label>
-              <Select value={expenseData.category} onValueChange={(value: any) => setExpenseData({ ...expenseData, category: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="personnel">Personale</SelectItem>
-                  <SelectItem value="equipment">Attrezzature</SelectItem>
-                  <SelectItem value="materials">Materiali</SelectItem>
-                  <SelectItem value="services">Servizi</SelectItem>
-                  <SelectItem value="travel">Trasferte</SelectItem>
-                  <SelectItem value="other">Altro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Note</Label>
-              <Textarea
-                id="notes"
-                value={expenseData.notes}
-                onChange={(e) => setExpenseData({ ...expenseData, notes: e.target.value })}
-                placeholder="Note aggiuntive..."
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowExpenseDialog(false)}>
-                Annulla
-              </Button>
-              <Button onClick={handleSaveExpense}>
-                Salva Spesa
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

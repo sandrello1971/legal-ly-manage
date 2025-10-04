@@ -21,7 +21,11 @@ interface ProcessedExpense extends ExpenseUpload {
   error?: string;
 }
 
-export function ExpenseProcessor() {
+interface ExpenseProcessorProps {
+  defaultProjectId?: string;
+}
+
+export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {}) {
   const [uploads, setUploads] = useState<ProcessedExpense[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -32,7 +36,7 @@ export function ExpenseProcessor() {
     const newUploads: ProcessedExpense[] = acceptedFiles.map((file, index) => ({
       id: `upload-${Date.now()}-${index}`,
       file,
-      projectId: '',
+      projectId: defaultProjectId || '',
       status: 'processing'
     }));
 
