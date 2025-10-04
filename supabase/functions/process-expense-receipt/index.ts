@@ -599,30 +599,98 @@ function extractProjectCodesFromXML(xmlContent: string): string[] {
   return Array.from(codes);
 }
 
-// Classify electronic invoices
+// Classify electronic invoices based on SI4.0 2025 categories
 function classifyElectronicInvoice(description: string, supplier: string | null) {
   const text = `${description || ''} ${supplier || ''}`.toLowerCase();
   
-  // Enhanced classification for electronic invoices
-  if (text.includes('consulenza') || text.includes('servizi professional') || 
-      text.includes('assistenza tecnica') || text.includes('sviluppo software')) {
-    return { category: 'services', confidence: 0.9 };
+  // EQUIPMENT: Attrezzature tecnologiche e programmi informatici
+  const equipmentKeywords = [
+    // Hardware e attrezzature generiche
+    'hardware', 'computer', 'server', 'attrezzatura', 'attrezzature',
+    // Macchinari e impianti
+    'macchinari', 'macchinario', 'impianto', 'impianti', 'installazione',
+    // Strumentazione scientifica e di laboratorio
+    'strumento', 'strumenti', 'strumentazione', 'spettrometro', 'microscopio',
+    'laser', 'sensori', 'robot', 'robotica', 'automazione',
+    // Tecnologie 4.0
+    'iot', 'internet of things', 'intelligenza artificiale', 'machine learning',
+    'realtà aumentata', 'realtà virtuale', 'stampa 3d', 'additive manufacturing',
+    'big data', 'cloud computing', 'cybersecurity', 'blockchain',
+    // Software e licenze
+    'software', 'licenza', 'abbonamento', 'cloud', 'saas', 'programma informatico'
+  ];
+  
+  for (const keyword of equipmentKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'equipment', confidence: 0.92 };
+    }
   }
   
-  if (text.includes('licenza software') || text.includes('abbonamento') ||
-      text.includes('cloud') || text.includes('saas')) {
-    return { category: 'services', confidence: 0.85 };
+  // CONSULTING: Consulenza su tecnologie 4.0
+  const consultingKeywords = [
+    'consulenza', 'consulente', 'servizi professional', 'advisory',
+    'assistenza tecnica', 'supporto tecnico', 'analisi', 'audit',
+    'progettazione', 'design', 'studio di fattibilità'
+  ];
+  
+  for (const keyword of consultingKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'consulting', confidence: 0.88 };
+    }
   }
   
-  if (text.includes('hardware') || text.includes('computer') || 
-      text.includes('server') || text.includes('attrezzatura')) {
-    return { category: 'equipment', confidence: 0.9 };
+  // ENGINEERING: Servizi per ingegnerizzazione SW/HW
+  const engineeringKeywords = [
+    'sviluppo', 'development', 'ingegnerizzazione', 'engineering',
+    'prototipazione', 'testing', 'collaudo', 'integrazione sistemi',
+    'personalizzazione', 'customizzazione'
+  ];
+  
+  for (const keyword of engineeringKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'engineering', confidence: 0.87 };
+    }
   }
   
-  if (text.includes('materiale') || text.includes('forniture') ||
-      text.includes('cancelleria') || text.includes('consumabili')) {
-    return { category: 'materials', confidence: 0.8 };
+  // TRAINING: Formazione su tecnologie 4.0
+  const trainingKeywords = [
+    'formazione', 'corso', 'training', 'workshop', 'seminario',
+    'certificazione', 'attestato', 'didattica'
+  ];
+  
+  for (const keyword of trainingKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'training', confidence: 0.90 };
+    }
   }
   
-  return { category: 'other', confidence: 0.6 };
+  // INTELLECTUAL_PROPERTY: Tutela proprietà industriale
+  const ipKeywords = [
+    'brevetto', 'patent', 'marchio', 'trademark', 'proprietà intellettuale',
+    'proprietà industriale', 'tutela', 'registrazione'
+  ];
+  
+  for (const keyword of ipKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'intellectual_property', confidence: 0.93 };
+    }
+  }
+  
+  // PERSONNEL: Spese del personale (raramente in fatture esterne)
+  const personnelKeywords = [
+    'personale', 'dipendente', 'risorse umane', 'salario', 'stipendio'
+  ];
+  
+  for (const keyword of personnelKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'personnel', confidence: 0.85 };
+    }
+  }
+  
+  // If contains "ricerca" or "infrastruttura" likely equipment
+  if (text.includes('ricerca') || text.includes('infrastruttura')) {
+    return { category: 'equipment', confidence: 0.75 };
+  }
+  
+  return { category: 'other', confidence: 0.3 };
 }
