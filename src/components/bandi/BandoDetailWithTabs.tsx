@@ -13,7 +13,7 @@ import { useBandi, type Bando } from "@/hooks/useBandi";
 import { useProjects, type Project } from "@/hooks/useProjects";
 import { useToast } from "@/hooks/use-toast";
 import { ProjectForm } from "@/components/projects/ProjectForm";
-import { ProjectDashboard } from "@/components/projects/ProjectDashboard";
+import { ProjectDetailView } from "@/components/projects/ProjectDetailView";
 import { BandoDetailTabs } from "./BandoDetailTabs";
 import { BandoDetailOverview } from "./BandoDetailOverview";
 import { BandoDetailProjects } from "./BandoDetailProjects";
@@ -181,9 +181,13 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
             Indietro al Bando
           </Button>
         </div>
-        <ProjectDashboard
+        <ProjectDetailView
           project={selectedProject}
-          onEditProject={handleEditProject}
+          onEdit={handleEditProject}
+          onDelete={() => {
+            // TODO: implement delete
+            setSelectedProject(null);
+          }}
           onAddExpense={handleAddExpense}
         />
       </div>
