@@ -1,4 +1,4 @@
-import { Home, FileText, DollarSign, Banknote, BarChart3, Settings, User, Target, Workflow } from 'lucide-react';
+import { Target, Settings, User } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -25,13 +25,7 @@ export function AppSidebar() {
   const getVisibleNavigation = () => {
     // Base navigation for all users
     const baseNavigation = [
-      { name: 'PoC Workflow', href: '/poc', icon: Workflow },
-      { name: 'Dashboard', href: '/dashboard', icon: Home },
       { name: 'Bandi', href: '/bandi', icon: Target },
-      { name: 'Documents', href: '/documents', icon: FileText },
-      { name: 'Expenses', href: '/expenses', icon: DollarSign },
-      { name: 'Banking', href: '/banking', icon: Banknote },
-      { name: 'Reports', href: '/reports', icon: BarChart3 },
       { name: 'Profile', href: '/profile', icon: User },
     ];
 

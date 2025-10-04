@@ -29,6 +29,7 @@ import { it } from "date-fns/locale";
 import { useProjects, type Project } from "@/hooks/useProjects";
 import { ProjectForm } from "@/components/projects/ProjectForm";
 import { ProjectDashboard } from "@/components/projects/ProjectDashboard";
+import { BandoDetailTabs } from "./BandoDetailTabs";
 
 interface BandoDetailProps {
   bandoId: string;

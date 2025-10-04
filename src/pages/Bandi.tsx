@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { BandoForm } from "@/components/bandi/BandoForm";
 import { useBandi } from "@/hooks/useBandi";
-import { BandoDetail } from "@/components/bandi/BandoDetail";
+import { BandoDetailWithTabs } from "@/components/bandi/BandoDetailWithTabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -127,8 +127,8 @@ export default function Bandi() {
 
   if (selectedBando) {
     return (
-      <BandoDetail 
-        bandoId={selectedBando} 
+      <BandoDetailWithTabs
+        bandoId={selectedBando}
         onBack={() => setSelectedBando(null)}
         onEdit={handleEditBando}
         onDelete={handleDeleteBando}

@@ -28,7 +28,7 @@ const App = () => {
       <TooltipProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Navigate to="/poc" replace />} />
+            <Route path="/" element={<Navigate to="/bandi" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -40,14 +40,8 @@ const App = () => {
                 </ProtectedRoute>
               }
             >
-              <Route path="poc" element={<PoC />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="profile" element={<Profile />} />
               <Route path="bandi" element={<Bandi />} />
-              <Route path="documents" element={<Documents />} />
-              <Route path="expenses" element={<Expenses />} />
-              <Route path="banking" element={<Banking />} />
-              <Route path="reports" element={<Reports />} />
+              <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
