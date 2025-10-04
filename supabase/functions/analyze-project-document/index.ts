@@ -11,6 +11,209 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+/**
+ * Upload PDF to OpenAI and analyze using Assistants API
+ */
+async function uploadPdfAndAnalyze(pdfBuffer: ArrayBuffer, fileName: string, analysisPrompt: string): Promise<string> {
+  console.log('📤 Uploading PDF to OpenAI...');
+  
+  // Convert ArrayBuffer to Blob for upload
+  const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+  
+  // Create FormData for file upload
+  const formData = new FormData();
+  formData.append('file', blob, fileName);
+  formData.append('purpose', 'assistants');
+  
+  // Upload file to OpenAI
+  const uploadResponse = await fetch('https://api.openai.com/v1/files', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openAIApiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!uploadResponse.ok) {
+    const errorText = await uploadResponse.text();
+    console.error('❌ File upload error:', errorText);
+    throw new Error(`File upload failed: ${uploadResponse.status}`);
+  }
+
+  const fileData = await uploadResponse.json();
+  const fileId = fileData.id;
+  console.log('✅ File uploaded:', fileId);
+
+  try {
+    // Create Assistant
+    console.log('🤖 Creating Assistant...');
+    const assistantResponse = await fetch('https://api.openai.com/v1/assistants', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v2',
+      },
+      body: JSON.stringify({
+        name: 'Project Document Analyzer',
+        instructions: 'Sei un esperto analista di progetti che estrae informazioni strutturate da documenti di progetto.',
+        model: 'gpt-4o',
+        tools: [{ type: 'file_search' }],
+      }),
+    });
+
+    if (!assistantResponse.ok) {
+      const errorText = await assistantResponse.text();
+      console.error('❌ Assistant creation error:', errorText);
+      throw new Error(`Assistant creation failed: ${assistantResponse.status}`);
+    }
+
+    const assistant = await assistantResponse.json();
+    console.log('✅ Assistant created:', assistant.id);
+
+    // Create Thread with file attached
+    console.log('💬 Creating Thread...');
+    const threadResponse = await fetch('https://api.openai.com/v1/threads', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v2',
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'user',
+            content: analysisPrompt,
+            attachments: [
+              {
+                file_id: fileId,
+                tools: [{ type: 'file_search' }],
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!threadResponse.ok) {
+      const errorText = await threadResponse.text();
+      console.error('❌ Thread creation error:', errorText);
+      throw new Error(`Thread creation failed: ${threadResponse.status}`);
+    }
+
+    const thread = await threadResponse.json();
+    console.log('✅ Thread created:', thread.id);
+
+    // Run Assistant
+    console.log('▶️ Running Assistant...');
+    const runResponse = await fetch(`https://api.openai.com/v1/threads/${thread.id}/runs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+        'OpenAI-Beta': 'assistants=v2',
+      },
+      body: JSON.stringify({
+        assistant_id: assistant.id,
+      }),
+    });
+
+    if (!runResponse.ok) {
+      const errorText = await runResponse.text();
+      console.error('❌ Run creation error:', errorText);
+      throw new Error(`Run creation failed: ${runResponse.status}`);
+    }
+
+    const run = await runResponse.json();
+    console.log('✅ Run started:', run.id);
+
+    // Poll for completion
+    let runStatus = run.status;
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    while (runStatus !== 'completed' && runStatus !== 'failed' && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      attempts++;
+
+      const statusResponse = await fetch(
+        `https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'OpenAI-Beta': 'assistants=v2',
+          },
+        }
+      );
+
+      const statusData = await statusResponse.json();
+      runStatus = statusData.status;
+      console.log(`⏳ Run status: ${runStatus} (attempt ${attempts}/${maxAttempts})`);
+    }
+
+    if (runStatus !== 'completed') {
+      throw new Error(`Run did not complete successfully. Status: ${runStatus}`);
+    }
+
+    // Get messages
+    console.log('📨 Retrieving messages...');
+    const messagesResponse = await fetch(
+      `https://api.openai.com/v1/threads/${thread.id}/messages`,
+      {
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'OpenAI-Beta': 'assistants=v2',
+        },
+      }
+    );
+
+    if (!messagesResponse.ok) {
+      throw new Error('Failed to retrieve messages');
+    }
+
+    const messages = await messagesResponse.json();
+    const assistantMessage = messages.data.find((msg: any) => msg.role === 'assistant');
+
+    if (!assistantMessage) {
+      throw new Error('No assistant response found');
+    }
+
+    const content = assistantMessage.content[0].text.value;
+    console.log('✅ Analysis complete');
+
+    // Cleanup: delete assistant
+    try {
+      await fetch(`https://api.openai.com/v1/assistants/${assistant.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'OpenAI-Beta': 'assistants=v2',
+        },
+      });
+      console.log('🧹 Assistant deleted');
+    } catch (cleanupError) {
+      console.warn('⚠️ Failed to delete assistant:', cleanupError);
+    }
+
+    return content;
+
+  } finally {
+    // Cleanup: delete file
+    try {
+      await fetch(`https://api.openai.com/v1/files/${fileId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+        },
+      });
+      console.log('🧹 File deleted');
+    } catch (cleanupError) {
+      console.warn('⚠️ Failed to delete file:', cleanupError);
+    }
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -48,10 +251,6 @@ serve(async (req) => {
         .single();
       bandoContext = bando;
     }
-
-    // Convert file to base64 for OpenAI
-    const arrayBuffer = await file.arrayBuffer();
-    const base64File = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
     const analysisPrompt = `
 Analizza questo documento di progetto per estrarre tutti i parametri necessari per il monitoraggio e la rendicontazione.
@@ -101,7 +300,7 @@ ESTRAI E ANALIZZA:
    - Ruoli e responsabilità
    - Risorse necessarie
 
-Rispondi in JSON strutturato:
+Rispondi SOLO con JSON valido (nessun testo aggiuntivo, solo il JSON):
 {
   "project_info": {
     "title": "string",
@@ -175,50 +374,16 @@ Rispondi in JSON strutturato:
 }
 `;
 
+    // Get PDF buffer
+    const arrayBuffer = await file.arrayBuffer();
+    
     console.log('🤖 Calling OpenAI for project document analysis...');
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: analysisPrompt
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${file.type};base64,${base64File}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.1,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-    console.log('✅ OpenAI analysis completed');
+    
+    // Use Assistants API to analyze PDF
+    const content = await uploadPdfAndAnalyze(arrayBuffer, file.name, analysisPrompt);
 
     let extractedData;
     try {
-      const content = result.choices[0].message.content;
       console.log('📄 Raw OpenAI response:', content);
       
       // Extract JSON from response
