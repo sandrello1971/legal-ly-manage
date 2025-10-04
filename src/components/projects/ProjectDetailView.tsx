@@ -1,8 +1,12 @@
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   Edit,
@@ -13,15 +17,17 @@ import {
   AlertTriangle,
   FileText,
   Target,
-  Clock,
   Building2,
-  Plus
+  Plus,
+  Eye,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { type Project } from '@/hooks/useProjects';
-import { useExpenses } from '@/hooks/useExpenses';
+import { useExpenses, type Expense } from '@/hooks/useExpenses';
+import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { useState } from 'react';
 
 interface ProjectDetailViewProps {
   project: Project;
@@ -31,14 +37,21 @@ interface ProjectDetailViewProps {
 }
 
 export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: ProjectDetailViewProps) => {
-  const { expenses } = useExpenses(project.id);
+  const { expenses, approveExpense, rejectExpense, refetch } = useExpenses(project.id);
   const [activeTab, setActiveTab] = useState('overview');
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [showExpenseDialog, setShowExpenseDialog] = useState(false);
+  const [reviewNotes, setReviewNotes] = useState('');
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
     }).format(amount);
+  };
+
+  const getCategoryLabel = (category: string) => {
+    return EXPENSE_CATEGORY_LABELS[category as ExpenseCategory] || category;
   };
 
   const getStatusColor = (status: string) => {
@@ -63,10 +76,46 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
     }
   };
 
+  const handleApproveExpense = async () => {
+    if (!selectedExpense) return;
+    try {
+      await approveExpense(selectedExpense.id, reviewNotes);
+      setShowExpenseDialog(false);
+      setSelectedExpense(null);
+      setReviewNotes('');
+      refetch();
+    } catch (error) {
+      console.error('Error approving expense:', error);
+    }
+  };
+
+  const handleRejectExpense = async () => {
+    if (!selectedExpense) return;
+    if (!reviewNotes.trim()) {
+      alert('Inserisci una motivazione per il rifiuto');
+      return;
+    }
+    try {
+      await rejectExpense(selectedExpense.id, reviewNotes);
+      setShowExpenseDialog(false);
+      setSelectedExpense(null);
+      setReviewNotes('');
+      refetch();
+    } catch (error) {
+      console.error('Error rejecting expense:', error);
+    }
+  };
+
   const budgetUsed = (project.spent_budget / project.total_budget) * 100;
   const isOverBudget = project.spent_budget > project.total_budget;
-  const approvedExpenses = expenses?.filter(e => e.is_approved) || [];
-  const pendingExpenses = expenses?.filter(e => !e.is_approved) || [];
+  
+  const approvedExpenses = useMemo(() => {
+    return expenses?.filter(e => e.is_approved === true) || [];
+  }, [expenses]);
+
+  const pendingExpenses = useMemo(() => {
+    return expenses?.filter(e => e.is_approved === null) || [];
+  }, [expenses]);
 
   return (
     <div className="space-y-6">
@@ -355,16 +404,33 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
                 {pendingExpenses.length > 0 ? (
                   <div className="space-y-3">
                     {pendingExpenses.map((expense) => (
-                      <div key={expense.id} className="flex justify-between items-center border-b pb-2">
-                        <div>
-                          <p className="font-medium text-sm">{expense.description}</p>
+                      <div 
+                        key={expense.id} 
+                        className="flex justify-between items-center border-b pb-2 hover:bg-muted/50 p-2 rounded cursor-pointer transition-colors"
+                        onClick={() => {
+                          setSelectedExpense(expense);
+                          setShowExpenseDialog(true);
+                          setReviewNotes('');
+                        }}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-sm">{expense.description}</p>
+                            <Badge variant="secondary" className="text-xs">
+                              {getCategoryLabel(expense.category)}
+                            </Badge>
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {expense.expense_date && format(new Date(expense.expense_date), 'dd MMM yyyy', { locale: it })}
+                            {expense.supplier_name && ` • ${expense.supplier_name}`}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">{formatCurrency(expense.amount)}</p>
-                          <Badge variant="outline" className="text-xs">in attesa</Badge>
+                        <div className="text-right flex items-center gap-2">
+                          <div>
+                            <p className="font-medium">{formatCurrency(expense.amount)}</p>
+                            <Badge variant="outline" className="text-xs">in attesa</Badge>
+                          </div>
+                          <Eye className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
                     ))}
@@ -441,6 +507,95 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Expense Review Dialog */}
+      <Dialog open={showExpenseDialog} onOpenChange={setShowExpenseDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Revisione Spesa</DialogTitle>
+          </DialogHeader>
+          
+          {selectedExpense && (
+            <div className="space-y-6">
+              {/* Expense Details */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Descrizione</Label>
+                  <p className="font-medium">{selectedExpense.description}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Categoria</Label>
+                  <p className="font-medium">{getCategoryLabel(selectedExpense.category)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Importo</Label>
+                  <p className="text-xl font-bold">{formatCurrency(selectedExpense.amount)}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Data</Label>
+                  <p className="font-medium">
+                    {selectedExpense.expense_date && 
+                      format(new Date(selectedExpense.expense_date), 'dd MMMM yyyy', { locale: it })}
+                  </p>
+                </div>
+                {selectedExpense.supplier_name && (
+                  <div>
+                    <Label className="text-muted-foreground">Fornitore</Label>
+                    <p className="font-medium">{selectedExpense.supplier_name}</p>
+                  </div>
+                )}
+                {selectedExpense.receipt_number && (
+                  <div>
+                    <Label className="text-muted-foreground">Numero Ricevuta</Label>
+                    <p className="font-medium">{selectedExpense.receipt_number}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Review Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="review-notes">Note di Revisione</Label>
+                <Textarea
+                  id="review-notes"
+                  placeholder="Aggiungi note sulla spesa (opzionale per approvazione, obbligatorie per rifiuto)"
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              {/* Actions */}
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowExpenseDialog(false);
+                    setSelectedExpense(null);
+                    setReviewNotes('');
+                  }}
+                >
+                  Annulla
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleRejectExpense}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Rifiuta
+                </Button>
+                <Button
+                  variant="default"
+                  className="bg-success hover:bg-success/90"
+                  onClick={handleApproveExpense}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approva
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
