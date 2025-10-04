@@ -288,10 +288,22 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     // Determine if the expense should be approved or rejected
     const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent;
     
+    // Calculate confidence based on validation results
+    let confidence = 0.3; // Base confidence
+    if (projectCodeValidation.cupFound) {
+      confidence = 0.95; // Very high confidence if CUP is found
+    } else if (projectCodeValidation.isValid) {
+      confidence = 0.75; // Good confidence if project reference found
+    }
+    
+    if (!bandoCoherence.isCoherent) {
+      confidence *= 0.5; // Reduce confidence if not coherent with bando
+    }
+    
     const result = {
       extractedData: invoiceData,
       category: invoiceData.category,
-      confidence: shouldApprove ? 0.9 : 0.3,
+      confidence: confidence,
       validation: {
         projectCode: projectCodeValidation,
         bandoCoherence: bandoCoherence,
@@ -384,27 +396,55 @@ function validateProjectCode(xmlContent: string, projectData: any) {
   
   const projectTitle = projectData.title || '';
   const projectId = projectData.id ? projectData.id.slice(0, 8) : '';
-  
-  // Search for project references in various XML fields
-  const fieldsToCheck = [
-    /<Descrizione>([^<]+)<\/Descrizione>/g,
-    /<Causale>([^<]+)<\/Causale>/g,
-    /<RiferimentoNumeroLinea>([^<]+)<\/RiferimentoNumeroLinea>/g,
-    /<RiferimentoDocumento>([^<]+)<\/RiferimentoDocumento>/g,
-    /<Note>([^<]+)<\/Note>/g
-  ];
+  const projectCUP = projectData.cup_code || '';
   
   let foundReferences = [];
+  let cupFound = false;
   
-  for (const pattern of fieldsToCheck) {
-    const matches = xmlContent.match(pattern);
-    if (matches) {
+  // PRIORITY 1: Check for CUP code in dedicated XML fields
+  if (projectCUP) {
+    const cupPatterns = [
+      /<CodiceCUP>([^<]+)<\/CodiceCUP>/g,
+      /<RiferimentoTesto>([^<]+)<\/RiferimentoTesto>/g,
+      /<Causale>([^<]*CUP[^<]*)<\/Causale>/gi
+    ];
+    
+    for (const pattern of cupPatterns) {
+      const matches = Array.from(xmlContent.matchAll(pattern));
       for (const match of matches) {
-        const content = match.replace(/<[^>]+>/g, '').toLowerCase();
-        // Cerca per titolo progetto o ID progetto
-        if ((projectTitle && content.includes(projectTitle.toLowerCase())) ||
-            (projectId && content.includes(projectId.toLowerCase()))) {
-          foundReferences.push(content);
+        const content = match[1].trim();
+        if (content.includes(projectCUP)) {
+          foundReferences.push(`CUP: ${projectCUP}`);
+          cupFound = true;
+          break;
+        }
+      }
+      if (cupFound) break;
+    }
+  }
+  
+  // PRIORITY 2: Search for project references in various XML fields
+  if (!cupFound) {
+    const fieldsToCheck = [
+      /<Descrizione>([^<]+)<\/Descrizione>/g,
+      /<Causale>([^<]+)<\/Causale>/g,
+      /<RiferimentoNumeroLinea>([^<]+)<\/RiferimentoNumeroLinea>/g,
+      /<RiferimentoDocumento>([^<]+)<\/RiferimentoDocumento>/g,
+      /<Note>([^<]+)<\/Note>/g,
+      /<AltriDatiGestionali>[\s\S]*?<RiferimentoTesto>([^<]+)<\/RiferimentoTesto>[\s\S]*?<\/AltriDatiGestionali>/g
+    ];
+    
+    for (const pattern of fieldsToCheck) {
+      const matches = xmlContent.match(pattern);
+      if (matches) {
+        for (const match of matches) {
+          const content = match.replace(/<[^>]+>/g, '').toLowerCase();
+          // Cerca per CUP, titolo progetto o ID progetto
+          if ((projectCUP && content.includes(projectCUP.toLowerCase())) ||
+              (projectTitle && content.includes(projectTitle.toLowerCase())) ||
+              (projectId && content.includes(projectId.toLowerCase()))) {
+            foundReferences.push(content.substring(0, 100)); // Limit length
+          }
         }
       }
     }
@@ -413,16 +453,21 @@ function validateProjectCode(xmlContent: string, projectData: any) {
   console.log('Project validation:', {
     projectTitle,
     projectId,
+    projectCUP,
+    cupFound,
     foundReferences,
     xmlContent: xmlContent.substring(0, 500) + '...'
   });
   
   return {
-    isValid: foundReferences.length > 0,
+    isValid: cupFound || foundReferences.length > 0,
     references: foundReferences,
-    reasons: foundReferences.length > 0 
-      ? [`Codice progetto trovato: ${foundReferences.join(', ')}`]
-      : [`Codice progetto non trovato nella fattura per progetto: ${projectTitle}`]
+    cupFound: cupFound,
+    reasons: (cupFound || foundReferences.length > 0)
+      ? cupFound 
+        ? [`✓ Codice CUP ${projectCUP} trovato nella fattura`]
+        : [`Riferimento progetto trovato: ${foundReferences[0].substring(0, 80)}...`]
+      : [`✗ Codice CUP ${projectCUP} non trovato nella fattura elettronica. Verifica che il CUP sia presente nel campo <CodiceCUP> o nella causale.`]
   };
 }
 
