@@ -144,6 +144,8 @@ export const ProjectForm = ({ bandoId, onSuccess, onCancel, initialData }: Proje
 
       const projectData = {
         ...projectFormData,
+        start_date: projectFormData.start_date || null,
+        end_date: projectFormData.end_date || null,
         bando_id: bandoId,
         spent_budget: 0,
         progress_percentage: 0,
