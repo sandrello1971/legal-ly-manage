@@ -296,8 +296,19 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
       confidence = 0.75; // Good confidence if project reference found
     }
     
-    if (!bandoCoherence.isCoherent) {
-      confidence *= 0.5; // Reduce confidence if not coherent with bando
+    // Apply coherence adjustment based on CUP validation and coherence score
+    if (projectCodeValidation.cupFound) {
+      // If CUP is valid, only minor adjustment based on coherence
+      if (bandoCoherence.coherenceScore >= 0.3) {
+        // Category is at least partially coherent - minimal penalty
+        confidence *= 0.95; // Only 5% reduction
+      } else if (!bandoCoherence.isCoherent) {
+        // Category might not match but CUP is valid - moderate penalty
+        confidence *= 0.8; // 20% reduction
+      }
+    } else if (!bandoCoherence.isCoherent) {
+      // No CUP and not coherent - significant penalty
+      confidence *= 0.5; // 50% reduction
     }
     
     const result = {
@@ -584,7 +595,7 @@ function checkCategoryCoherence(category: string, bandoData: any) {
   
   if (foundKeywords.length > 0) {
     return {
-      score: 0.4, // Increased from 0.3
+      score: 0.5, // Increased to reach coherence threshold
       reasons: [`Categoria ${category} coerente con il bando (trovato: ${foundKeywords.slice(0, 3).join(', ')})`]
     };
   }
@@ -597,7 +608,7 @@ function checkCategoryCoherence(category: string, bandoData: any) {
     bandoText.includes('infrast')
   )) {
     return {
-      score: 0.35,
+      score: 0.45, // Just below threshold - needs more verification
       reasons: [`Categoria ${category} probabilmente ammissibile per bando su ricerca/tecnologia`]
     };
   }
