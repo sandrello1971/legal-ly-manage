@@ -529,17 +529,53 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any) {
   };
 }
 
-// Check if expense category is coherent with bando
+// Check if expense category is coherent with bando (SI4.0 2025 categories)
 function checkCategoryCoherence(category: string, bandoData: any) {
   const bandoDescription = (bandoData.description || '').toLowerCase();
   const bandoTitle = (bandoData.title || '').toLowerCase();
-  const bandoText = `${bandoDescription} ${bandoTitle}`;
+  const eligibilityCriteria = (bandoData.eligibility_criteria || '').toLowerCase();
+  const bandoText = `${bandoDescription} ${bandoTitle} ${eligibilityCriteria}`;
   
+  // Enhanced category mappings for SI4.0 2025 Bando
   const categoryMappings = {
-    'equipment': ['attrezzature', 'hardware', 'macchinari', 'strumenti'],
-    'services': ['servizi', 'consulenze', 'assistenza', 'software'],
+    'equipment': [
+      // Attrezzature tecnologiche
+      'attrezzature', 'hardware', 'macchinari', 'strumenti', 'strumentazione',
+      // Infrastrutture
+      'infrastrutture', 'infrastruttura', 'laboratorio', 'laboratori',
+      // Tecnologie specifiche
+      'tecnologie', 'tecnologico', 'tecnologica', 'impianti', 'impianto',
+      // Ricerca e innovazione
+      'ricerca', 'innovazione', 'sperimentazione',
+      // Software e programmi
+      'software', 'programmi informatici', 'licenze', 'cloud',
+      // Tecnologie 4.0
+      '4.0', 'industria 4.0', 'trasformazione digitale', 'digitale',
+      'iot', 'intelligenza artificiale', 'automazione', 'robot'
+    ],
+    'consulting': [
+      'consulenza', 'consulenze', 'consulente', 'assistenza tecnica',
+      'servizi professional', 'advisory', 'supporto tecnico', 'audit'
+    ],
+    'training': [
+      'formazione', 'corso', 'corsi', 'training', 'workshop',
+      'certificazione', 'didattica', 'competenze'
+    ],
+    'engineering': [
+      'sviluppo', 'ingegnerizzazione', 'engineering', 'prototipazione',
+      'testing', 'collaudo', 'integrazione', 'customizzazione'
+    ],
+    'intellectual_property': [
+      'brevetto', 'brevetti', 'marchio', 'proprietà intellettuale',
+      'proprietà industriale', 'tutela', 'registrazione'
+    ],
+    'personnel': [
+      'personale', 'risorse umane', 'collaboratori', 'dipendenti',
+      'team', 'dedicato al progetto'
+    ],
+    // Legacy categories
+    'services': ['servizi', 'consulenze', 'assistenza'],
     'materials': ['materiali', 'forniture', 'cancelleria'],
-    'personnel': ['personale', 'risorse umane', 'collaboratori'],
     'travel': ['viaggi', 'trasferte', 'trasporti']
   };
   
@@ -548,8 +584,21 @@ function checkCategoryCoherence(category: string, bandoData: any) {
   
   if (foundKeywords.length > 0) {
     return {
-      score: 0.3,
-      reasons: [`Categoria ${category} coerente con il bando (${foundKeywords.join(', ')})`]
+      score: 0.4, // Increased from 0.3
+      reasons: [`Categoria ${category} coerente con il bando (trovato: ${foundKeywords.slice(0, 3).join(', ')})`]
+    };
+  }
+  
+  // For 'equipment' category, check if bando is about research infrastructure
+  if (category === 'equipment' && (
+    bandoText.includes('ricerca') || 
+    bandoText.includes('tecnolog') ||
+    bandoText.includes('innovaz') ||
+    bandoText.includes('infrast')
+  )) {
+    return {
+      score: 0.35,
+      reasons: [`Categoria ${category} probabilmente ammissibile per bando su ricerca/tecnologia`]
     };
   }
   
