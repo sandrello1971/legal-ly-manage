@@ -340,48 +340,8 @@ export function ExpenseReviewDashboard() {
 
       {/* Expenses Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Spese da Revisionare</CardTitle>
-          <Button 
-            variant="outline" 
-            onClick={async () => {
-              // Crea una spesa di test in attesa di revisione usando Supabase
-              if (!user) {
-                console.error('User not authenticated');
-                return;
-              }
-              
-              console.log('Creating test expense with user ID:', user.id);
-              
-              try {
-                const { error } = await supabase
-                  .from('project_expenses')
-                  .insert({
-                    project_id: projects[0]?.id || null,
-                    description: "Spesa di test - In attesa di revisione",
-                    amount: 150.00,
-                    expense_date: new Date().toISOString().split('T')[0],
-                    category: "materials",
-                    supplier_name: "Fornitore Test",
-                    receipt_number: "TEST-001",
-                    is_approved: null, // Questo la mette in attesa di revisione
-                    created_by: user?.id || null // Usa l'ID reale dell'utente autenticato
-                  });
-                
-                if (error) {
-                  console.error('Supabase error:', error);
-                  throw error;
-                }
-                
-                console.log('Test expense created successfully');
-                refetch();
-              } catch (error) {
-                console.error('Error creating test expense:', error);
-              }
-            }}
-          >
-            + Aggiungi Spesa Test (In Attesa)
-          </Button>
         </CardHeader>
         <CardContent>
           <Table>
