@@ -87,6 +87,14 @@ export const ProjectDashboard = ({ project, onEditProject, onAddExpense }: Proje
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-2xl font-bold">{project.title}</h2>
+          {project.cup_code && (
+            <div className="mt-2 mb-2">
+              <div className="inline-flex items-center gap-2 bg-primary/10 border-2 border-primary px-4 py-2 rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">Codice CUP:</span>
+                <span className="text-lg font-bold text-primary">{project.cup_code}</span>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 mt-2">
             <Badge className={getStatusColor(project.status)}>
               {getStatusLabel(project.status)}

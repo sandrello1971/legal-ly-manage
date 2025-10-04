@@ -2347,6 +2347,7 @@ export type Database = {
           bando_id: string | null
           created_at: string | null
           created_by: string
+          cup_code: string | null
           description: string | null
           end_date: string | null
           id: string
@@ -2372,6 +2373,7 @@ export type Database = {
           bando_id?: string | null
           created_at?: string | null
           created_by: string
+          cup_code?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -2397,6 +2399,7 @@ export type Database = {
           bando_id?: string | null
           created_at?: string | null
           created_by?: string
+          cup_code?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -2965,7 +2968,7 @@ export type Database = {
       }
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: string
+        Returns: unknown
       }
       log_admin_access: {
         Args: { p_action: string; p_record_id?: string; p_table_name: string }

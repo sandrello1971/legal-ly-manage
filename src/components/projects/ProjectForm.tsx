@@ -21,6 +21,7 @@ interface ProjectFormProps {
 export const ProjectForm = ({ bandoId, onSuccess, onCancel, initialData }: ProjectFormProps) => {
   const [projectFormData, setProjectFormData] = useState({
     title: initialData?.title || '',
+    cup_code: initialData?.cup_code || '',
     description: initialData?.description || '',
     total_budget: initialData?.total_budget || 0,
     allocated_budget: initialData?.allocated_budget || 0,
@@ -188,6 +189,24 @@ export const ProjectForm = ({ bandoId, onSuccess, onCancel, initialData }: Proje
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* CUP Code Field - Prominently displayed */}
+          <div className="space-y-2 p-4 border-2 border-primary/30 bg-primary/5 rounded-lg mb-4">
+            <Label htmlFor="cup_code" className="text-base font-bold text-primary">
+              Codice CUP (Codice Unico di Progetto) *
+            </Label>
+            <Input
+              id="cup_code"
+              value={projectFormData.cup_code}
+              onChange={(e) => setProjectFormData({ ...projectFormData, cup_code: e.target.value })}
+              placeholder="es. J41B25000010001"
+              className="font-mono text-lg border-primary/50"
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Necessario per associare le fatture al progetto
+            </p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Titolo Progetto *</Label>

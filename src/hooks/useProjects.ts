@@ -7,6 +7,7 @@ export interface Project {
   id: string;
   bando_id: string | null;
   title: string;
+  cup_code?: string;
   description?: string;
   total_budget: number;
   allocated_budget: number;
