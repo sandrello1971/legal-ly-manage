@@ -325,23 +325,6 @@ export default function Bandi() {
             <p className="text-sm text-muted-foreground">Fasi Completate</p>
           </div>
         </div>
-        
-        {/* Progress Bar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Progresso Complessivo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Progress value={overallProgress} className="h-3" />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Iniziato</span>
-                <span>{Math.round(overallProgress)}% Completato</span>
-                <span>Terminato</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Phases Grid */}
