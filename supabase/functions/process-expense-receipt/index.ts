@@ -291,27 +291,33 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     // Determine if the expense should be approved or rejected
     const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent && projectCoherence.isCoherent;
     
-    // Calculate confidence based on validation results
+    // Calculate confidence based on ALL validation results
     let confidence = 0.3; // Base confidence
-    if (projectCodeValidation.cupFound) {
-      confidence = 0.95; // Very high confidence if CUP is found
-    } else if (projectCodeValidation.isValid) {
-      confidence = 0.75; // Good confidence if project reference found
-    }
     
-    // Apply coherence adjustment based on CUP validation and coherence score
-    if (projectCodeValidation.cupFound) {
-      // If CUP is valid, only minor adjustment based on coherence
-      if (bandoCoherence.coherenceScore >= 0.3) {
-        // Category is at least partially coherent - minimal penalty
-        confidence *= 0.95; // Only 5% reduction
-      } else if (!bandoCoherence.isCoherent) {
-        // Category might not match but CUP is valid - moderate penalty
-        confidence *= 0.8; // 20% reduction
+    // CRITICAL: If bando says NOT eligible, confidence must be LOW regardless of CUP
+    if (!bandoCoherence.isCoherent) {
+      confidence = Math.min(0.4, bandoCoherence.coherenceScore / 100); // Max 40% if not eligible
+    }
+    // If project says NOT mentioned in proposal, confidence is MEDIUM
+    else if (!projectCoherence.isCoherent) {
+      confidence = Math.min(0.65, projectCoherence.coherenceScore / 100); // Max 65% if not in project
+    }
+    // If project gives warning (score 50-70), confidence is MEDIUM-HIGH
+    else if (projectCoherence.coherenceScore < 70) {
+      confidence = projectCoherence.coherenceScore / 100; // Use AI score directly
+    }
+    // Everything is OK - high confidence
+    else {
+      // Start with project code validation confidence
+      if (projectCodeValidation.cupFound) {
+        confidence = 0.90; // High confidence base
+      } else if (projectCodeValidation.isValid) {
+        confidence = 0.75; // Good confidence base
       }
-    } else if (!bandoCoherence.isCoherent) {
-      // No CUP and not coherent - significant penalty
-      confidence *= 0.5; // 50% reduction
+      
+      // Adjust based on coherence scores
+      const avgCoherenceScore = (bandoCoherence.coherenceScore + projectCoherence.coherenceScore) / 2;
+      confidence = Math.min(0.95, (confidence + (avgCoherenceScore / 100)) / 2);
     }
     
     const result = {
