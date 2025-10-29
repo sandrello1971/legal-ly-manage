@@ -152,7 +152,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       let bandoId = initialData?.id;
       
       if (!bandoId) {
-        const { decree_storage_path, ...rest } = formData as any;
+        const { decree_storage_path, expense_categories, ...rest } = formData as any;
         const bandoData = {
           ...rest,
           title: formData.title || 'Bando da Analizzare',
@@ -197,10 +197,15 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
 
       // Aggiorna il form con i dati estratti
       if (data?.data) {
+        // Estrai solo i campi che sono colonne della tabella bandi
+        const { expense_categories, ...validBandoFields } = data.data;
+        
         setFormData(prev => ({
           ...prev,
-          ...data.data,
-          total_amount: data.data.total_amount?.toString() || prev.total_amount
+          ...validBandoFields,
+          total_amount: data.data.total_amount?.toString() || prev.total_amount,
+          // Salva tutti i dati dell'AI (inclusi expense_categories) in parsed_data
+          parsed_data: data.data
         }));
       }
 
@@ -245,7 +250,8 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       return;
     }
 
-    const { decree_storage_path, ...rest } = formData as any;
+    // Rimuovi campi che non sono colonne della tabella bandi
+    const { decree_storage_path, expense_categories, ...rest } = formData as any;
     const bandoData = {
       ...rest,
       total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
