@@ -152,11 +152,26 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       let bandoId = initialData?.id;
       
       if (!bandoId) {
-        const { decree_storage_path, expense_categories, ...rest } = formData as any;
-        const bandoData = {
-          ...rest,
+        // Crea il bando solo con campi validi
+        const bandoData: any = {
           title: formData.title || 'Bando da Analizzare',
-          total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
+          description: formData.description,
+          total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
+          application_deadline: formData.application_deadline || null,
+          project_start_date: formData.project_start_date || null,
+          project_end_date: formData.project_end_date || null,
+          status: formData.status,
+          organization: formData.organization,
+          contact_person: formData.contact_person,
+          contact_email: formData.contact_email,
+          contact_phone: formData.contact_phone,
+          website_url: formData.website_url,
+          eligibility_criteria: formData.eligibility_criteria,
+          evaluation_criteria: formData.evaluation_criteria,
+          required_documents: formData.required_documents,
+          decree_file_url: formData.decree_file_url,
+          decree_file_name: formData.decree_file_name,
+          parsed_data: (formData as any).parsed_data || null
         };
 
         toast({
@@ -197,14 +212,28 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
 
       // Aggiorna il form con i dati estratti
       if (data?.data) {
-        // Estrai solo i campi che sono colonne della tabella bandi
-        const { expense_categories, ...validBandoFields } = data.data;
+        // Lista whitelist dei campi validi della tabella bandi
+        const validFields = [
+          'title', 'description', 'total_amount', 'application_deadline',
+          'project_start_date', 'project_end_date', 'status',
+          'organization', 'contact_person', 'contact_email', 'contact_phone',
+          'website_url', 'eligibility_criteria', 'evaluation_criteria',
+          'required_documents', 'decree_file_url', 'decree_file_name'
+        ];
+        
+        // Estrai solo i campi validi
+        const validBandoFields: any = {};
+        validFields.forEach(field => {
+          if (data.data[field] !== undefined) {
+            validBandoFields[field] = data.data[field];
+          }
+        });
         
         setFormData(prev => ({
           ...prev,
           ...validBandoFields,
           total_amount: data.data.total_amount?.toString() || prev.total_amount,
-          // Salva tutti i dati dell'AI (inclusi expense_categories) in parsed_data
+          // Salva TUTTI i dati dell'AI in parsed_data (inclusi campi extra come expense_categories, funding_percentage, ecc.)
           parsed_data: data.data
         }));
       }
@@ -250,11 +279,26 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       return;
     }
 
-    // Rimuovi campi che non sono colonne della tabella bandi
-    const { decree_storage_path, expense_categories, ...rest } = formData as any;
-    const bandoData = {
-      ...rest,
-      total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
+    // Salva solo i campi validi della tabella bandi
+    const bandoData: any = {
+      title: formData.title,
+      description: formData.description,
+      total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
+      application_deadline: formData.application_deadline || null,
+      project_start_date: formData.project_start_date || null,
+      project_end_date: formData.project_end_date || null,
+      status: formData.status,
+      organization: formData.organization,
+      contact_person: formData.contact_person,
+      contact_email: formData.contact_email,
+      contact_phone: formData.contact_phone,
+      website_url: formData.website_url,
+      eligibility_criteria: formData.eligibility_criteria,
+      evaluation_criteria: formData.evaluation_criteria,
+      required_documents: formData.required_documents,
+      decree_file_url: formData.decree_file_url,
+      decree_file_name: formData.decree_file_name,
+      parsed_data: (formData as any).parsed_data || null
     };
 
     onSave(bandoData);
