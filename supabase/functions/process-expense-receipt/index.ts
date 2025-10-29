@@ -365,6 +365,7 @@ function parseXMLInvoice(xmlContent: string) {
   // Extract invoice details
   const invoiceNumber = extractValue(/<Numero>([^<]+)<\/Numero>/);
   const invoiceDate = extractValue(/<Data>([^<]+)<\/Data>/);
+  const causale = extractValue(/<Causale>([^<]+)<\/Causale>/);
   
   // Extract amounts
   const totalAmount = extractAmount(/<ImportoTotaleDocumento>([0-9.,]+)<\/ImportoTotaleDocumento>/) ||
@@ -390,6 +391,7 @@ function parseXMLInvoice(xmlContent: string) {
     date: invoiceDate || new Date().toISOString().split('T')[0],
     supplier: supplierName,
     receiptNumber: invoiceNumber,
+    causale: causale,
     category: classification.category,
     confidence: classification.confidence,
     invoiceType: 'electronic'
@@ -494,9 +496,29 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any) {
   const description = invoiceData.description?.toLowerCase() || '';
   const supplier = invoiceData.supplier?.toLowerCase() || '';
   const amount = invoiceData.amount || 0;
+  const causale = invoiceData.causale?.toLowerCase() || '';
   
   let coherenceScore = 0;
   let reasons = [];
+  
+  // Check for explicit non-eligibility in causale
+  const nonEligibilityKeywords = [
+    'non ammissibile', 'inammissibile', 'fuori perimetro',
+    'non ammissibili', 'inammissibili', 'non eleggibile',
+    'escluso dal bando', 'esclusa dal bando'
+  ];
+  
+  const foundNonEligibility = nonEligibilityKeywords.some(keyword => 
+    causale.includes(keyword)
+  );
+  
+  if (foundNonEligibility) {
+    return {
+      isCoherent: false,
+      coherenceScore: -1,
+      reasons: ['⚠️ La causale della fattura indica esplicitamente che la spesa NON è ammissibile per questo bando']
+    };
+  }
   
   // Check against bando eligibility criteria
   const eligibilityCriteria = bandoData.eligibility_criteria?.toLowerCase() || '';
