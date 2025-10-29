@@ -50,6 +50,11 @@ export interface ExpenseUpload {
       coherenceScore?: number;
       reasons?: string[];
     };
+    projectCoherence?: {
+      isCoherent: boolean;
+      coherenceScore?: number;
+      reasons?: string[];
+    };
     shouldApprove: boolean;
     reasons?: string[];
   };

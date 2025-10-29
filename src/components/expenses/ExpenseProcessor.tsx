@@ -406,11 +406,32 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                                     </span>
                                     {upload.validation.bandoCoherence?.coherenceScore && (
                                       <span className="text-xs text-muted-foreground">
-                                        (Punteggio: {Math.round(upload.validation.bandoCoherence.coherenceScore * 100)}%)
+                                        (Punteggio: {Math.round(upload.validation.bandoCoherence.coherenceScore)}%)
                                       </span>
                                     )}
                                   </div>
                                 </div>
+                                
+                                {upload.validation.projectCoherence && (
+                                  <div>
+                                    <Label>Coerenza con Progetto</Label>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {upload.validation.projectCoherence.isCoherent ? (
+                                        <CheckCircle className="h-4 w-4 text-success" />
+                                      ) : (
+                                        <AlertCircle className="h-4 w-4 text-warning" />
+                                      )}
+                                      <span className="text-sm">
+                                        {upload.validation.projectCoherence.isCoherent ? 'Coerente' : 'Da verificare'}
+                                      </span>
+                                      {upload.validation.projectCoherence.coherenceScore && (
+                                        <span className="text-xs text-muted-foreground">
+                                          (Punteggio: {Math.round(upload.validation.projectCoherence.coherenceScore)}%)
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               
                               {upload.validation.reasons && upload.validation.reasons.length > 0 && (
