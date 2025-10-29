@@ -302,9 +302,20 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     else if (!projectCoherence.isCoherent) {
       confidence = Math.min(0.65, projectCoherence.coherenceScore / 100); // Max 65% if not in project
     }
-    // If project gives warning (score 50-70), confidence is MEDIUM-HIGH
+    // If CUP found AND bando is coherent, give high confidence even if project coherence is uncertain
+    else if (projectCodeValidation.cupFound && bandoCoherence.isCoherent) {
+      // CUP + bando coherence = strong indicators of validity
+      confidence = 0.85; // Start high
+      
+      // Adjust based on coherence scores - bando weighs more than project when both are OK
+      const bandoWeight = 0.7;
+      const projectWeight = 0.3;
+      const weightedScore = (bandoCoherence.coherenceScore * bandoWeight + projectCoherence.coherenceScore * projectWeight) / 100;
+      confidence = Math.min(0.95, (confidence + weightedScore) / 2);
+    }
+    // Project coherence warning but no CUP - more cautious
     else if (projectCoherence.coherenceScore < 70) {
-      confidence = projectCoherence.coherenceScore / 100; // Use AI score directly
+      confidence = Math.max(0.5, projectCoherence.coherenceScore / 100); // Minimum 50% if bando is OK
     }
     // Everything is OK - high confidence
     else {
