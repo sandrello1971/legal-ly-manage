@@ -864,6 +864,27 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
 
         {/* Details Tab */}
         <TabsContent value="details" className="space-y-6">
+          {/* Project Description & Objectives */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Target className="h-5 w-5 mr-2" />
+                Obiettivo del Progetto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {project.description ? (
+                <div className="prose prose-sm max-w-none">
+                  <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {project.description}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground italic">Nessuna descrizione disponibile</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           {project.notes && (
             <Card>
@@ -871,7 +892,7 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
                 <CardTitle>Note</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground whitespace-pre-wrap">{project.notes}</p>
+                <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{project.notes}</p>
               </CardContent>
             </Card>
           )}
