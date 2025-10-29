@@ -73,9 +73,22 @@ export const ProjectForm = ({ bandoId, onSuccess, onCancel, initialData }: Proje
         if (projectInfo.title && !projectFormData.title) {
           setProjectFormData(prev => ({ ...prev, title: projectInfo.title }));
         }
-        if (projectInfo.cup_code && !projectFormData.cup_code) {
-          setProjectFormData(prev => ({ ...prev, cup_code: projectInfo.cup_code }));
+        
+        // Extract CUP from direct field or from spending_rules/constraints
+        let cupCode = projectInfo.cup_code;
+        if (!cupCode && data.extracted_data.constraints) {
+          const spendingRules = data.extracted_data.constraints.spending_rules || [];
+          const docRequirements = data.extracted_data.constraints.documentation_requirements || [];
+          const allText = [...spendingRules, ...docRequirements].join(' ');
+          const cupMatch = allText.match(/CUP\s+([A-Z0-9]{15,17})/i);
+          if (cupMatch) {
+            cupCode = cupMatch[1];
+          }
         }
+        if (cupCode && !projectFormData.cup_code) {
+          setProjectFormData(prev => ({ ...prev, cup_code: cupCode }));
+        }
+        
         if (projectInfo.description && !projectFormData.description) {
           setProjectFormData(prev => ({ ...prev, description: projectInfo.description }));
         }
