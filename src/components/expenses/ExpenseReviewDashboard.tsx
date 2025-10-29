@@ -46,6 +46,7 @@ export function ExpenseReviewDashboard() {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [amountSpent, setAmountSpent] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
 
@@ -122,6 +123,9 @@ export function ExpenseReviewDashboard() {
   const handleSingleAction = async (expense: Expense, action: 'approve' | 'reject') => {
     try {
       if (action === 'approve') {
+        // Update expense with amount_spent before approving
+        const spentAmount = amountSpent !== null ? amountSpent : expense.amount;
+        await updateExpense(expense.id, { amount_spent: spentAmount });
         await approveExpense(expense.id, reviewNotes);
       } else {
         await rejectExpense(expense.id, reviewNotes);
@@ -129,6 +133,7 @@ export function ExpenseReviewDashboard() {
       
       setSelectedExpense(null);
       setReviewNotes('');
+      setAmountSpent(null);
       refetch();
     } catch (error) {
       console.error('Error performing action:', error);
@@ -153,6 +158,7 @@ export function ExpenseReviewDashboard() {
     setEditForm({
       description: expense.description,
       amount: expense.amount,
+      amount_spent: expense.amount_spent,
       category: expense.category,
       supplier_name: expense.supplier_name,
       receipt_number: expense.receipt_number,
@@ -447,16 +453,26 @@ export function ExpenseReviewDashboard() {
                                            onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
                                          />
                                        </div>
-                                       <div>
-                                         <Label htmlFor="edit-amount">Importo</Label>
-                                         <Input
-                                           id="edit-amount"
-                                           type="number"
-                                           step="0.01"
-                                           value={editForm.amount || ''}
-                                           onChange={(e) => setEditForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                                         />
-                                       </div>
+                                        <div>
+                                          <Label htmlFor="edit-amount">Importo Allocato</Label>
+                                          <Input
+                                            id="edit-amount"
+                                            type="number"
+                                            step="0.01"
+                                            value={editForm.amount || ''}
+                                            onChange={(e) => setEditForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                                          />
+                                        </div>
+                                        <div>
+                                          <Label htmlFor="edit-amount-spent">Importo Speso</Label>
+                                          <Input
+                                            id="edit-amount-spent"
+                                            type="number"
+                                            step="0.01"
+                                            value={editForm.amount_spent || ''}
+                                            onChange={(e) => setEditForm(prev => ({ ...prev, amount_spent: parseFloat(e.target.value) || 0 }))}
+                                          />
+                                        </div>
                                        <div>
                                          <Label htmlFor="edit-category">Categoria</Label>
                                          <Select 
@@ -536,15 +552,21 @@ export function ExpenseReviewDashboard() {
                                        </div>
                                      </div>
                                    ) : (
-                                     <div className="grid grid-cols-2 gap-4">
-                                       <div>
-                                         <Label>Descrizione</Label>
-                                         <p className="text-sm">{selectedExpense.description}</p>
-                                       </div>
-                                       <div>
-                                         <Label>Importo</Label>
-                                         <p className="text-sm font-medium">€{selectedExpense.amount.toFixed(2)}</p>
-                                       </div>
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <Label>Descrizione</Label>
+                                          <p className="text-sm">{selectedExpense.description}</p>
+                                        </div>
+                                        <div>
+                                          <Label>Importo Allocato</Label>
+                                          <p className="text-sm font-medium">€{selectedExpense.amount.toFixed(2)}</p>
+                                        </div>
+                                        {selectedExpense.is_approved && selectedExpense.amount_spent !== undefined && (
+                                          <div>
+                                            <Label>Importo Speso</Label>
+                                            <p className="text-sm font-medium">€{selectedExpense.amount_spent.toFixed(2)}</p>
+                                          </div>
+                                        )}
                                        <div>
                                          <Label>Categoria</Label>
                                          <p className="text-sm">{getCategoryLabel(selectedExpense.category)}</p>
@@ -577,27 +599,41 @@ export function ExpenseReviewDashboard() {
                                      </div>
                                    )}
 
-                                   {/* Azioni di approvazione solo per spese in attesa */}
-                                   {selectedExpense.is_approved === null && !isEditing && (
-                                     <div className="space-y-4 border-t pt-4">
-                                       <div>
-                                         <Label htmlFor="review-notes">Note di Revisione</Label>
-                                        <Textarea
-                                          id="review-notes"
-                                          value={reviewNotes}
-                                          onChange={(e) => setReviewNotes(e.target.value)}
-                                          placeholder="Aggiungi note per la revisione..."
-                                        />
-                                      </div>
-                                      
-                                      <div className="flex gap-2">
-                                        <Button
-                                          onClick={() => handleSingleAction(selectedExpense, 'approve')}
-                                          className="flex-1"
-                                        >
-                                          <CheckCircle className="h-4 w-4 mr-2" />
-                                          Approva
-                                        </Button>
+                                    {/* Azioni di approvazione solo per spese in attesa */}
+                                    {selectedExpense.is_approved === null && !isEditing && (
+                                      <div className="space-y-4 border-t pt-4">
+                                        <div>
+                                          <Label htmlFor="amount-spent">Importo Effettivamente Speso</Label>
+                                          <Input
+                                            id="amount-spent"
+                                            type="number"
+                                            step="0.01"
+                                            value={amountSpent !== null ? amountSpent : selectedExpense.amount}
+                                            onChange={(e) => setAmountSpent(parseFloat(e.target.value) || 0)}
+                                            placeholder="Importo speso..."
+                                          />
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            Importo allocato: €{selectedExpense.amount.toFixed(2)}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <Label htmlFor="review-notes">Note di Revisione</Label>
+                                         <Textarea
+                                           id="review-notes"
+                                           value={reviewNotes}
+                                           onChange={(e) => setReviewNotes(e.target.value)}
+                                           placeholder="Aggiungi note per la revisione..."
+                                         />
+                                       </div>
+                                       
+                                       <div className="flex gap-2">
+                                         <Button
+                                           onClick={() => handleSingleAction(selectedExpense, 'approve')}
+                                           className="flex-1"
+                                         >
+                                           <CheckCircle className="h-4 w-4 mr-2" />
+                                           Approva
+                                         </Button>
                                         <Button
                                           variant="destructive"
                                           onClick={() => handleSingleAction(selectedExpense, 'reject')}

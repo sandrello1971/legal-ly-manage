@@ -20,7 +20,7 @@ export type Database = {
           admin_user_id: string
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           record_id: string | null
           table_name: string
           user_agent: string | null
@@ -30,7 +30,7 @@ export type Database = {
           admin_user_id: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           record_id?: string | null
           table_name: string
           user_agent?: string | null
@@ -40,7 +40,7 @@ export type Database = {
           admin_user_id?: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           record_id?: string | null
           table_name?: string
           user_agent?: string | null
@@ -129,7 +129,7 @@ export type Database = {
           endpoint: string
           error_message: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           method: string
           request_size_bytes: number | null
           response_size_bytes: number | null
@@ -144,7 +144,7 @@ export type Database = {
           endpoint: string
           error_message?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           method: string
           request_size_bytes?: number | null
           response_size_bytes?: number | null
@@ -159,7 +159,7 @@ export type Database = {
           endpoint?: string
           error_message?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           method?: string
           request_size_bytes?: number | null
           response_size_bytes?: number | null
@@ -186,7 +186,7 @@ export type Database = {
           details: Json | null
           document_id: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           user_agent: string | null
           user_id: string
         }
@@ -197,7 +197,7 @@ export type Database = {
           details?: Json | null
           document_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id: string
         }
@@ -208,7 +208,7 @@ export type Database = {
           details?: Json | null
           document_id?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           user_agent?: string | null
           user_id?: string
         }
@@ -403,7 +403,7 @@ export type Database = {
           project_end_date: string | null
           project_start_date: string | null
           required_documents: string[] | null
-          search_vector: unknown | null
+          search_vector: unknown
           status: Database["public"]["Enums"]["bando_status"] | null
           title: string
           total_amount: number | null
@@ -428,7 +428,7 @@ export type Database = {
           project_end_date?: string | null
           project_start_date?: string | null
           required_documents?: string[] | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["bando_status"] | null
           title: string
           total_amount?: number | null
@@ -453,7 +453,7 @@ export type Database = {
           project_end_date?: string | null
           project_start_date?: string | null
           required_documents?: string[] | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["bando_status"] | null
           title?: string
           total_amount?: number | null
@@ -666,6 +666,66 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      business_card_scans: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          corrected_data: Json | null
+          created_at: string
+          extracted_data: Json
+          id: string
+          image_url: string
+          ocr_confidence: number | null
+          original_file_name: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          corrected_data?: Json | null
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          image_url: string
+          ocr_confidence?: number | null
+          original_file_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          corrected_data?: Json | null
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          image_url?: string
+          ocr_confidence?: number | null
+          original_file_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_card_scans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_card_scans_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       business_targets: {
         Row: {
@@ -1446,7 +1506,7 @@ export type Database = {
           invoice_number: string | null
           mime_type: string
           notes: string | null
-          search_vector: unknown | null
+          search_vector: unknown
           status: Database["public"]["Enums"]["document_status"] | null
           supplier_id: string | null
           title: string
@@ -1469,7 +1529,7 @@ export type Database = {
           invoice_number?: string | null
           mime_type: string
           notes?: string | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["document_status"] | null
           supplier_id?: string | null
           title: string
@@ -1492,7 +1552,7 @@ export type Database = {
           invoice_number?: string | null
           mime_type?: string
           notes?: string | null
-          search_vector?: unknown | null
+          search_vector?: unknown
           status?: Database["public"]["Enums"]["document_status"] | null
           supplier_id?: string | null
           title?: string
@@ -1917,6 +1977,72 @@ export type Database = {
         }
         Relationships: []
       }
+      ocr_settings: {
+        Row: {
+          auto_create_company: boolean | null
+          auto_create_contact: boolean | null
+          created_at: string
+          field_mappings: Json | null
+          id: string
+          preferred_language: string
+          quality_threshold: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_create_company?: boolean | null
+          auto_create_contact?: boolean | null
+          created_at?: string
+          field_mappings?: Json | null
+          id?: string
+          preferred_language?: string
+          quality_threshold?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_create_company?: boolean | null
+          auto_create_contact?: boolean | null
+          created_at?: string
+          field_mappings?: Json | null
+          id?: string
+          preferred_language?: string
+          quality_threshold?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      onedrive_tokens: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string
+          id: string
+          refresh_token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          refresh_token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          refresh_token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           amount: number
@@ -2198,6 +2324,7 @@ export type Database = {
       project_expenses: {
         Row: {
           amount: number
+          amount_spent: number | null
           approval_notes: string | null
           approved_at: string | null
           approved_by: string | null
@@ -2217,6 +2344,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          amount_spent?: number | null
           approval_notes?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -2236,6 +2364,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_spent?: number | null
           approval_notes?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -2434,7 +2563,7 @@ export type Database = {
           changed_by: string
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_role: Database["public"]["Enums"]["app_role"]
           old_role: Database["public"]["Enums"]["app_role"] | null
           target_user_id: string
@@ -2445,7 +2574,7 @@ export type Database = {
           changed_by: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_role: Database["public"]["Enums"]["app_role"]
           old_role?: Database["public"]["Enums"]["app_role"] | null
           target_user_id: string
@@ -2456,7 +2585,7 @@ export type Database = {
           changed_by?: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_role?: Database["public"]["Enums"]["app_role"]
           old_role?: Database["public"]["Enums"]["app_role"] | null
           target_user_id?: string
@@ -2469,7 +2598,7 @@ export type Database = {
           action: string
           created_at: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_values: Json | null
           old_values: Json | null
           record_id: string | null
@@ -2481,7 +2610,7 @@ export type Database = {
           action: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           record_id?: string | null
@@ -2493,7 +2622,7 @@ export type Database = {
           action?: string
           created_at?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           record_id?: string | null
@@ -2650,7 +2779,7 @@ export type Database = {
           details: Json | null
           duration_ms: number | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           level: string
           message: string
           request_id: string | null
@@ -2666,7 +2795,7 @@ export type Database = {
           details?: Json | null
           duration_ms?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           level: string
           message: string
           request_id?: string | null
@@ -2682,7 +2811,7 @@ export type Database = {
           details?: Json | null
           duration_ms?: number | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           level?: string
           message?: string
           request_id?: string | null
@@ -2692,6 +2821,57 @@ export type Database = {
           trace_id?: string | null
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      travel_expenses: {
+        Row: {
+          arrival_location: string
+          created_at: string
+          departure_location: string
+          distance_km: number
+          id: string
+          mission_description: string
+          notes: string | null
+          reimbursement_rate_per_km: number
+          requires_diaria: boolean
+          travel_date: string
+          updated_at: string
+          user_id: string
+          vehicle_model: string | null
+          vehicle_plate: string | null
+        }
+        Insert: {
+          arrival_location: string
+          created_at?: string
+          departure_location: string
+          distance_km: number
+          id?: string
+          mission_description: string
+          notes?: string | null
+          reimbursement_rate_per_km?: number
+          requires_diaria?: boolean
+          travel_date?: string
+          updated_at?: string
+          user_id: string
+          vehicle_model?: string | null
+          vehicle_plate?: string | null
+        }
+        Update: {
+          arrival_location?: string
+          created_at?: string
+          departure_location?: string
+          distance_km?: number
+          id?: string
+          mission_description?: string
+          notes?: string | null
+          reimbursement_rate_per_km?: number
+          requires_diaria?: boolean
+          travel_date?: string
+          updated_at?: string
+          user_id?: string
+          vehicle_model?: string | null
+          vehicle_plate?: string | null
         }
         Relationships: []
       }
@@ -2852,17 +3032,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      archive_expired_notifications: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      archive_expired_notifications: { Args: never; Returns: undefined }
       assign_admin_role_to_user: {
         Args: { user_email: string }
         Returns: undefined
-      }
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
       }
       calculate_avg_response_time: {
         Args: { time_window_minutes?: number }
@@ -2876,28 +3049,19 @@ export type Database = {
         Args: { archive_date?: string; retention_months: number }
         Returns: string
       }
-      cleanup_old_chat_conversations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_rate_limits: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_api_key_hash: {
-        Args: { api_key: string }
-        Returns: string
-      }
+      cleanup_old_chat_conversations: { Args: never; Returns: undefined }
+      cleanup_rate_limits: { Args: never; Returns: undefined }
+      generate_api_key_hash: { Args: { api_key: string }; Returns: string }
       generate_document_hash: {
         Args: { algorithm?: string; file_content: string }
         Returns: string
       }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_newsletter_subscriptions_with_logging: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           active: boolean
           created_at: string
@@ -2907,22 +3071,6 @@ export type Database = {
           updated_at: string
         }[]
       }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2930,46 +3078,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      is_valid_email: {
-        Args: { email: string }
-        Returns: boolean
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
+      is_valid_email: { Args: { email: string }; Returns: boolean }
       log_admin_access: {
         Args: { p_action: string; p_record_id?: string; p_table_name: string }
         Returns: undefined
@@ -2989,25 +3098,10 @@ export type Database = {
           title: string
         }[]
       }
-      schedule_next_backup: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      schedule_next_backup: { Args: never; Returns: undefined }
       set_session_context: {
         Args: { session_id_param: string }
         Returns: undefined
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
       update_user_role_secure: {
         Args: {
@@ -3032,30 +3126,6 @@ export type Database = {
       validate_webhook_signature: {
         Args: { payload: string; secret: string; signature: string }
         Returns: boolean
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
       }
     }
     Enums: {

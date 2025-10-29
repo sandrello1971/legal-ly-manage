@@ -10,6 +10,7 @@ export interface Expense {
   category: 'personnel' | 'equipment' | 'materials' | 'services' | 'travel' | 'other';
   description: string;
   amount: number;
+  amount_spent?: number;
   expense_date: string;
   supplier_name?: string;
   receipt_number?: string;
