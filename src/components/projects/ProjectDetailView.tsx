@@ -22,7 +22,9 @@ import {
   Eye,
   CheckCircle,
   XCircle,
-  Download
+  Download,
+  File,
+  ExternalLink
 } from 'lucide-react';
 import { type Project } from '@/hooks/useProjects';
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
@@ -355,10 +357,11 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Riepilogo</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="expenses">Spese</TabsTrigger>
+          <TabsTrigger value="documents">Documenti</TabsTrigger>
           <TabsTrigger value="details">Dettagli</TabsTrigger>
         </TabsList>
 
@@ -534,6 +537,89 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Documenti del Progetto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {project.project_documents && project.project_documents.length > 0 ? (
+                <div className="space-y-3">
+                  {project.project_documents.map((docUrl, index) => {
+                    const fileName = docUrl.split('/').pop() || `documento-${index + 1}`;
+                    const decodedFileName = decodeURIComponent(fileName);
+                    
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 flex-1">
+                          <File className="h-5 w-5 text-primary flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{decodedFileName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Documento del progetto #{index + 1}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(docUrl, '_blank')}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Scarica
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(docUrl, '_blank')}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <File className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">Nessun documento caricato</p>
+                  <p className="text-sm mt-1">
+                    I documenti caricati durante la creazione del progetto appariranno qui
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Parsed Data Section */}
+          {project.parsed_data && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Dati Estratti dal Documento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <pre className="text-xs whitespace-pre-wrap font-mono">
+                    {JSON.stringify(project.parsed_data, null, 2)}
+                  </pre>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Expenses Tab */}

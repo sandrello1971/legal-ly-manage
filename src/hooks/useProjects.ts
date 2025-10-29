@@ -24,6 +24,7 @@ export interface Project {
   project_documents?: string[];
   notes?: string;
   risk_assessment?: string;
+  parsed_data?: any;
   created_by: string;
   created_at: string;
   updated_at: string;
