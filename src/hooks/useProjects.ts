@@ -105,9 +105,12 @@ export const useProjects = (bandoId?: string) => {
 
   const updateProject = async (id: string, projectData: Partial<Project>) => {
     try {
+      // Remove spent_budget from projectData to avoid overwriting it
+      const { spent_budget, ...dataToUpdate } = projectData as any;
+      
       const { data, error: updateError } = await supabase
         .from('projects')
-        .update(projectData)
+        .update(dataToUpdate)
         .eq('id', id)
         .select()
         .single();
