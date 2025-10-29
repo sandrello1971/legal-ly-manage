@@ -266,6 +266,7 @@ ESTRAI E ANALIZZA:
 
 1. INFORMAZIONI GENERALI:
    - Titolo del progetto
+   - Codice CUP (Codice Unico di Progetto) - CERCA ATTENTAMENTE questo codice identificativo
    - Descrizione dettagliata
    - Obiettivi principali
    - Durata del progetto (date inizio/fine)
@@ -304,6 +305,7 @@ Rispondi SOLO con JSON valido (nessun testo aggiuntivo, solo il JSON):
 {
   "project_info": {
     "title": "string",
+    "cup_code": "string o null - IMPORTANTE: cerca il Codice CUP nel documento",
     "description": "string", 
     "objectives": ["array di obiettivi"],
     "start_date": "YYYY-MM-DD o null",

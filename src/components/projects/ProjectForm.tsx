@@ -73,6 +73,9 @@ export const ProjectForm = ({ bandoId, onSuccess, onCancel, initialData }: Proje
         if (projectInfo.title && !projectFormData.title) {
           setProjectFormData(prev => ({ ...prev, title: projectInfo.title }));
         }
+        if (projectInfo.cup_code && !projectFormData.cup_code) {
+          setProjectFormData(prev => ({ ...prev, cup_code: projectInfo.cup_code }));
+        }
         if (projectInfo.description && !projectFormData.description) {
           setProjectFormData(prev => ({ ...prev, description: projectInfo.description }));
         }
