@@ -282,11 +282,14 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     // Validate project code presence
     const projectCodeValidation = validateProjectCode(xmlContent, projectData);
     
-    // Validate coherence with bando
-    const bandoCoherence = await validateBandoCoherence(invoiceData, bandoData, projectData);
+    // Validate coherence with bando (first level: eligible according to tender criteria)
+    const bandoCoherence = await validateBandoCoherence(invoiceData, bandoData);
+    
+    // Validate coherence with project (second level: mentioned in project proposal)
+    const projectCoherence = await validateProjectCoherence(invoiceData, projectData, bandoData);
     
     // Determine if the expense should be approved or rejected
-    const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent;
+    const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent && projectCoherence.isCoherent;
     
     // Calculate confidence based on validation results
     let confidence = 0.3; // Base confidence
@@ -484,22 +487,17 @@ function validateProjectCode(xmlContent: string, projectData: any) {
   };
 }
 
-// Validate coherence with bando requirements
-async function validateBandoCoherence(invoiceData: any, bandoData: any, projectData: any = null) {
+// Validate coherence with bando requirements (FIRST LEVEL: general eligibility)
+async function validateBandoCoherence(invoiceData: any, bandoData: any) {
   if (!bandoData) {
     return {
-      isCoherent: true, // If no bando data, assume coherent
+      isCoherent: true,
+      coherenceScore: 100,
       reasons: ['Nessun bando associato - verifica manuale richiesta']
     };
   }
   
-  const description = invoiceData.description?.toLowerCase() || '';
-  const supplier = invoiceData.supplier?.toLowerCase() || '';
-  const amount = invoiceData.amount || 0;
   const causale = invoiceData.causale?.toLowerCase() || '';
-  
-  let coherenceScore = 0;
-  let reasons = [];
   
   // Check for explicit non-eligibility in causale
   const nonEligibilityKeywords = [
@@ -515,19 +513,18 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any, projectD
   if (foundNonEligibility) {
     return {
       isCoherent: false,
-      coherenceScore: -1,
-      reasons: ['⚠️ La causale della fattura indica esplicitamente che la spesa NON è ammissibile per questo bando']
+      coherenceScore: 0,
+      reasons: ['⛔ La causale indica esplicitamente che la spesa NON è ammissibile per questo bando']
     };
   }
   
-  // Use AI to semantically analyze if services are coherent with project/bando scope
+  // Use AI to analyze if services are eligible according to bando criteria
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (LOVABLE_API_KEY) {
-      const aiAnalysis = await analyzeCoherenceWithAI(
+      const aiAnalysis = await analyzeBandoEligibilityWithAI(
         invoiceData,
         bandoData,
-        projectData,
         LOVABLE_API_KEY
       );
       
@@ -536,7 +533,7 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any, projectD
       }
     }
   } catch (error) {
-    console.error('AI coherence analysis failed, falling back to keyword matching:', error);
+    console.error('AI bando eligibility analysis failed, falling back to keyword matching:', error);
   }
   
   // Fallback to keyword-based analysis
@@ -581,35 +578,31 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any, projectD
   };
 }
 
-async function analyzeCoherenceWithAI(
+// FIRST LEVEL: Analyze if services are eligible according to bando criteria
+async function analyzeBandoEligibilityWithAI(
   invoiceData: any,
   bandoData: any,
-  projectData: any,
   apiKey: string
 ): Promise<{ isCoherent: boolean; coherenceScore: number; reasons: string[] } | null> {
-  const prompt = `Analizza se i servizi/prodotti descritti in questa fattura sono coerenti e ammissibili per il progetto e il bando specificato.
+  const prompt = `Analizza se i servizi/prodotti descritti in questa fattura sono AMMISSIBILI secondo i criteri generali del bando.
 
 FATTURA:
 - Fornitore: ${invoiceData.supplier}
 - Descrizione: ${invoiceData.description || 'Non specificata'}
-- Categoria identificata: ${invoiceData.category}
+- Categoria: ${invoiceData.category}
 - Importo: €${invoiceData.amount}
 - Causale: ${invoiceData.causale || 'Non specificata'}
 
 BANDO:
-- Nome: ${bandoData.name}
+- Nome: ${bandoData.title || bandoData.name || 'Non specificato'}
 - Criteri di ammissibilità: ${bandoData.eligibility_criteria || 'Non specificati'}
 - Descrizione: ${bandoData.description || 'Non specificata'}
 
-PROGETTO:
-- Nome: ${projectData?.name || 'Non specificato'}
-- Descrizione: ${projectData?.description || 'Non specificata'}
-
-Valuta se i servizi/prodotti fatturati rientrano nel perimetro e negli obiettivi del progetto e rispettano i criteri di ammissibilità del bando.
-Rispondi SOLO con un oggetto JSON nel seguente formato (senza markdown):
+Valuta SOLO se questi servizi/prodotti sono ammissibili secondo i criteri GENERALI del bando, indipendentemente dal progetto specifico.
+Rispondi SOLO con un oggetto JSON (senza markdown):
 {
   "isCoherent": boolean,
-  "coherenceScore": number (da 0 a 100),
+  "coherenceScore": number (0-100),
   "reasons": ["motivo1", "motivo2", ...]
 }`;
 
@@ -625,14 +618,14 @@ Rispondi SOLO con un oggetto JSON nel seguente formato (senza markdown):
         messages: [
           {
             role: 'system',
-            content: 'Sei un esperto di analisi di ammissibilità per bandi pubblici italiani. Rispondi SOLO con JSON valido, senza markdown o altri caratteri.'
+            content: 'Sei un esperto di bandi pubblici italiani. Valuta SOLO l\'ammissibilità generale secondo i criteri del bando. Rispondi SOLO con JSON valido.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.3
+        temperature: 0.2
       })
     });
 
@@ -881,4 +874,128 @@ function classifyElectronicInvoice(description: string, supplier: string | null)
   }
   
   return { category: 'other', confidence: 0.3 };
+}
+
+// SECOND LEVEL: Validate if services are mentioned in the specific project proposal
+async function validateProjectCoherence(invoiceData: any, projectData: any, bandoData: any) {
+  if (!projectData || !projectData.description) {
+    return {
+      isCoherent: true,
+      coherenceScore: 50,
+      reasons: ['⚠️ Nessuna descrizione progetto disponibile - verifica manuale necessaria']
+    };
+  }
+  
+  // Use AI to check if invoice services were mentioned in project proposal
+  try {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (LOVABLE_API_KEY) {
+      const aiAnalysis = await analyzeProjectCoherenceWithAI(
+        invoiceData,
+        projectData,
+        bandoData,
+        LOVABLE_API_KEY
+      );
+      
+      if (aiAnalysis) {
+        return aiAnalysis;
+      }
+    }
+  } catch (error) {
+    console.error('AI project coherence analysis failed:', error);
+  }
+  
+  // Fallback: assume coherent but require manual check
+  return {
+    isCoherent: true,
+    coherenceScore: 50,
+    reasons: ['⚠️ Impossibile verificare automaticamente - controllo manuale necessario']
+  };
+}
+
+// SECOND LEVEL AI: Analyze if services were mentioned in project proposal
+async function analyzeProjectCoherenceWithAI(
+  invoiceData: any,
+  projectData: any,
+  bandoData: any,
+  apiKey: string
+): Promise<{ isCoherent: boolean; coherenceScore: number; reasons: string[] } | null> {
+  const prompt = `Analizza se i servizi/prodotti di questa fattura erano stati MENZIONATI o PREVISTI nella proposta di progetto.
+
+FATTURA:
+- Fornitore: ${invoiceData.supplier}
+- Descrizione: ${invoiceData.description || 'Non specificata'}
+- Categoria: ${invoiceData.category}
+- Importo: €${invoiceData.amount}
+
+PROGETTO APPROVATO:
+- Titolo: ${projectData.title || projectData.name}
+- Descrizione/Obiettivi: ${projectData.description}
+- Budget previsto: €${projectData.total_budget || 'Non specificato'}
+
+BANDO DI RIFERIMENTO:
+- Nome: ${bandoData?.title || bandoData?.name || 'Non specificato'}
+
+Valuta se i servizi fatturati erano ESPLICITAMENTE o IMPLICITAMENTE previsti nella descrizione del progetto approvato.
+Se NON erano menzionati/previsti, anche se potrebbero essere ammissibili per il bando, devi segnalarlo come warning.
+
+Rispondi SOLO con JSON (senza markdown):
+{
+  "isCoherent": boolean,
+  "coherenceScore": number (0-100, usa 50-70 per warning),
+  "reasons": ["motivo1", "motivo2", ...]
+}`;
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: 'Sei un revisore di progetti finanziati. Verifica se i servizi fatturati erano previsti nella proposta progettuale. Sii rigoroso: se qualcosa non era menzionato, segnalalo. Rispondi SOLO con JSON.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.2
+      })
+    });
+
+    if (!response.ok) {
+      console.error('AI API error:', response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return null;
+    }
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('No JSON found in AI response:', content);
+      return null;
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
+    
+    return {
+      isCoherent: analysis.isCoherent,
+      coherenceScore: analysis.coherenceScore,
+      reasons: analysis.reasons || []
+    };
+  } catch (error) {
+    console.error('Error in project coherence AI analysis:', error);
+    return null;
+  }
 }
