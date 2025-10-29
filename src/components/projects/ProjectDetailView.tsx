@@ -864,18 +864,18 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
 
         {/* Details Tab */}
         <TabsContent value="details" className="space-y-6">
-          {/* Project Description & Objectives */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Target className="h-5 w-5 mr-2" />
-                Obiettivo del Progetto
+          {/* Project Description & Objectives - PROMINENTE */}
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="bg-primary/5">
+              <CardTitle className="flex items-center text-lg">
+                <Target className="h-6 w-6 mr-2 text-primary" />
+                Obiettivo e Descrizione Completa del Progetto
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {project.description ? (
                 <div className="prose prose-sm max-w-none">
-                  <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  <p className="text-base leading-relaxed whitespace-pre-wrap">
                     {project.description}
                   </p>
                 </div>
@@ -885,14 +885,187 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
             </CardContent>
           </Card>
 
+          {/* Budget Dettagliato */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Euro className="h-5 w-5 mr-2" />
+                Budget Dettagliato
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Budget Totale</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatCurrency(project.total_budget)}
+                  </p>
+                </div>
+                <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Budget Allocato</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                    {formatCurrency(project.allocated_budget)}
+                  </p>
+                </div>
+                <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Budget Speso</p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                    {formatCurrency(project.spent_budget)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {budgetUsed.toFixed(1)}% utilizzato
+                  </p>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Budget Rimanente</p>
+                  <p className={`text-2xl font-bold ${project.remaining_budget < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                    {formatCurrency(project.remaining_budget)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Timeline Completa */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calendar className="h-5 w-5 mr-2" />
+                Timeline Progetto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase">Date Previste</h4>
+                  {project.start_date && (
+                    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+                      <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Data Inizio Prevista</p>
+                        <p className="text-base font-semibold">
+                          {format(new Date(project.start_date), 'dd MMMM yyyy', { locale: it })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {project.end_date && (
+                    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+                      <Calendar className="h-5 w-5 text-orange-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Data Fine Prevista</p>
+                        <p className="text-base font-semibold">
+                          {format(new Date(project.end_date), 'dd MMMM yyyy', { locale: it })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm text-muted-foreground uppercase">Date Effettive</h4>
+                  {project.actual_start_date ? (
+                    <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Data Inizio Effettiva</p>
+                        <p className="text-base font-semibold">
+                          {format(new Date(project.actual_start_date), 'dd MMMM yyyy', { locale: it })}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+                      <XCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Non ancora iniziato</p>
+                      </div>
+                    </div>
+                  )}
+                  {project.actual_end_date ? (
+                    <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Data Fine Effettiva</p>
+                        <p className="text-base font-semibold">
+                          {format(new Date(project.actual_end_date), 'dd MMMM yyyy', { locale: it })}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
+                      <XCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Non ancora completato</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Informazioni Amministrative */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                Informazioni Amministrative
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <dt className="text-sm font-medium text-muted-foreground mb-2">Codice CUP</dt>
+                  <dd className="text-xl font-mono font-bold text-primary">
+                    {project.cup_code || 'Non specificato'}
+                  </dd>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <dt className="text-sm font-medium text-muted-foreground mb-2">Project Manager</dt>
+                  <dd className="text-lg font-semibold">
+                    {project.project_manager || 'Non assegnato'}
+                  </dd>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <dt className="text-sm font-medium text-muted-foreground mb-2">Stato Progetto</dt>
+                  <dd>
+                    <Badge className={getStatusColor(project.status)}>
+                      {getStatusLabel(project.status)}
+                    </Badge>
+                  </dd>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <dt className="text-sm font-medium text-muted-foreground mb-2">Progresso Completamento</dt>
+                  <dd className="text-2xl font-bold">
+                    {project.progress_percentage}%
+                  </dd>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <dt className="text-sm font-medium text-muted-foreground mb-2">Data Creazione</dt>
+                  <dd className="text-base font-medium">
+                    {format(new Date(project.created_at), 'dd MMMM yyyy HH:mm', { locale: it })}
+                  </dd>
+                </div>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <dt className="text-sm font-medium text-muted-foreground mb-2">Ultimo Aggiornamento</dt>
+                  <dd className="text-base font-medium">
+                    {format(new Date(project.updated_at), 'dd MMMM yyyy HH:mm', { locale: it })}
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           {project.notes && (
             <Card>
               <CardHeader>
-                <CardTitle>Note</CardTitle>
+                <CardTitle>Note Aggiuntive</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{project.notes}</p>
+                <div className="p-4 bg-muted/30 rounded-lg">
+                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{project.notes}</p>
+                </div>
               </CardContent>
             </Card>
           )}
