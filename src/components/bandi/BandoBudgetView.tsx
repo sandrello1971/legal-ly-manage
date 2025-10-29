@@ -22,7 +22,6 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
   const totalBudget = projects.reduce((sum, p) => sum + (p.total_budget || 0), 0);
   const totalAllocated = projects.reduce((sum, p) => sum + (p.allocated_budget || 0), 0);
   const totalSpent = projects.reduce((sum, p) => sum + (p.spent_budget || 0), 0);
-  const totalRemaining = totalBudget - totalSpent;
   const budgetUsed = totalBudget ? (totalSpent / totalBudget) * 100 : 0;
 
   const warnings = [];
@@ -46,7 +45,7 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
       )}
 
       {/* Budget Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
@@ -82,20 +81,6 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
                 <p className="text-sm font-medium text-muted-foreground">Speso</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
                 <p className="text-xs text-muted-foreground">{budgetUsed.toFixed(1)}% del budget</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Euro className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Rimanente</p>
-                <p className={`text-2xl font-bold ${totalRemaining < 0 ? 'text-red-600' : ''}`}>
-                  {formatCurrency(totalRemaining)}
-                </p>
               </div>
             </div>
           </CardContent>
