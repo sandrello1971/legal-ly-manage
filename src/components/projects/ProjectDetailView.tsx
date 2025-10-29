@@ -26,7 +26,8 @@ import {
   XCircle,
   Download,
   File,
-  ExternalLink
+  ExternalLink,
+  CheckSquare
 } from 'lucide-react';
 import { type Project } from '@/hooks/useProjects';
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
@@ -1056,6 +1057,253 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
             </CardContent>
           </Card>
 
+          {/* Piano dei Costi per Categoria */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Euro className="h-5 w-5 mr-2" />
+                Piano dei Costi Ammissibili per Categoria
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border-l-4 border-blue-500">
+                  <div>
+                    <p className="font-semibold text-base">Investimenti Materiali</p>
+                    <p className="text-sm text-muted-foreground">Strumentazione tecnico-scientifica, impianti tecnologici</p>
+                  </div>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">€1.200.000</p>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-orange-50 dark:bg-orange-950 rounded-lg border-l-4 border-orange-500">
+                  <div>
+                    <p className="font-semibold text-base">Adeguamenti Spazi</p>
+                    <p className="text-sm text-muted-foreground">Lavori funzionali all'installazione</p>
+                  </div>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">€250.000</p>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border-l-4 border-purple-500">
+                  <div>
+                    <p className="font-semibold text-base">Investimenti Immateriali</p>
+                    <p className="text-sm text-muted-foreground">Licenze software / Cloud SaaS (≤24 mesi)</p>
+                  </div>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">€300.000</p>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
+                  <div>
+                    <p className="font-semibold text-base">Personale</p>
+                    <p className="text-sm text-muted-foreground">Tecnico-scientifico e gestionale IR (costo standard €42,24/h)</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€320.000</p>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-950 rounded-lg border-l-4 border-slate-500">
+                  <div>
+                    <p className="font-semibold text-base">Costi Indiretti</p>
+                    <p className="text-sm text-muted-foreground">7% dei costi diretti ammissibili</p>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-600 dark:text-slate-400">€144.900</p>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-primary/10 rounded-lg border-2 border-primary mt-4">
+                  <div>
+                    <p className="font-bold text-lg">TOTALE PROGETTO</p>
+                  </div>
+                  <p className="text-3xl font-bold text-primary">€2.214.900</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Contributi e Cofinanziamento */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Contributi e Cofinanziamento
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-6 bg-green-50 dark:bg-green-950 rounded-lg border-2 border-green-500">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Contributo Richiesto</p>
+                  <p className="text-3xl font-bold text-green-600 dark:text-green-400 mb-1">€1.771.920</p>
+                  <p className="text-sm text-muted-foreground">80% (Non Aiuto)</p>
+                </div>
+                <div className="p-6 bg-blue-50 dark:bg-blue-950 rounded-lg border-2 border-blue-500">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Cofinanziamento</p>
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">€442.980</p>
+                  <p className="text-sm text-muted-foreground">20%</p>
+                </div>
+              </div>
+              <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                <p className="text-sm">
+                  <span className="font-semibold">Inquadramento aiuti:</span> Non Aiuto (≤20% capacità annua per attività economiche)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Milestone e Output */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Target className="h-5 w-5 mr-2" />
+                Milestone e Output del Progetto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-shrink-0 w-16 h-16 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                    M6
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-base mb-1">Mese 6</p>
+                    <p className="text-sm text-muted-foreground">Installazione apparecchiature e collaudo</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-shrink-0 w-16 h-16 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                    M12
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-base mb-1">Mese 12</p>
+                    <p className="text-sm text-muted-foreground">Laboratorio in esercizio e catalogo servizi per PMI</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-shrink-0 w-16 h-16 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                    M18
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-base mb-1">Mese 18</p>
+                    <p className="text-sm text-muted-foreground">Prime 10 PMI in accesso ai servizi</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="flex-shrink-0 w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                    M24
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-base mb-1">Mese 24</p>
+                    <p className="text-sm text-muted-foreground">Piena operatività + KPI TT ({">"}20 contratti di servizio)</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Vincoli Principali */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <AlertTriangle className="h-5 w-5 mr-2" />
+                Vincoli e Requisiti Principali
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-3">
+                <li className="flex gap-3 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                  <CheckSquare className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">CUP Obbligatorio</p>
+                    <p className="text-sm text-muted-foreground">Tutte le spese devono essere a valere sul CUP J41B25000010001. CUP obbligatorio in e-fattura e in causale.</p>
+                  </div>
+                </li>
+                <li className="flex gap-3 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                  <CheckSquare className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Tempistiche</p>
+                    <p className="text-sm text-muted-foreground">Spese avviate e sostenute dopo la domanda e entro i 24 mesi (+ eventuale proroga di 6 mesi).</p>
+                  </div>
+                </li>
+                <li className="flex gap-3 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                  <CheckSquare className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Contabilità e Pagamenti</p>
+                    <p className="text-sm text-muted-foreground">Contabilità separata e pagamenti tracciabili. Importo minimo fattura ammissibile: €1.000 imponibile.</p>
+                  </div>
+                </li>
+                <li className="flex gap-3 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                  <CheckSquare className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Conformità Apparecchiature</p>
+                    <p className="text-sm text-muted-foreground">Apparecchiature nuove e conformi al registro AEE/pile.</p>
+                  </div>
+                </li>
+                <li className="flex gap-3 p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                  <CheckSquare className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">DNSH e Gestione Rifiuti</p>
+                    <p className="text-sm text-muted-foreground">Gestione rifiuti da lavori con tracciabilità FIR/DDT. Nessuna nuova costruzione o ristrutturazione importante.</p>
+                  </div>
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Fornitori e Fatture Previste */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Building2 className="h-5 w-5 mr-2" />
+                Fornitori e Fatture di Riferimento
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-base">TecnoLab S.p.A.</p>
+                      <p className="text-sm text-muted-foreground">Strumentazione scientifica</p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ammissibile</Badge>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€1.200.000</p>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-base">CloudSoft S.R.L.</p>
+                      <p className="text-sm text-muted-foreground">Licenze software / SaaS</p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ammissibile</Badge>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€180.000</p>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-base">EdilImpianti S.R.L.</p>
+                      <p className="text-sm text-muted-foreground">Adeguamenti locali</p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ammissibile</Badge>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€250.000</p>
+                </div>
+                <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border-l-4 border-red-500">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-base">Viaggi & Congressi S.R.L.</p>
+                      <p className="text-sm text-muted-foreground">Trasferte e alloggi</p>
+                    </div>
+                    <Badge variant="destructive">Non ammissibile</Badge>
+                  </div>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">€6.500</p>
+                </div>
+                <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border-l-4 border-red-500">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-base">Promo&Ads S.R.L.</p>
+                      <p className="text-sm text-muted-foreground">Campagna pubblicitaria</p>
+                    </div>
+                    <Badge variant="destructive">Non ammissibile</Badge>
+                  </div>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">€12.000</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           {project.notes && (
             <Card>
@@ -1085,37 +1333,6 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
               </CardContent>
             </Card>
           )}
-
-          {/* Project Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informazioni Progetto</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Codice CUP</dt>
-                  <dd className="mt-1 text-sm font-mono font-semibold">{project.cup_code || 'Non specificato'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Project Manager</dt>
-                  <dd className="mt-1 text-sm">{project.project_manager || 'Non assegnato'}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Data Creazione</dt>
-                  <dd className="mt-1 text-sm">
-                    {format(new Date(project.created_at), 'dd MMMM yyyy HH:mm', { locale: it })}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-muted-foreground">Ultimo Aggiornamento</dt>
-                  <dd className="mt-1 text-sm">
-                    {format(new Date(project.updated_at), 'dd MMMM yyyy HH:mm', { locale: it })}
-                  </dd>
-                </div>
-              </dl>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 
