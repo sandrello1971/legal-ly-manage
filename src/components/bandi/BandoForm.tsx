@@ -35,7 +35,7 @@ interface BandoFormProps {
 export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { parsePdfDecreto } = useBandi();
+  const { parsePdfDecreto, createBando, updateBando } = useBandi();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -148,7 +148,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
     try {
       setParsing(true);
 
-      // Se non abbiamo un ID del bando, dobbiamo salvarlo prima
+      // Se non abbiamo un ID del bando, dobbiamo salvarlo prima (ma senza chiudere il form)
       let bandoId = initialData?.id;
       
       if (!bandoId) {
@@ -159,7 +159,13 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
           total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null
         };
 
-        const savedBando: any = await onSave(bandoData);
+        toast({
+          title: 'Salvataggio in corso',
+          description: 'Salvataggio del bando prima dell\'analisi...',
+        });
+
+        // Salva direttamente senza chiudere il form
+        const savedBando = await createBando(bandoData);
         bandoId = savedBando?.id;
       }
 
@@ -169,7 +175,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
 
       toast({
         title: 'Analisi in corso',
-        description: 'Invio del PDF al server per l\'analisi...',
+        description: 'Invio del PDF al server per l\'analisi. Attendere il completamento...',
       });
 
       // Invio diretto del file all'edge function per l'elaborazione server-side
@@ -186,7 +192,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
 
       toast({
         title: 'Successo!',
-        description: 'Il bando è stato analizzato e aggiornato con i dati estratti',
+        description: 'Il bando è stato analizzato e aggiornato con i dati estratti. Puoi ora salvare o continuare a modificare.',
       });
 
       // Aggiorna il form con i dati estratti
@@ -485,7 +491,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
                 type="button"
                 variant="secondary"
                 onClick={handleParseDecreto}
-                disabled={parsing}
+                disabled={parsing || uploading}
                 className="w-full"
               >
                 {parsing ? (
@@ -493,10 +499,13 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
                 ) : (
                   <Sparkles className="h-4 w-4 mr-2" />
                 )}
-                {parsing ? 'Analisi in corso...' : 'Analizza con AI'}
+                {parsing ? 'Analisi in corso... Non chiudere questa pagina' : 'Analizza con AI'}
               </Button>
               <p className="text-sm text-muted-foreground mt-2">
-                L'AI estrarrà automaticamente importi, scadenze e categorie di spesa dal PDF
+                {parsing 
+                  ? '⏳ Attendere il completamento dell\'analisi prima di procedere'
+                  : 'L\'AI estrarrà automaticamente importi, scadenze e categorie di spesa dal PDF'
+                }
               </p>
             </div>
           )}
@@ -568,13 +577,25 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
 
       {/* Actions */}
       <div className="flex justify-end gap-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={parsing || uploading}>
           Annulla
         </Button>
-        <Button type="submit">
-          {initialData ? 'Aggiorna Bando' : 'Crea Bando'}
+        <Button type="submit" disabled={parsing || uploading}>
+          {parsing || uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Attendere...
+            </>
+          ) : (
+            initialData ? 'Aggiorna Bando' : 'Crea Bando'
+          )}
         </Button>
       </div>
+      {(parsing || uploading) && (
+        <p className="text-sm text-muted-foreground text-center mt-2">
+          ⚠️ Operazione in corso. Attendere il completamento prima di chiudere.
+        </p>
+      )}
     </form>
   );
 };
