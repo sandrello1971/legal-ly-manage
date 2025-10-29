@@ -283,7 +283,7 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     const projectCodeValidation = validateProjectCode(xmlContent, projectData);
     
     // Validate coherence with bando
-    const bandoCoherence = await validateBandoCoherence(invoiceData, bandoData);
+    const bandoCoherence = await validateBandoCoherence(invoiceData, bandoData, projectData);
     
     // Determine if the expense should be approved or rejected
     const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent;
@@ -485,7 +485,7 @@ function validateProjectCode(xmlContent: string, projectData: any) {
 }
 
 // Validate coherence with bando requirements
-async function validateBandoCoherence(invoiceData: any, bandoData: any) {
+async function validateBandoCoherence(invoiceData: any, bandoData: any, projectData: any = null) {
   if (!bandoData) {
     return {
       isCoherent: true, // If no bando data, assume coherent
