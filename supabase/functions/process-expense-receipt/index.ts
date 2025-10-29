@@ -520,7 +520,26 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any) {
     };
   }
   
-  // Check against bando eligibility criteria
+  // Use AI to semantically analyze if services are coherent with project/bando scope
+  try {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (LOVABLE_API_KEY) {
+      const aiAnalysis = await analyzeCoherenceWithAI(
+        invoiceData,
+        bandoData,
+        projectData,
+        LOVABLE_API_KEY
+      );
+      
+      if (aiAnalysis) {
+        return aiAnalysis;
+      }
+    }
+  } catch (error) {
+    console.error('AI coherence analysis failed, falling back to keyword matching:', error);
+  }
+  
+  // Fallback to keyword-based analysis
   const eligibilityCriteria = bandoData.eligibility_criteria?.toLowerCase() || '';
   if (eligibilityCriteria) {
     // Look for common expense types mentioned in eligibility
@@ -560,6 +579,93 @@ async function validateBandoCoherence(invoiceData: any, bandoData: any) {
     coherenceScore: coherenceScore,
     reasons: reasons
   };
+}
+
+async function analyzeCoherenceWithAI(
+  invoiceData: any,
+  bandoData: any,
+  projectData: any,
+  apiKey: string
+): Promise<{ isCoherent: boolean; coherenceScore: number; reasons: string[] } | null> {
+  const prompt = `Analizza se i servizi/prodotti descritti in questa fattura sono coerenti e ammissibili per il progetto e il bando specificato.
+
+FATTURA:
+- Fornitore: ${invoiceData.supplier}
+- Descrizione: ${invoiceData.description || 'Non specificata'}
+- Categoria identificata: ${invoiceData.category}
+- Importo: €${invoiceData.amount}
+- Causale: ${invoiceData.causale || 'Non specificata'}
+
+BANDO:
+- Nome: ${bandoData.name}
+- Criteri di ammissibilità: ${bandoData.eligibility_criteria || 'Non specificati'}
+- Descrizione: ${bandoData.description || 'Non specificata'}
+
+PROGETTO:
+- Nome: ${projectData?.name || 'Non specificato'}
+- Descrizione: ${projectData?.description || 'Non specificata'}
+
+Valuta se i servizi/prodotti fatturati rientrano nel perimetro e negli obiettivi del progetto e rispettano i criteri di ammissibilità del bando.
+Rispondi SOLO con un oggetto JSON nel seguente formato (senza markdown):
+{
+  "isCoherent": boolean,
+  "coherenceScore": number (da 0 a 100),
+  "reasons": ["motivo1", "motivo2", ...]
+}`;
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: 'Sei un esperto di analisi di ammissibilità per bandi pubblici italiani. Rispondi SOLO con JSON valido, senza markdown o altri caratteri.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3
+      })
+    });
+
+    if (!response.ok) {
+      console.error('AI API error:', response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      return null;
+    }
+
+    // Parse JSON response (remove markdown if present)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('No JSON found in AI response:', content);
+      return null;
+    }
+
+    const analysis = JSON.parse(jsonMatch[0]);
+    
+    return {
+      isCoherent: analysis.isCoherent,
+      coherenceScore: analysis.coherenceScore,
+      reasons: analysis.reasons || []
+    };
+  } catch (error) {
+    console.error('Error in AI analysis:', error);
+    return null;
+  }
 }
 
 // Check if expense category is coherent with bando (SI4.0 2025 categories)
