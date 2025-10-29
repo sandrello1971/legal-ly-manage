@@ -18,16 +18,17 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
     }).format(amount);
   };
 
-  // Calculate totals
+  // Calculate totals from projects
+  const totalBudget = projects.reduce((sum, p) => sum + (p.total_budget || 0), 0);
   const totalAllocated = projects.reduce((sum, p) => sum + (p.allocated_budget || 0), 0);
   const totalSpent = projects.reduce((sum, p) => sum + (p.spent_budget || 0), 0);
-  const totalRemaining = (bando.total_amount || 0) - totalSpent;
-  const budgetUsed = bando.total_amount ? (totalSpent / bando.total_amount) * 100 : 0;
+  const totalRemaining = totalBudget - totalSpent;
+  const budgetUsed = totalBudget ? (totalSpent / totalBudget) * 100 : 0;
 
   const warnings = [];
   if (budgetUsed > 90) warnings.push('Budget quasi esaurito (>90%)');
-  if (totalSpent > (bando.total_amount || 0)) warnings.push('Budget superato!');
-  if (totalAllocated > (bando.total_amount || 0)) warnings.push('Budget allocato superiore al totale disponibile');
+  if (totalSpent > totalBudget) warnings.push('Budget superato!');
+  if (totalAllocated > totalBudget) warnings.push('Budget allocato superiore al totale disponibile');
 
   return (
     <div className="space-y-6">
@@ -52,7 +53,7 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
               <Euro className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-muted-foreground">Budget Totale Bando</p>
-                <p className="text-2xl font-bold">{formatCurrency(bando.total_amount || 0)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(totalBudget)}</p>
               </div>
             </div>
           </CardContent>
@@ -66,7 +67,7 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
                 <p className="text-sm font-medium text-muted-foreground">Allocato ai Progetti</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalAllocated)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {bando.total_amount ? ((totalAllocated / bando.total_amount) * 100).toFixed(1) : 0}% del totale
+                  {totalBudget ? ((totalAllocated / totalBudget) * 100).toFixed(1) : 0}% del totale
                 </p>
               </div>
             </div>
@@ -114,11 +115,11 @@ export const BandoBudgetView = ({ bando, projects }: BandoBudgetViewProps) => {
             />
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>0€</span>
-              <span>{formatCurrency(bando.total_amount || 0)}</span>
+              <span>{formatCurrency(totalBudget)}</span>
             </div>
-            {totalSpent > (bando.total_amount || 0) && (
+            {totalSpent > totalBudget && (
               <p className="text-sm text-red-600 font-medium">
-                Superamento budget: {formatCurrency(totalSpent - (bando.total_amount || 0))}
+                Superamento budget: {formatCurrency(totalSpent - totalBudget)}
               </p>
             )}
           </div>
