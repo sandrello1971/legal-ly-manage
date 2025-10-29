@@ -22,6 +22,7 @@ interface ProcessedExpense extends ExpenseUpload {
   status: 'processing' | 'completed' | 'error' | 'editing' | 'duplicate';
   error?: string;
   fileHash?: string;
+  confidenceExplanation?: string;
   duplicateInfo?: {
     existingExpense: any;
   };
@@ -92,6 +93,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                 status: 'completed',
                 fileHash,
                 confidence: result.confidence || 0.8,
+                confidenceExplanation: result.confidenceExplanation,
                 category: result.category,
                 extractedData: result.extractedData,
                 validation: result.validation
@@ -288,9 +290,14 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                           <Badge variant="secondary">Elaborazione...</Badge>
                         )}
                         {upload.status === 'completed' && upload.confidence && (
-                          <Badge variant="secondary" className={getConfidenceColor(upload.confidence)}>
-                            Confidenza: {getConfidenceText(upload.confidence)} ({Math.round(upload.confidence * 100)}%)
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="secondary" className={getConfidenceColor(upload.confidence)}>
+                              Confidenza: {getConfidenceText(upload.confidence)} ({Math.round(upload.confidence * 100)}%)
+                            </Badge>
+                            {upload.confidenceExplanation && (
+                              <p className="text-xs text-muted-foreground">{upload.confidenceExplanation}</p>
+                            )}
+                          </div>
                         )}
                         {upload.extractedData?.invoiceType === 'electronic' && upload.validation && (
                           <Badge variant={upload.validation.shouldApprove ? "default" : "destructive"}>

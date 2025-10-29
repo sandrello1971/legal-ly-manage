@@ -293,26 +293,34 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
     
     // Calculate confidence based on ALL validation results
     let confidence = 0.3; // Base confidence
+    let confidenceExplanation = '';
     
     // CRITICAL: If bando says NOT eligible, confidence must be LOW regardless of CUP
     if (!bandoCoherence.isCoherent) {
       confidence = Math.min(0.4, bandoCoherence.coherenceScore / 100); // Max 40% if not eligible
+      confidenceExplanation = `Confidenza bassa: la spesa non sembra ammissibile secondo i criteri del bando (${Math.round(bandoCoherence.coherenceScore)}% coerenza con bando).`;
     }
     // If project says NOT mentioned in proposal, confidence is MEDIUM
     else if (!projectCoherence.isCoherent) {
       confidence = Math.min(0.65, projectCoherence.coherenceScore / 100); // Max 65% if not in project
+      confidenceExplanation = `Confidenza media: la spesa non era esplicitamente prevista nella proposta progettuale. ${projectCodeValidation.cupFound ? 'CUP trovato, ' : ''}bando coerente al ${Math.round(bandoCoherence.coherenceScore)}%.`;
     }
     // If project gives warning (score 50-70), confidence is MEDIUM-HIGH
     else if (projectCoherence.coherenceScore < 70) {
       confidence = projectCoherence.coherenceScore / 100; // Use AI score directly (50-70%)
+      confidenceExplanation = `Confidenza media: ${projectCodeValidation.cupFound ? 'CUP presente, ' : ''}bando coerente al ${Math.round(bandoCoherence.coherenceScore)}%, ma la spesa potrebbe non essere stata esplicitamente menzionata nel progetto (${Math.round(projectCoherence.coherenceScore)}%). Richiede verifica manuale.`;
     }
     // Everything is OK - high confidence
     else {
       // Start with project code validation confidence
       if (projectCodeValidation.cupFound) {
         confidence = 0.90; // High confidence base
+        confidenceExplanation = `Confidenza alta: CUP trovato nella fattura, coerenza con bando al ${Math.round(bandoCoherence.coherenceScore)}% e con progetto al ${Math.round(projectCoherence.coherenceScore)}%.`;
       } else if (projectCodeValidation.isValid) {
         confidence = 0.75; // Good confidence base
+        confidenceExplanation = `Confidenza buona: riferimento progetto trovato, coerenza con bando al ${Math.round(bandoCoherence.coherenceScore)}% e con progetto al ${Math.round(projectCoherence.coherenceScore)}%.`;
+      } else {
+        confidenceExplanation = `Confidenza media: coerenza con bando al ${Math.round(bandoCoherence.coherenceScore)}% e con progetto al ${Math.round(projectCoherence.coherenceScore)}%.`;
       }
       
       // Adjust based on coherence scores
@@ -324,6 +332,7 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
       extractedData: invoiceData,
       category: invoiceData.category,
       confidence: confidence,
+      confidenceExplanation: confidenceExplanation,
       validation: {
         projectCode: projectCodeValidation,
         bandoCoherence: bandoCoherence,
