@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { 
@@ -398,6 +398,137 @@ export function ExpenseReviewDashboard() {
                     <TableCell>{getStatusBadge(expense)}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {/* Pulsante di modifica diretta */}
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedExpense(expense);
+                                startEditing(expense);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Modifica Spesa</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="quick-edit-description">Descrizione</Label>
+                                <Input
+                                  id="quick-edit-description"
+                                  value={editForm.description || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="quick-edit-amount">Importo Allocato</Label>
+                                <Input
+                                  id="quick-edit-amount"
+                                  type="number"
+                                  step="0.01"
+                                  value={editForm.amount || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="quick-edit-amount-spent">Importo Speso</Label>
+                                <Input
+                                  id="quick-edit-amount-spent"
+                                  type="number"
+                                  step="0.01"
+                                  value={editForm.amount_spent !== undefined ? editForm.amount_spent : ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, amount_spent: parseFloat(e.target.value) || 0 }))}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="quick-edit-category">Categoria</Label>
+                                <Select 
+                                  value={editForm.category || ''} 
+                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value as any }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="consulting">Consulenza</SelectItem>
+                                    <SelectItem value="training">Formazione</SelectItem>
+                                    <SelectItem value="equipment">Attrezzature tecnologiche</SelectItem>
+                                    <SelectItem value="engineering">Ingegnerizzazione SW/HW</SelectItem>
+                                    <SelectItem value="intellectual_property">Proprietà industriale</SelectItem>
+                                    <SelectItem value="personnel">Personale dedicato</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label htmlFor="quick-edit-date">Data Spesa</Label>
+                                <Input
+                                  id="quick-edit-date"
+                                  type="date"
+                                  value={editForm.expense_date || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, expense_date: e.target.value }))}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="quick-edit-supplier">Fornitore</Label>
+                                <Input
+                                  id="quick-edit-supplier"
+                                  value={editForm.supplier_name || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, supplier_name: e.target.value }))}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="quick-edit-receipt">Numero Ricevuta</Label>
+                                <Input
+                                  id="quick-edit-receipt"
+                                  value={editForm.receipt_number || ''}
+                                  onChange={(e) => setEditForm(prev => ({ ...prev, receipt_number: e.target.value }))}
+                                />
+                              </div>
+                              <div className="col-span-2">
+                                <Label htmlFor="quick-edit-project">Progetto</Label>
+                                <Select 
+                                  value={editForm.project_id || ''} 
+                                  onValueChange={(value) => setEditForm(prev => ({ ...prev, project_id: value }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {projects.map((project) => (
+                                      <SelectItem key={project.id} value={project.id}>
+                                        {project.title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="col-span-2 flex gap-2 pt-4">
+                                <Button onClick={handleEditExpense} className="flex-1">
+                                  Salva Modifiche
+                                </Button>
+                                <DialogClose asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    onClick={() => {
+                                      setIsEditing(false);
+                                      setEditForm({});
+                                    }}
+                                    className="flex-1"
+                                  >
+                                    Annulla
+                                  </Button>
+                                </DialogClose>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+
+                        {/* Pulsante di visualizzazione dettagli */}
                         <Dialog>
                            <DialogTrigger asChild>
                              <Button
