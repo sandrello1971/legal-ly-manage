@@ -21,7 +21,8 @@ import {
   Plus,
   Eye,
   CheckCircle,
-  XCircle
+  XCircle,
+  Download
 } from 'lucide-react';
 import { type Project } from '@/hooks/useProjects';
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
@@ -117,6 +118,183 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
     return expenses?.filter(e => e.is_approved === null) || [];
   }, [expenses]);
 
+  const handleDownloadPDF = () => {
+    // Crea contenuto HTML formattato per il PDF
+    const content = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Progetto: ${project.title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+            h1 { color: #1e293b; border-bottom: 3px solid #3b82f6; padding-bottom: 10px; }
+            h2 { color: #334155; margin-top: 30px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+            .info-item { margin-bottom: 10px; }
+            .info-label { font-weight: bold; color: #64748b; font-size: 0.9em; }
+            .info-value { margin-top: 3px; color: #1e293b; }
+            .cup-badge { background: #dbeafe; border: 2px solid #3b82f6; padding: 10px; border-radius: 8px; display: inline-block; margin: 15px 0; }
+            .cup-code { font-size: 1.3em; font-weight: bold; color: #1e40af; font-family: monospace; }
+            .status-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 0.9em; font-weight: 500; }
+            .status-planning { background: #dbeafe; color: #1e40af; }
+            .status-in_progress { background: #d1fae5; color: #065f46; }
+            .status-on_hold { background: #fef3c7; color: #92400e; }
+            .status-completed { background: #f3f4f6; color: #374151; }
+            .status-cancelled { background: #fee2e2; color: #991b1b; }
+            .budget-item { padding: 15px; background: #f8fafc; border-radius: 8px; margin: 10px 0; }
+            .budget-item .label { font-size: 0.9em; color: #64748b; }
+            .budget-item .value { font-size: 1.5em; font-weight: bold; color: #1e293b; margin-top: 5px; }
+            .expense-item { padding: 10px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; }
+            .expense-item:last-child { border-bottom: none; }
+            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; }
+            th { background: #f8fafc; font-weight: 600; color: #475569; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Progetto: ${project.title}</h1>
+          
+          ${project.cup_code ? `
+            <div class="cup-badge">
+              <div style="font-size: 0.8em; color: #64748b;">Codice CUP</div>
+              <div class="cup-code">${project.cup_code}</div>
+            </div>
+          ` : ''}
+          
+          <div>
+            <span class="status-badge status-${project.status}">${getStatusLabel(project.status)}</span>
+            ${project.project_manager ? `<span style="margin-left: 10px; color: #64748b;">PM: ${project.project_manager}</span>` : ''}
+          </div>
+
+          <h2>Informazioni Generali</h2>
+          <div class="info-grid">
+            ${project.description ? `
+              <div class="info-item" style="grid-column: 1 / -1;">
+                <div class="info-label">Descrizione</div>
+                <div class="info-value">${project.description}</div>
+              </div>
+            ` : ''}
+            ${project.start_date ? `
+              <div class="info-item">
+                <div class="info-label">Data Inizio Prevista</div>
+                <div class="info-value">${format(new Date(project.start_date), 'dd MMMM yyyy', { locale: it })}</div>
+              </div>
+            ` : ''}
+            ${project.end_date ? `
+              <div class="info-item">
+                <div class="info-label">Data Fine Prevista</div>
+                <div class="info-value">${format(new Date(project.end_date), 'dd MMMM yyyy', { locale: it })}</div>
+              </div>
+            ` : ''}
+            ${project.actual_start_date ? `
+              <div class="info-item">
+                <div class="info-label">Data Inizio Effettiva</div>
+                <div class="info-value">${format(new Date(project.actual_start_date), 'dd MMMM yyyy', { locale: it })}</div>
+              </div>
+            ` : ''}
+            ${project.actual_end_date ? `
+              <div class="info-item">
+                <div class="info-label">Data Fine Effettiva</div>
+                <div class="info-value">${format(new Date(project.actual_end_date), 'dd MMMM yyyy', { locale: it })}</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <h2>Budget e Progresso</h2>
+          <div class="info-grid">
+            <div class="budget-item">
+              <div class="label">Budget Totale</div>
+              <div class="value">${formatCurrency(project.total_budget)}</div>
+            </div>
+            <div class="budget-item">
+              <div class="label">Budget Allocato</div>
+              <div class="value">${formatCurrency(project.allocated_budget)}</div>
+            </div>
+            <div class="budget-item">
+              <div class="label">Budget Speso</div>
+              <div class="value">${formatCurrency(project.spent_budget)}</div>
+              <div style="font-size: 0.9em; color: #64748b; margin-top: 5px;">${budgetUsed.toFixed(1)}% utilizzato</div>
+            </div>
+            <div class="budget-item">
+              <div class="label">Budget Rimanente</div>
+              <div class="value" style="color: ${project.remaining_budget < 0 ? '#dc2626' : '#059669'};">
+                ${formatCurrency(project.remaining_budget)}
+              </div>
+            </div>
+          </div>
+          <div class="budget-item">
+            <div class="label">Progresso Progetto</div>
+            <div class="value">${project.progress_percentage}%</div>
+          </div>
+
+          ${approvedExpenses.length > 0 ? `
+            <h2>Spese Approvate</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Descrizione</th>
+                  <th>Categoria</th>
+                  <th>Data</th>
+                  <th style="text-align: right;">Importo</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${approvedExpenses.map(expense => `
+                  <tr>
+                    <td>${expense.description}</td>
+                    <td>${getCategoryLabel(expense.category)}</td>
+                    <td>${expense.expense_date ? format(new Date(expense.expense_date), 'dd MMM yyyy', { locale: it }) : '-'}</td>
+                    <td style="text-align: right; font-weight: 600;">${formatCurrency(expense.amount)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          ` : ''}
+
+          ${project.notes ? `
+            <h2>Note</h2>
+            <div style="padding: 15px; background: #f8fafc; border-radius: 8px; white-space: pre-wrap;">
+              ${project.notes}
+            </div>
+          ` : ''}
+
+          ${project.team_members && project.team_members.length > 0 ? `
+            <h2>Team</h2>
+            <div>
+              ${project.team_members.map(member => `<span class="status-badge status-planning" style="margin: 5px;">${member}</span>`).join('')}
+            </div>
+          ` : ''}
+
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85em;">
+            <div>Generato il: ${format(new Date(), 'dd MMMM yyyy HH:mm', { locale: it })}</div>
+            <div>Creato il: ${format(new Date(project.created_at), 'dd MMMM yyyy HH:mm', { locale: it })}</div>
+            <div>Ultimo aggiornamento: ${format(new Date(project.updated_at), 'dd MMMM yyyy HH:mm', { locale: it })}</div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Crea un blob e scarica
+    const blob = new Blob([content], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `progetto-${project.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    // Apri in una nuova finestra per la stampa
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(content);
+      printWindow.document.close();
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -151,6 +329,10 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleDownloadPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            Scarica PDF
+          </Button>
           <Button variant="outline" onClick={onEdit}>
             <Edit className="h-4 w-4 mr-2" />
             Modifica
