@@ -15,6 +15,7 @@ export interface Expense {
   supplier_name?: string;
   receipt_number?: string;
   receipt_url?: string;
+  file_hash?: string;
   is_approved?: boolean;
   approved_by?: string;
   approved_at?: string;
@@ -97,6 +98,25 @@ export const useExpenses = (projectId?: string) => {
     try {
       if (!user) throw new Error('User not authenticated');
 
+      // Verifica duplicati se presente receipt_number
+      if (expenseData.receipt_number && expenseData.supplier_name && expenseData.project_id) {
+        const { data: existingExpenses } = await supabase
+          .from('project_expenses')
+          .select('id, description, amount')
+          .eq('receipt_number', expenseData.receipt_number)
+          .eq('supplier_name', expenseData.supplier_name)
+          .eq('project_id', expenseData.project_id);
+
+        if (existingExpenses && existingExpenses.length > 0) {
+          const existing = existingExpenses[0];
+          throw new Error(
+            `Fattura duplicata: esiste già una fattura "${existing.description}" ` +
+            `con numero ${expenseData.receipt_number} da ${expenseData.supplier_name} ` +
+            `per questo progetto (importo: €${existing.amount})`
+          );
+        }
+      }
+
       const { data, error: createError } = await supabase
         .from('project_expenses')
         .insert({
@@ -106,7 +126,15 @@ export const useExpenses = (projectId?: string) => {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        // Gestisci l'errore del constraint UNIQUE in modo user-friendly
+        if (createError.code === '23505' && createError.message.includes('unique_receipt_per_project')) {
+          throw new Error(
+            `Fattura duplicata: esiste già una fattura con questo numero per questo fornitore e progetto`
+          );
+        }
+        throw createError;
+      }
 
       setExpenses(prev => [data, ...prev]);
       

@@ -14,11 +14,17 @@ import { Upload, FileText, CheckCircle, AlertCircle, Edit2, Trash2 } from 'lucid
 import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { useExpenses, type ExpenseUpload } from '@/hooks/useExpenses';
 import { useProjects } from '@/hooks/useProjects';
+import { supabase } from '@/integrations/supabase/client';
+import { calculateFileHash, checkDuplicateFile } from '@/lib/fileUtils';
 
 interface ProcessedExpense extends ExpenseUpload {
   id: string;
-  status: 'processing' | 'completed' | 'error' | 'editing';
+  status: 'processing' | 'completed' | 'error' | 'editing' | 'duplicate';
   error?: string;
+  fileHash?: string;
+  duplicateInfo?: {
+    existingExpense: any;
+  };
 }
 
 interface ExpenseProcessorProps {
@@ -49,6 +55,28 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
       const upload = newUploads[i];
       
       try {
+        // Calculate file hash to detect duplicates
+        const fileHash = await calculateFileHash(upload.file);
+        
+        // Check if file already exists
+        const { isDuplicate, existingExpense } = await checkDuplicateFile(fileHash, supabase);
+        
+        if (isDuplicate) {
+          setUploads(prev => prev.map(u => 
+            u.id === upload.id 
+              ? {
+                  ...u,
+                  status: 'duplicate',
+                  fileHash,
+                  duplicateInfo: { existingExpense },
+                  error: `File già caricato: "${existingExpense.description}" (${existingExpense.receipt_number || 'N/A'})`
+                }
+              : u
+          ));
+          setProcessingProgress(((i + 1) / newUploads.length) * 100);
+          continue;
+        }
+        
         const formData = new FormData();
         formData.append('file', upload.file);
         if (upload.projectId) {
@@ -62,6 +90,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
             ? {
                 ...u,
                 status: 'completed',
+                fileHash,
                 confidence: result.confidence || 0.8,
                 category: result.category,
                 extractedData: result.extractedData,
@@ -85,7 +114,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
     }
 
     setIsProcessing(false);
-  }, [processExpenseReceipt]);
+  }, [processExpenseReceipt, defaultProjectId]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -167,10 +196,12 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
           expense_date: upload.extractedData?.date || new Date().toISOString().split('T')[0],
           supplier_name: upload.extractedData?.supplier,
           receipt_number: upload.extractedData?.receiptNumber,
+          file_hash: upload.fileHash,
           is_approved: null // Imposta esplicitamente a null per status "pending"
         });
       } catch (error) {
         console.error('Error creating expense:', error);
+        // L'errore viene già mostrato dal toast in createExpense
       }
     }
 
@@ -269,6 +300,9 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                         {upload.status === 'error' && (
                           <Badge variant="destructive">Errore</Badge>
                         )}
+                        {upload.status === 'duplicate' && (
+                          <Badge variant="destructive">Duplicato</Badge>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -279,10 +313,20 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                       </div>
                     </div>
 
-                    {upload.status === 'error' && upload.error && (
+                    {(upload.status === 'error' || upload.status === 'duplicate') && upload.error && (
                       <Alert variant="destructive" className="mb-4">
                         <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>{upload.error}</AlertDescription>
+                        <AlertDescription>
+                          {upload.error}
+                          {upload.status === 'duplicate' && upload.duplicateInfo && (
+                            <div className="mt-2 text-xs">
+                              <p>Spesa esistente: €{upload.duplicateInfo.existingExpense.amount}</p>
+                              {upload.duplicateInfo.existingExpense.supplier_name && (
+                                <p>Fornitore: {upload.duplicateInfo.existingExpense.supplier_name}</p>
+                              )}
+                            </div>
+                          )}
+                        </AlertDescription>
                       </Alert>
                     )}
 
