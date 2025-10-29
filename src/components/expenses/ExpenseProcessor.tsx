@@ -447,6 +447,42 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                                   </ul>
                                 </div>
                               )}
+                              
+                              {/* Dettagli Progetto per verifica manuale */}
+                              {upload.projectId && projects.find(p => p.id === upload.projectId) && (
+                                <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
+                                  <Label className="text-base mb-2 block">Dettagli Progetto</Label>
+                                  {(() => {
+                                    const project = projects.find(p => p.id === upload.projectId);
+                                    return project ? (
+                                      <div className="space-y-2 text-sm">
+                                        <div>
+                                          <span className="font-medium">Titolo:</span>{' '}
+                                          <span className="text-muted-foreground">{project.title}</span>
+                                        </div>
+                                        {project.description && (
+                                          <div>
+                                            <span className="font-medium">Descrizione/Obiettivi:</span>
+                                            <p className="text-muted-foreground mt-1 whitespace-pre-wrap">{project.description}</p>
+                                          </div>
+                                        )}
+                                        {project.total_budget && (
+                                          <div>
+                                            <span className="font-medium">Budget Totale:</span>{' '}
+                                            <span className="text-muted-foreground">€{project.total_budget.toLocaleString()}</span>
+                                          </div>
+                                        )}
+                                        {project.cup_code && (
+                                          <div>
+                                            <span className="font-medium">CUP:</span>{' '}
+                                            <span className="text-muted-foreground">{project.cup_code}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : null;
+                                  })()}
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <p className="text-sm text-muted-foreground">Nessuna validazione disponibile per questo file.</p>
