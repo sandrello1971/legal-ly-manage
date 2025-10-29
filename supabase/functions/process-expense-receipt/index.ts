@@ -790,6 +790,21 @@ function extractProjectCodesFromXML(xmlContent: string): string[] {
 function classifyElectronicInvoice(description: string, supplier: string | null) {
   const text = `${description || ''} ${supplier || ''}`.toLowerCase();
   
+  // CONSTRUCTION/RENOVATION: Lavori di adeguamento spazi e installazione (alta priorità)
+  const constructionKeywords = [
+    'lavori di adeguamento', 'adeguamento locali', 'adeguamento spazi',
+    'ristrutturazione', 'canalizzazioni', 'prese elettriche', 'rinforzi',
+    'pavimentazione', 'controsoffitti', 'impianti elettrici', 'climatizzazione',
+    'opere murarie', 'opere edili', 'installazione impianti', 'predisposizione',
+    'edilizia', 'edile', 'cantiere', 'lavori edili'
+  ];
+  
+  for (const keyword of constructionKeywords) {
+    if (text.includes(keyword)) {
+      return { category: 'equipment', confidence: 0.92 }; // Categoria equipment perché rientra negli investimenti materiali
+    }
+  }
+  
   // EQUIPMENT: Attrezzature tecnologiche e programmi informatici
   const equipmentKeywords = [
     // Hardware e attrezzature generiche
@@ -804,7 +819,9 @@ function classifyElectronicInvoice(description: string, supplier: string | null)
     'realtà aumentata', 'realtà virtuale', 'stampa 3d', 'additive manufacturing',
     'big data', 'cloud computing', 'cybersecurity', 'blockchain',
     // Software e licenze
-    'software', 'licenza', 'abbonamento', 'cloud', 'saas', 'programma informatico'
+    'software', 'licenza', 'abbonamento', 'cloud', 'saas', 'programma informatico',
+    // Apparecchiature scientifiche
+    'apparecchiature scientifiche', 'apparecchiature'
   ];
   
   for (const keyword of equipmentKeywords) {
