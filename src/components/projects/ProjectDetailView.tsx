@@ -46,11 +46,10 @@ interface ProjectDetailViewProps {
 
 export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: ProjectDetailViewProps) => {
   const navigate = useNavigate();
-  const { expenses, approveExpense, rejectExpense, updateExpense, refetch } = useExpenses(project.id);
+  const { expenses, updateExpense, refetch } = useExpenses(project.id);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
-  const [reviewNotes, setReviewNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Expense>>({});
 
@@ -87,35 +86,6 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
     }
   };
 
-  const handleApproveExpense = async () => {
-    if (!selectedExpense) return;
-    try {
-      await approveExpense(selectedExpense.id, reviewNotes);
-      setShowExpenseDialog(false);
-      setSelectedExpense(null);
-      setReviewNotes('');
-      refetch();
-    } catch (error) {
-      console.error('Error approving expense:', error);
-    }
-  };
-
-  const handleRejectExpense = async () => {
-    if (!selectedExpense) return;
-    if (!reviewNotes.trim()) {
-      alert('Inserisci una motivazione per il rifiuto');
-      return;
-    }
-    try {
-      await rejectExpense(selectedExpense.id, reviewNotes);
-      setShowExpenseDialog(false);
-      setSelectedExpense(null);
-      setReviewNotes('');
-      refetch();
-    } catch (error) {
-      console.error('Error rejecting expense:', error);
-    }
-  };
 
   const handleEditExpense = async () => {
     if (!selectedExpense || !editForm) return;
@@ -147,14 +117,6 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
 
   const budgetUsed = (project.spent_budget / project.total_budget) * 100;
   const isOverBudget = project.spent_budget > project.total_budget;
-  
-  const approvedExpenses = useMemo(() => {
-    return expenses?.filter(e => e.is_approved === true) || [];
-  }, [expenses]);
-
-  const pendingExpenses = useMemo(() => {
-    return expenses?.filter(e => e.is_approved === null) || [];
-  }, [expenses]);
 
   const handleDownloadPDF = () => {
     // Crea contenuto HTML formattato per il PDF
@@ -267,8 +229,8 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
             <div class="value">${project.progress_percentage}%</div>
           </div>
 
-          ${approvedExpenses.length > 0 ? `
-            <h2>Spese Approvate</h2>
+          ${expenses && expenses.length > 0 ? `
+            <h2>Spese del Progetto</h2>
             <table>
               <thead>
                 <tr>
@@ -279,7 +241,7 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
                 </tr>
               </thead>
               <tbody>
-                ${approvedExpenses.map(expense => `
+                ${expenses.map(expense => `
                   <tr>
                     <td>${expense.description}</td>
                     <td>${getCategoryLabel(expense.category)}</td>
@@ -672,197 +634,31 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">
-                  Spese Approvate ({approvedExpenses.length})
+                  Spese del Progetto ({expenses?.length || 0})
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {approvedExpenses.length > 0 ? (
+                {expenses && expenses.length > 0 ? (
                   <div className="space-y-3">
-                    {approvedExpenses.map((expense) => (
-                      <div key={expense.id} className="flex justify-between items-center border-b pb-2 hover:bg-muted/50 p-2 rounded transition-colors group">
+                    {expenses.map((expense) => (
+                      <div key={expense.id} className="flex justify-between items-center border-b pb-2 hover:bg-muted/50 p-2 rounded transition-colors">
                         <div className="flex-1">
                           <p className="font-medium text-sm">{expense.description}</p>
                           <p className="text-xs text-muted-foreground">
                             {expense.expense_date && format(new Date(expense.expense_date), 'dd MMM yyyy', { locale: it })}
                           </p>
-                          <div className="flex gap-2 text-xs mt-1">
-                            <span className="text-muted-foreground">Allocato: {formatCurrency(expense.amount)}</span>
-                            {expense.amount_spent !== undefined && (
-                              <span className="text-muted-foreground">• Speso: {formatCurrency(expense.amount_spent)}</span>
-                            )}
-                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedExpense(expense);
-                                  startEditing(expense);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Modifica Spesa</DialogTitle>
-                              </DialogHeader>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor="edit-description">Descrizione</Label>
-                                  <Input
-                                    id="edit-description"
-                                    value={editForm.description || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-amount">Importo Allocato</Label>
-                                  <Input
-                                    id="edit-amount"
-                                    type="number"
-                                    step="0.01"
-                                    value={editForm.amount || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-amount-spent">Importo Speso</Label>
-                                  <Input
-                                    id="edit-amount-spent"
-                                    type="number"
-                                    step="0.01"
-                                    value={editForm.amount_spent !== undefined ? editForm.amount_spent : ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, amount_spent: parseFloat(e.target.value) || 0 }))}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-category">Categoria</Label>
-                                  <Select 
-                                    value={editForm.category || ''} 
-                                    onValueChange={(value) => setEditForm(prev => ({ ...prev, category: value as any }))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="consulting">Consulenza</SelectItem>
-                                      <SelectItem value="training">Formazione</SelectItem>
-                                      <SelectItem value="equipment">Attrezzature tecnologiche</SelectItem>
-                                      <SelectItem value="engineering">Ingegnerizzazione SW/HW</SelectItem>
-                                      <SelectItem value="intellectual_property">Proprietà industriale</SelectItem>
-                                      <SelectItem value="personnel">Personale dedicato</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-date">Data Spesa</Label>
-                                  <Input
-                                    id="edit-date"
-                                    type="date"
-                                    value={editForm.expense_date || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, expense_date: e.target.value }))}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-supplier">Fornitore</Label>
-                                  <Input
-                                    id="edit-supplier"
-                                    value={editForm.supplier_name || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, supplier_name: e.target.value }))}
-                                  />
-                                </div>
-                                <div>
-                                  <Label htmlFor="edit-receipt">Numero Ricevuta</Label>
-                                  <Input
-                                    id="edit-receipt"
-                                    value={editForm.receipt_number || ''}
-                                    onChange={(e) => setEditForm(prev => ({ ...prev, receipt_number: e.target.value }))}
-                                  />
-                                </div>
-                                <div className="col-span-2 flex gap-2 pt-4">
-                                  <Button onClick={handleEditExpense} className="flex-1">
-                                    Salva Modifiche
-                                  </Button>
-                                  <DialogClose asChild>
-                                    <Button 
-                                      variant="outline" 
-                                      onClick={() => {
-                                        setIsEditing(false);
-                                        setEditForm({});
-                                      }}
-                                      className="flex-1"
-                                    >
-                                      Annulla
-                                    </Button>
-                                  </DialogClose>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
+                        <span className="font-medium">{formatCurrency(expense.amount)}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-4">
-                    Nessuna spesa approvata
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  Spese in Attesa ({pendingExpenses.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {pendingExpenses.length > 0 ? (
-                  <div className="space-y-3">
-                    {pendingExpenses.map((expense) => (
-                      <div 
-                        key={expense.id} 
-                        className="flex justify-between items-center border-b pb-2 hover:bg-muted/50 p-2 rounded cursor-pointer transition-colors"
-                        onClick={() => {
-                          setSelectedExpense(expense);
-                          setShowExpenseDialog(true);
-                          setReviewNotes('');
-                        }}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-sm">{expense.description}</p>
-                            <Badge variant="secondary" className="text-xs">
-                              {getCategoryLabel(expense.category)}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {expense.expense_date && format(new Date(expense.expense_date), 'dd MMM yyyy', { locale: it })}
-                            {expense.supplier_name && ` • ${expense.supplier_name}`}
-                          </p>
-                        </div>
-                        <div className="text-right flex items-center gap-2">
-                          <div>
-                            <p className="font-medium">{formatCurrency(expense.amount)}</p>
-                            <Badge variant="outline" className="text-xs">in attesa</Badge>
-                          </div>
-                          <Eye className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-4">
-                    Nessuna spesa in attesa
+                    Nessuna spesa registrata
                   </p>
                 )}
               </CardContent>
@@ -1393,18 +1189,6 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
                 )}
               </div>
 
-              {/* Review Notes */}
-              <div className="space-y-2">
-                <Label htmlFor="review-notes">Note di Revisione</Label>
-                <Textarea
-                  id="review-notes"
-                  placeholder="Aggiungi note sulla spesa (opzionale per approvazione, obbligatorie per rifiuto)"
-                  value={reviewNotes}
-                  onChange={(e) => setReviewNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-
               {/* Actions */}
               <DialogFooter className="gap-2">
                 <Button
@@ -1412,25 +1196,9 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
                   onClick={() => {
                     setShowExpenseDialog(false);
                     setSelectedExpense(null);
-                    setReviewNotes('');
                   }}
                 >
-                  Annulla
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleRejectExpense}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Rifiuta
-                </Button>
-                <Button
-                  variant="default"
-                  className="bg-success hover:bg-success/90"
-                  onClick={handleApproveExpense}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approva
+                  Chiudi
                 </Button>
               </DialogFooter>
             </div>

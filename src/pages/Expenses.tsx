@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ExpenseProcessor } from '@/components/expenses/ExpenseProcessor';
 import { ExpenseReviewDashboard } from '@/components/expenses/ExpenseReviewDashboard';
 import { ExpenseAutoClassifier } from '@/components/expenses/ExpenseAutoClassifier';
-import { Upload, CheckSquare, Brain } from 'lucide-react';
+import { Upload, Brain } from 'lucide-react';
 
 export default function Expenses() {
   const [activeTab, setActiveTab] = useState('processor');
@@ -21,14 +21,10 @@ export default function Expenses() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="processor" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
-            Processor
-          </TabsTrigger>
-          <TabsTrigger value="review" className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4" />
-            Dashboard Revisione
+            Caricamento Spese
           </TabsTrigger>
           <TabsTrigger value="classifier" className="flex items-center gap-2">
             <Brain className="h-4 w-4" />
@@ -39,24 +35,13 @@ export default function Expenses() {
         <TabsContent value="processor" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Expense Processor</CardTitle>
+              <CardTitle>Caricamento e Gestione Spese</CardTitle>
               <CardDescription>
-                Carica ricevute in batch, visualizza preview con confidence score e correggi manualmente i dati estratti
+                Carica fatture e documenti di spesa, visualizza ed elabora con AI
               </CardDescription>
             </CardHeader>
           </Card>
           <ExpenseProcessor />
-        </TabsContent>
-
-        <TabsContent value="review" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Dashboard di Revisione</CardTitle>
-              <CardDescription>
-                Approva o rifiuta spese, esegui operazioni in blocco, aggiungi commenti e visualizza lo storico delle modifiche
-              </CardDescription>
-            </CardHeader>
-          </Card>
           <ExpenseReviewDashboard />
         </TabsContent>
 
