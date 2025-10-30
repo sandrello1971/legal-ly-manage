@@ -45,14 +45,6 @@ export default function ProjectConsuntivazione() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Refresh data when switching to overview tab
-  useEffect(() => {
-    if (activeTab === 'overview') {
-      refetchExpenses();
-      refetchTransactions();
-    }
-  }, [activeTab, refetchExpenses, refetchTransactions]);
-
   // Get reconciliation status for an expense
   const getExpenseReconciliationStatus = (expenseId: string, expense: Expense) => {
     // First check if manually reconciled
