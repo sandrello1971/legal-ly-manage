@@ -103,9 +103,19 @@ serve(async (req) => {
     const analysisPrompt = `
 Analizza questo documento di spesa per il progetto "${project.title}".
 
+IMPORTANTE - ORDINE DI VERIFICA:
+1. VERIFICA PROGETTO (priorità assoluta): Il progetto ha già superato la fase di ammissibilità al bando.
+   Verifica che la spesa sia coerente con gli obiettivi, il budget e le tempistiche del progetto.
+   
+2. VERIFICA FORMALE BANDO: Solo controlli formali (es: tipo di documento, completezza informazioni).
+   NON verificare criteri di ammissibilità generali perché il progetto è già stato approvato.
+
 CONTESTO PROGETTO:
+- Titolo: ${project.title}
 - Budget totale: €${project.total_budget}
-- Categorie di spesa ammissibili: ${categoryNames || 'Non specificate'}
+- Budget speso: €${project.spent_budget || 0}
+- Budget rimanente: €${project.remaining_budget || project.total_budget}
+- Categorie spesa disponibili: ${categoryNames || 'Tutte le categorie ammesse'}
 
 ANALIZZA E ESTRAI:
 1. Tipo di documento (fattura, ricevuta, nota spese, etc.)
@@ -113,11 +123,18 @@ ANALIZZA E ESTRAI:
 3. Data del documento
 4. Fornitore/Beneficiario
 5. Descrizione dettagliata della spesa
-6. Se la spesa è imputabile al progetto (motivazione)
-7. Categoria di spesa più appropriata
-8. Eventuali problemi o anomalie
+6. Codice progetto (CUP, CIG o altri riferimenti)
+7. Verifica con PROGETTO:
+   - Coerenza con obiettivi del progetto
+   - Rispetto del budget allocato
+   - Categoria di spesa appropriata
+   - Tempistiche compatibili
+8. Verifica FORMALE con bando:
+   - Documento completo e leggibile
+   - Informazioni obbligatorie presenti
+   - Formato documentale adeguato
 
-CATEGORIE DI SPESA DISPONIBILI:
+CATEGORIE DI SPESA PROGETTO:
 ${expenseCategories.map((cat: any) => 
   `- ${cat.name}: ${cat.description || ''} (Max: ${cat.max_percentage ? cat.max_percentage + '%' : 'N/A'})`
 ).join('\n')}
@@ -129,9 +146,12 @@ Rispondi in JSON con questa struttura:
   "document_date": "YYYY-MM-DD",
   "supplier": "string",
   "description": "string",
+  "project_code_found": "string o null",
   "is_project_related": boolean,
-  "project_relation_reason": "string",
+  "project_relation_reason": "string (motivazione basata su obiettivi e scope del progetto)",
   "suggested_category": "string",
+  "project_coherence_score": number (0-100),
+  "formal_check_passed": boolean,
   "confidence": number (0-100),
   "issues": ["array di eventuali problemi"],
   "extracted_line_items": [
@@ -208,11 +228,14 @@ Rispondi in JSON con questa struttura:
         document_date: document.document_date || new Date().toISOString().split('T')[0],
         supplier: 'Fornitore da verificare',
         description: document.title || 'Documento da analizzare',
+        project_code_found: null,
         is_project_related: false,
-        project_relation_reason: 'Analisi automatica non riuscita - richiede verifica manuale',
+        project_relation_reason: 'Analisi automatica non riuscita - richiede verifica manuale completa',
         suggested_category: 'other',
+        project_coherence_score: 0,
+        formal_check_passed: false,
         confidence: 0,
-        issues: ['Analisi automatica fallita', 'Richiede verifica manuale'],
+        issues: ['Analisi automatica fallita', 'Richiede verifica manuale completa del progetto e documentazione'],
         extracted_line_items: []
       };
     }
