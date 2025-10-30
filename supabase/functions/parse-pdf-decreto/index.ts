@@ -77,40 +77,49 @@ const uploadPdfAndAnalyze = async (pdfBuffer: ArrayBuffer, fileName: string): Pr
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `Analizza questo PDF di un BANDO e identifica le CATEGORIE DI SPESA SPECIFICHE elencate nel documento.
+          content: `Sei un esperto analista di BANDI PUBBLICI ITALIANI. Analizza ATTENTAMENTE questo PDF e estrai TUTTE le informazioni richieste.
 
-IMPORTANTE: 
-- NON usare categorie predefinite
-- Estrai ESATTAMENTE le categorie indicate nel testo
-- Se il testo non è chiaro, cerca pattern come "categorie ammissibili", "spese finanziabili", "voci di costo"
-- Cerca anche informazioni su: titolo bando, organizzazione, importi, scadenze, requisiti
+ISTRUZIONI CRITICHE:
+1. LEGGI TUTTO IL DOCUMENTO prima di rispondere
+2. Cerca le informazioni usando SINONIMI e termini comuni nei bandi italiani:
+   - Scadenza: "termine ultimo", "data di chiusura", "scadenza presentazione domande", "termine perentorio"
+   - Importo: "dotazione finanziaria", "risorse disponibili", "budget complessivo", "stanziamento"
+   - Percentuale di finanziamento: "intensità di aiuto", "quota di contributo", "percentuale di copertura"
+3. Per le DATE, cerca formati italiani: gg/mm/aaaa, gg-mm-aaaa, "entro il", "entro e non oltre"
+4. Per gli IMPORTI, cerca: €, euro, EUR, milioni, migliaia
+5. Se un campo NON è presente nel documento, metti null (non 0, non stringhe vuote)
 
-Rispondi SOLO con JSON valido:
+CATEGORIE DI SPESA:
+- Estrai ESATTAMENTE le categorie dal bando (NON inventare)
+- Cerca sezioni: "spese ammissibili", "voci di costo", "categorie di spesa", "investimenti ammissibili"
+- Per ogni categoria, identifica limiti percentuali o monetari
+
+Rispondi SOLO con questo JSON (valori come numeri, non stringhe, null se non presente):
 {
-  "title": "titolo completo del bando",
-  "description": "descrizione dettagliata del bando",
-  "organization": "ente organizzatore", 
-  "total_amount": "importo totale disponibile come numero",
-  "min_funding": "importo minimo finanziabile come numero", 
-  "max_funding": "importo massimo finanziabile come numero",
-  "funding_percentage": "percentuale di copertura come numero (es. 50 per 50%)",
-  "application_deadline": "data scadenza in formato YYYY-MM-DD",
-  "project_duration_months": "durata massima progetto in mesi come numero",
-  "eligibility_criteria": "criteri di ammissibilità dettagliati",
-  "evaluation_criteria": "criteri di valutazione dettagliati", 
-  "required_documents": ["lista", "documenti", "richiesti"],
+  "title": "titolo completo esatto del bando",
+  "description": "descrizione obiettivi e finalità del bando",
+  "organization": "ente/organizzazione che emette il bando", 
+  "total_amount": 1000000,
+  "min_funding": 50000, 
+  "max_funding": 200000,
+  "funding_percentage": 50,
+  "application_deadline": "2025-12-31",
+  "project_duration_months": 24,
+  "eligibility_criteria": "requisiti di ammissibilità completi",
+  "evaluation_criteria": "criteri di valutazione e selezione", 
+  "required_documents": ["elenco completo documenti richiesti"],
   "expense_categories": [
     {
-      "name": "Nome categoria ESATTO dal bando",
-      "description": "Descrizione dettagliata della categoria dal bando", 
-      "max_percentage": "percentuale massima se specificata (come numero) o null",
-      "max_amount": "importo massimo se specificato (come numero) o null",
-      "eligible_expenses": ["lista", "spese", "ammissibili", "specifiche"]
+      "name": "nome categoria esatto dal testo",
+      "description": "descrizione completa dal bando", 
+      "max_percentage": 20,
+      "max_amount": 50000,
+      "eligible_expenses": ["dettaglio spese specifiche ammissibili"]
     }
   ],
-  "target_companies": "tipologie aziende destinatarie",
-  "geographic_scope": "ambito geografico",
-  "innovation_areas": ["aree", "di", "innovazione", "se", "presenti"]
+  "target_companies": "destinatari (PMI, startup, università, etc)",
+  "geographic_scope": "ambito territoriale",
+  "innovation_areas": ["settori/aree se specificati"]
 }`,
           attachments: [{
             file_id: fileId,
