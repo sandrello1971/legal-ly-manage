@@ -106,8 +106,17 @@ function parseCSV(content: string) {
       
       let transaction;
       if (isItalianFormat && values.length >= 4) {
-        // Italian format - amount is already in decimal format with dot separator
-        const amount = parseFloat(values[3]) || 0;
+        // Italian format - handle both European (1.234,56) and standard (1234.56) formats
+        let amountStr = values[3].trim();
+        
+        // Check if it's European format (has comma as decimal separator)
+        if (amountStr.includes(',')) {
+          // European format: remove dots (thousands), replace comma with dot (decimal)
+          amountStr = amountStr.replace(/\./g, '').replace(',', '.');
+        }
+        
+        const amount = parseFloat(amountStr) || 0;
+        console.log(`Parsing amount: original="${values[3]}", processed="${amountStr}", result=${amount}`);
         
         transaction = {
           transaction_date: parseDate(values[0]) || new Date().toISOString().split('T')[0],
