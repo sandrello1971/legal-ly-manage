@@ -168,6 +168,8 @@ export function useBankStatements() {
       setLoading(true);
       setError(null);
 
+      console.log('Starting to process statement:', statementId);
+
       // Update status to processing
       await supabase
         .from('bank_statements')
@@ -181,7 +183,16 @@ export function useBankStatements() {
         .eq('id', statementId)
         .single();
 
-      if (fetchError) throw fetchError;
+      if (fetchError) {
+        console.error('Error fetching statement:', fetchError);
+        throw fetchError;
+      }
+
+      console.log('Calling parse-bank-statement edge function with:', {
+        fileUrl: statement.file_url,
+        fileName: statement.file_name,
+        fileType: statement.file_type
+      });
 
       // Call edge function to parse the statement
       const { data: parseResult, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
@@ -191,6 +202,9 @@ export function useBankStatements() {
           fileType: statement.file_type
         }
       });
+
+      console.log('Parse result:', parseResult);
+      console.log('Parse error:', parseError);
 
       if (parseError) throw parseError;
 

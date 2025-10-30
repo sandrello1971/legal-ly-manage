@@ -12,14 +12,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('=== parse-bank-statement function called ===');
+  console.log('Request method:', req.method);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+
   try {
     console.log('Processing bank statement...');
     
     const body = await req.json();
+    console.log('Request body received:', body);
+    
     const { fileUrl, fileName, fileType } = body;
     
     if (!fileUrl || !fileType) {
-      console.error('Missing fileUrl or fileType');
+      console.error('Missing fileUrl or fileType', { fileUrl, fileType });
       return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -31,13 +37,18 @@ serve(async (req) => {
     // Fetch file from storage
     console.log('Fetching file from:', fileUrl);
     const fileResponse = await fetch(fileUrl);
+    console.log('File fetch response status:', fileResponse.status);
+    
     if (!fileResponse.ok) {
+      const errorText = await fileResponse.text();
+      console.error('Failed to fetch file:', errorText);
       throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
     }
 
     // Convert file to appropriate format for parsing
     let content: string;
     const buffer = await fileResponse.arrayBuffer();
+    console.log('File downloaded, size:', buffer.byteLength);
     
     if (fileType === 'csv') {
       content = new TextDecoder().decode(buffer);

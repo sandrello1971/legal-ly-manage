@@ -312,6 +312,16 @@ export function BankStatementUploader() {
                          'In attesa'}
                       </Badge>
                     </div>
+                    {(statement.status === 'pending' || statement.status === 'error') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => processStatement(statement.id)}
+                        disabled={loading}
+                      >
+                        Riprova
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
