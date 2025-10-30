@@ -55,19 +55,52 @@ export default function ProjectConsuntivazione() {
 
   // Extract categories from project's parsed_data
   const projectCategories = useMemo(() => {
+    const categories: ExpenseCategory[] = [];
+    
     // Get categories from project's parsed budget data
     if (project?.parsed_data?.budget?.categories && project.parsed_data.budget.categories.length > 0) {
-      return project.parsed_data.budget.categories.map((cat: any) => ({
+      categories.push(...project.parsed_data.budget.categories.map((cat: any) => ({
         id: cat.name.toLowerCase().replace(/\s+/g, '_'),
         name: cat.name,
         description: cat.description || '',
         max_percentage: cat.max_percentage,
         max_amount: cat.allocated_amount
-      }));
+      })));
     }
     
-    return [];
-  }, [project]);
+    // Aggiungi categorie dalle spese esistenti che non sono nel budget
+    const expenseCategories = new Set(
+      expenses
+        .map(e => e.project_category || e.category)
+        .filter(Boolean)
+    );
+    
+    expenseCategories.forEach(catKey => {
+      if (catKey && !categories.some(c => c.id === catKey)) {
+        // Aggiungi categoria mancante
+        categories.push({
+          id: catKey,
+          name: catKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+          description: 'Categoria dalle spese',
+          max_percentage: null,
+          max_amount: null
+        });
+      }
+    });
+    
+    // Aggiungi categoria "other" per spese senza categoria
+    if (!categories.some(c => c.id === 'other')) {
+      categories.push({
+        id: 'other',
+        name: 'Altro',
+        description: 'Spese non categorizzate',
+        max_percentage: null,
+        max_amount: null
+      });
+    }
+    
+    return categories;
+  }, [project, expenses]);
 
   // Group expenses by project_category (AI-classified)
   const expensesByCategory = useMemo(() => {
@@ -81,8 +114,22 @@ export default function ProjectConsuntivazione() {
     expenses.forEach(expense => {
       // Use project_category if available (AI-classified), otherwise fallback to category
       const categoryKey = expense.project_category || expense.category;
-      if (categoryKey && grouped[categoryKey]) {
-        grouped[categoryKey].push(expense);
+      
+      if (categoryKey) {
+        // Se la categoria esiste già, aggiungi la spesa
+        if (grouped[categoryKey]) {
+          grouped[categoryKey].push(expense);
+        } else {
+          // Se la categoria non esiste ancora, creala
+          console.warn(`Category "${categoryKey}" not found in project categories, creating it`);
+          grouped[categoryKey] = [expense];
+        }
+      } else {
+        // Spese senza categoria vanno in "other"
+        if (!grouped['other']) {
+          grouped['other'] = [];
+        }
+        grouped['other'].push(expense);
       }
     });
 
