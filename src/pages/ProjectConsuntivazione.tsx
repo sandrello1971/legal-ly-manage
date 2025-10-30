@@ -316,26 +316,44 @@ export default function ProjectConsuntivazione() {
                         
                         {categoryExpenses.map(expense => {
                           const isReconciled = isExpenseReconciled(expense.id);
+                          // Split description by commas to show multiple items
+                          const items = expense.description.split(',').map(item => item.trim()).filter(item => item.length > 0);
+                          
                           return (
                           <TableRow key={expense.id} className="border-l-4 border-l-muted">
                             <TableCell className="pl-8">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <FileText className="h-3 w-3" />
-                                <span>{expense.description}</span>
-                                {expense.receipt_number && (
-                                  <span className="text-xs">({expense.receipt_number})</span>
-                                )}
-                                {isReconciled ? (
-                                  <Badge variant="default" className="ml-2 gap-1 bg-success text-success-foreground">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Rendicontabile
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="ml-2 gap-1 text-muted-foreground">
-                                    <XCircle className="h-3 w-3" />
-                                    Non riconciliata
-                                  </Badge>
-                                )}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <FileText className="h-3 w-3 flex-shrink-0" />
+                                  <div className="flex-1">
+                                    {items.length > 1 ? (
+                                      <div className="space-y-0.5">
+                                        {items.map((item, idx) => (
+                                          <div key={idx} className="flex items-start gap-1.5">
+                                            <span className="text-xs mt-0.5">•</span>
+                                            <span>{item}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span>{expense.description}</span>
+                                    )}
+                                  </div>
+                                  {expense.receipt_number && (
+                                    <span className="text-xs flex-shrink-0">({expense.receipt_number})</span>
+                                  )}
+                                  {isReconciled ? (
+                                    <Badge variant="default" className="gap-1 bg-success text-success-foreground flex-shrink-0">
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Rendicontabile
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="gap-1 text-muted-foreground flex-shrink-0">
+                                      <XCircle className="h-3 w-3" />
+                                      Non riconciliata
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
