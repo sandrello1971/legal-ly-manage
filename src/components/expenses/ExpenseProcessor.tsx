@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Upload, FileText, CheckCircle, AlertCircle, Edit2, Trash2 } from 'lucid
 import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
 import { useExpenses, type ExpenseUpload } from '@/hooks/useExpenses';
 import { useProjects } from '@/hooks/useProjects';
+import { useBandi } from '@/hooks/useBandi';
 import { supabase } from '@/integrations/supabase/client';
 import { calculateFileHash, checkDuplicateFile } from '@/lib/fileUtils';
 
@@ -38,6 +39,22 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
   const [processingProgress, setProcessingProgress] = useState(0);
   const { processExpenseReceipt, createExpense } = useExpenses();
   const { projects } = useProjects();
+  const { bandi } = useBandi();
+
+  // Get categories for selected project
+  const getProjectCategories = useCallback((projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (!project?.bando_id) return [];
+    
+    const bando = bandi.find(b => b.id === project.bando_id);
+    if (!bando?.parsed_data?.expense_categories) return [];
+    
+    return bando.parsed_data.expense_categories.map((cat: any) => ({
+      id: cat.name.toLowerCase().replace(/\s+/g, '_'),
+      name: cat.name,
+      description: cat.description || ''
+    }));
+  }, [projects, bandi]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const newUploads: ProcessedExpense[] = acceptedFiles.map((file, index) => ({
@@ -526,19 +543,34 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                               <Select
                                 value={upload.category}
                                 onValueChange={(value) => updateUpload(upload.id, { category: value })}
+                                disabled={!upload.projectId}
                               >
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona categoria" />
+                                  <SelectValue placeholder={upload.projectId ? "Seleziona categoria" : "Seleziona prima un progetto"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="consulting">Consulenza</SelectItem>
-                                  <SelectItem value="training">Formazione</SelectItem>
-                                  <SelectItem value="equipment">Attrezzature tecnologiche</SelectItem>
-                                  <SelectItem value="engineering">Ingegnerizzazione SW/HW</SelectItem>
-                                  <SelectItem value="intellectual_property">Proprietà industriale</SelectItem>
-                                  <SelectItem value="personnel">Personale dedicato</SelectItem>
+                                  {upload.projectId && getProjectCategories(upload.projectId).map((cat) => (
+                                    <SelectItem key={cat.id} value={cat.id}>
+                                      <div>
+                                        <div>{cat.name}</div>
+                                        {cat.description && (
+                                          <div className="text-xs text-muted-foreground">{cat.description}</div>
+                                        )}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                  {upload.projectId && getProjectCategories(upload.projectId).length === 0 && (
+                                    <SelectItem value="other" disabled>
+                                      Nessuna categoria disponibile per questo progetto
+                                    </SelectItem>
+                                  )}
                                 </SelectContent>
                               </Select>
+                              {upload.projectId && getProjectCategories(upload.projectId).length === 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Il bando associato non ha categorie configurate
+                                </p>
+                              )}
                             </div>
                           </div>
                           

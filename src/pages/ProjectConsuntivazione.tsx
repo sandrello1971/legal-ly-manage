@@ -3,75 +3,108 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, AlertCircle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
-import { EXPENSE_CATEGORY_LABELS, ExpenseCategory } from '@/config/expenseCategories';
+import { useBandi } from '@/hooks/useBandi';
 
 export default function ProjectConsuntivazione() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
   const { expenses, loading: loadingExpenses } = useExpenses(projectId);
+  const { bandi, loading: loadingBandi } = useBandi();
 
   const project = useMemo(() => 
     projects.find(p => p.id === projectId),
     [projects, projectId]
   );
 
+  // Get bando associated with project
+  const bando = useMemo(() => {
+    if (!project?.bando_id) return null;
+    return bandi.find(b => b.id === project.bando_id);
+  }, [project, bandi]);
+
+  // Extract categories from bando
+  const projectCategories = useMemo(() => {
+    if (!bando?.parsed_data?.expense_categories) return [];
+    return bando.parsed_data.expense_categories.map((cat: any) => ({
+      id: cat.name.toLowerCase().replace(/\s+/g, '_'),
+      name: cat.name,
+      description: cat.description || '',
+      max_percentage: cat.max_percentage,
+      max_amount: cat.max_amount
+    }));
+  }, [bando]);
+
   // Group expenses by category
   const expensesByCategory = useMemo(() => {
-    const grouped: Record<ExpenseCategory, typeof expenses> = {
-      consulting: [],
-      training: [],
-      equipment: [],
-      engineering: [],
-      intellectual_property: [],
-      personnel: [],
-    };
+    if (projectCategories.length === 0) return {};
+    
+    const grouped: Record<string, typeof expenses> = {};
+    projectCategories.forEach(cat => {
+      grouped[cat.id] = [];
+    });
 
     expenses.forEach(expense => {
-      if (expense.category && grouped[expense.category as ExpenseCategory]) {
-        grouped[expense.category as ExpenseCategory].push(expense);
+      if (expense.category && grouped[expense.category]) {
+        grouped[expense.category].push(expense);
       }
     });
 
     return grouped;
-  }, [expenses]);
+  }, [expenses, projectCategories]);
 
-  // Calculate budget per category (distribute equally for now)
+  // Calculate budget per category
   const budgetPerCategory = useMemo(() => {
-    if (!project?.total_budget) return {};
+    if (!project?.total_budget || projectCategories.length === 0) return {};
     
-    const categories = Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[];
-    const equalShare = project.total_budget / categories.length;
+    const budgets: Record<string, number> = {};
     
-    return categories.reduce((acc, category) => {
-      acc[category] = equalShare;
-      return acc;
-    }, {} as Record<ExpenseCategory, number>);
-  }, [project]);
+    projectCategories.forEach(cat => {
+      if (cat.max_amount) {
+        budgets[cat.id] = cat.max_amount;
+      } else if (cat.max_percentage) {
+        budgets[cat.id] = (project.total_budget * cat.max_percentage) / 100;
+      } else {
+        // Se non ha limiti specifici, distribuisci equamente il budget rimanente
+        budgets[cat.id] = 0;
+      }
+    });
+
+    // Calcola budget non allocato
+    const allocatedBudget = Object.values(budgets).reduce((sum, val) => sum + val, 0);
+    const remainingBudget = project.total_budget - allocatedBudget;
+    const categoriesWithoutBudget = projectCategories.filter(cat => !budgets[cat.id]);
+    
+    if (categoriesWithoutBudget.length > 0 && remainingBudget > 0) {
+      const equalShare = remainingBudget / categoriesWithoutBudget.length;
+      categoriesWithoutBudget.forEach(cat => {
+        budgets[cat.id] = equalShare;
+      });
+    }
+
+    return budgets;
+  }, [project, projectCategories]);
 
   // Calculate spent per category
   const spentPerCategory = useMemo(() => {
-    const spent: Record<ExpenseCategory, number> = {
-      consulting: 0,
-      training: 0,
-      equipment: 0,
-      engineering: 0,
-      intellectual_property: 0,
-      personnel: 0,
-    };
+    const spent: Record<string, number> = {};
+    
+    projectCategories.forEach(cat => {
+      spent[cat.id] = 0;
+    });
 
     Object.entries(expensesByCategory).forEach(([category, categoryExpenses]) => {
-      spent[category as ExpenseCategory] = categoryExpenses.reduce(
+      spent[category] = categoryExpenses.reduce(
         (sum, expense) => sum + (expense.amount || 0),
         0
       );
     });
 
     return spent;
-  }, [expensesByCategory]);
+  }, [expensesByCategory, projectCategories]);
 
   // Calculate totals
   const totalBudget = project?.total_budget || 0;
@@ -91,7 +124,7 @@ export default function ProjectConsuntivazione() {
     }).format(amount);
   };
 
-  if (loadingProjects || loadingExpenses) {
+  if (loadingProjects || loadingExpenses || loadingBandi) {
     return (
       <div className="container mx-auto py-8">
         <p>Caricamento...</p>
@@ -103,6 +136,40 @@ export default function ProjectConsuntivazione() {
     return (
       <div className="container mx-auto py-8">
         <p>Progetto non trovato</p>
+      </div>
+    );
+  }
+
+  if (projectCategories.length === 0) {
+    return (
+      <div className="container mx-auto py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/bandi')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Indietro
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Consuntivazione Progetto</h1>
+              <p className="text-muted-foreground">{project.title}</p>
+            </div>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4 text-muted-foreground">
+              <AlertCircle className="h-8 w-8" />
+              <div>
+                <p className="font-medium">Nessuna categoria di spesa definita</p>
+                <p className="text-sm">Il bando associato a questo progetto non ha categorie di spesa configurate. Contatta l'amministratore per configurare le categorie.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -165,21 +232,32 @@ export default function ProjectConsuntivazione() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(Object.keys(EXPENSE_CATEGORY_LABELS) as ExpenseCategory[]).map(category => {
-                const budget = budgetPerCategory[category] || 0;
-                const spent = spentPerCategory[category] || 0;
+              {projectCategories.map(category => {
+                const budget = budgetPerCategory[category.id] || 0;
+                const spent = spentPerCategory[category.id] || 0;
                 const remaining = budget - spent;
                 const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                const categoryExpenses = expensesByCategory[category] || [];
+                const categoryExpenses = expensesByCategory[category.id] || [];
 
                 return (
                   <>
                     <TableRow
-                      key={category}
+                      key={category.id}
                       className={getRowColor(spent, budget)}
                     >
                       <TableCell className="font-bold">
-                        {EXPENSE_CATEGORY_LABELS[category]}
+                        <div>
+                          <div>{category.name}</div>
+                          {category.description && (
+                            <div className="text-xs text-muted-foreground font-normal">{category.description}</div>
+                          )}
+                          {(category.max_percentage || category.max_amount) && (
+                            <div className="text-xs text-muted-foreground font-normal">
+                              {category.max_percentage && `Max: ${category.max_percentage}%`}
+                              {category.max_amount && ` (€${category.max_amount.toLocaleString('it-IT')})`}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell></TableCell>
                       <TableCell className="text-right font-bold">
