@@ -39,34 +39,6 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
   const { transactions, reconcileTransaction } = useBankStatements();
   const { expenses } = useExpenses(projectId);
 
-  // Calculate matching suggestions
-  const matchingSuggestions = useMemo(() => {
-    const unreconciled = transactions.filter(t => !t.is_reconciled);
-    // Filter expenses that are not already reconciled with a bank transaction
-    const availableExpenses = expenses.filter(e => 
-      !transactions.some(t => t.expense_id === e.id && t.is_reconciled)
-    );
-    
-    const suggestions: MatchingSuggestion[] = [];
-
-    unreconciled.forEach(transaction => {
-      availableExpenses.forEach(expense => {
-        const match = calculateMatch(transaction, expense);
-        if (match.confidence >= 30) { // Include low confidence matches for manual review
-          suggestions.push({
-            transaction,
-            expense,
-            confidence: match.confidence,
-            reasons: match.reasons,
-            autoMatch: match.confidence >= confidenceThreshold
-          });
-        }
-      });
-    });
-
-    return suggestions.sort((a, b) => b.confidence - a.confidence);
-  }, [transactions, expenses, confidenceThreshold]);
-
   const calculateMatch = (transaction: BankTransaction, expense: Expense): {
     confidence: number;
     reasons: string[];
@@ -139,6 +111,34 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
 
     return { confidence: Math.min(confidence, 100), reasons };
   };
+
+  // Calculate matching suggestions
+  const matchingSuggestions = useMemo(() => {
+    const unreconciled = transactions.filter(t => !t.is_reconciled);
+    // Filter expenses that are not already reconciled with a bank transaction
+    const availableExpenses = expenses.filter(e => 
+      !transactions.some(t => t.expense_id === e.id && t.is_reconciled)
+    );
+    
+    const suggestions: MatchingSuggestion[] = [];
+
+    unreconciled.forEach(transaction => {
+      availableExpenses.forEach(expense => {
+        const match = calculateMatch(transaction, expense);
+        if (match.confidence >= 30) { // Include low confidence matches for manual review
+          suggestions.push({
+            transaction,
+            expense,
+            confidence: match.confidence,
+            reasons: match.reasons,
+            autoMatch: match.confidence >= confidenceThreshold
+          });
+        }
+      });
+    });
+
+    return suggestions.sort((a, b) => b.confidence - a.confidence);
+  }, [transactions, expenses, confidenceThreshold]);
 
   const filteredSuggestions = useMemo(() => {
     if (!searchTerm) return matchingSuggestions;
