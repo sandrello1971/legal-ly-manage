@@ -150,6 +150,14 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
         
         const result = await processExpenseReceipt(formData);
         
+        console.log('🔍 Initial processing result:', {
+          uploadId: upload.id,
+          projectId: upload.projectId,
+          resultCategory: result.category,
+          resultProjectCategory: result.projectCategory,
+          extractedData: result.extractedData
+        });
+        
         setUploads(prev => prev.map(u =>
           u.id === upload.id 
             ? {
@@ -220,7 +228,14 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
       
       const result = await processExpenseReceipt(formData);
       
-      setUploads(prev => prev.map(u => 
+      console.log('🔄 Reprocessing result:', {
+        uploadId: upload.id,
+        projectId: projectId,
+        resultCategory: result.category,
+        resultProjectCategory: result.projectCategory
+      });
+      
+      setUploads(prev => prev.map(u =>
         u.id === upload.id 
           ? {
               ...u,
@@ -595,7 +610,17 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                             <div>
                               <Label htmlFor={`category-${upload.id}`}>Categoria</Label>
                               <Select
-                                value={upload.projectCategory || upload.category || ''}
+                                key={`${upload.id}-${upload.projectId}-${upload.projectCategory}`}
+                                value={(() => {
+                                  console.log('📋 Select render:', {
+                                    uploadId: upload.id,
+                                    projectId: upload.projectId,
+                                    projectCategory: upload.projectCategory,
+                                    category: upload.category,
+                                    availableCategories: getProjectCategories(upload.projectId).map(c => c.id)
+                                  });
+                                  return upload.projectCategory || '';
+                                })()}
                                 onValueChange={(value) => updateUpload(upload.id, { projectCategory: value })}
                                 disabled={!upload.projectId}
                               >
