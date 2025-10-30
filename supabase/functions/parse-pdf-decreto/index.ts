@@ -83,7 +83,7 @@ const uploadPdfAndAnalyze = async (pdfBuffer: ArrayBuffer, fileName: string): Pr
       },
       body: JSON.stringify({
         name: 'Bando Analyzer',
-        instructions: 'Sei un esperto analista di bandi pubblici italiani. Analizza i documenti e estrai le informazioni richieste in formato JSON.',
+        instructions: 'Sei un esperto analista di bandi pubblici italiani. Leggi TUTTO il documento prima di rispondere. Cerca OGNI informazione richiesta, specialmente importi e budget. Non lasciare campi vuoti se l\'informazione esiste nel documento.',
         model: 'gpt-4o',
         tools: [{ type: 'file_search' }],
       }),
@@ -108,93 +108,101 @@ const uploadPdfAndAnalyze = async (pdfBuffer: ArrayBuffer, fileName: string): Pr
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `Sei un esperto analista di BANDI PUBBLICI ITALIANI. Il tuo compito è leggere COMPLETAMENTE il documento PDF allegato ed estrarre TUTTE le informazioni disponibili.
+          content: `Sei un esperto analista di BANDI PUBBLICI ITALIANI. Devi leggere TUTTO il documento PDF allegato dall'inizio alla fine e trovare TUTTE le informazioni richieste.
 
-⚠️ REGOLE FONDAMENTALI:
-1. DEVI leggere TUTTO il documento prima di rispondere
-2. DEVI compilare OGNI campo possibile con informazioni dal documento
-3. USA null SOLO se l'informazione è VERAMENTE assente nel documento
-4. NON lasciare campi vuoti se ci sono informazioni nel testo
+🎯 OBIETTIVO CRITICO: NON LASCIARE CAMPI NULL SE L'INFORMAZIONE ESISTE NEL DOCUMENTO
 
-📋 CERCA QUESTE INFORMAZIONI (con i loro sinonimi):
+📋 ISTRUZIONI DETTAGLIATE PER OGNI CAMPO:
 
-TITOLO DEL BANDO:
-- Cerca nell'intestazione, prima pagina
-- Parole chiave: "Bando", "Avviso", "Decreto", "Invito"
+1️⃣ IMPORTO TOTALE DEL BANDO (total_amount) - RICERCA APPROFONDITA:
+   Cerca in TUTTO il documento con questi termini:
+   - "dotazione finanziaria": es. "dotazione finanziaria pari a € 10.000.000"
+   - "risorse disponibili": es. "Le risorse disponibili ammontano a 5 milioni"
+   - "stanziamento": es. "stanziamento complessivo di euro 3.000.000"
+   - "budget": es. "budget totale di 8.000.000 EUR"
+   - "importo complessivo": es. "importo complessivo pari a 2.500.000"
+   - "fondi": es. "fondi messi a disposizione: 6 milioni di euro"
+   - Cerca anche nelle tabelle e nei riepiloghi finanziari
+   - Cerca nell'articolo che parla di "dotazione" o "risorse"
+   - CONVERTI sempre in numero: "5 milioni" = 5000000, "3,5 milioni" = 3500000
+   - Formati comuni: "€ 1.000.000,00" o "EUR 1.000.000" o "1 milione di euro"
 
-DESCRIZIONE E OBIETTIVI:
-- Cerca "Finalità", "Obiettivi", "Scopo del bando", "Premessa"
-- Riassumi lo scopo principale in 2-3 frasi
+2️⃣ IMPORTO MIN/MAX PER PROGETTO (min_funding, max_funding):
+   Cerca:
+   - "contributo minimo": es. "il contributo minimo è di € 50.000"
+   - "contributo massimo": es. "contributo massimo per progetto: € 500.000"
+   - "importo ammissibile": es. "importo min ammissibile 100.000, max 300.000"
+   - Spesso nelle sezioni "Caratteristiche del contributo" o "Importi"
 
-ENTE ORGANIZZATORE:
-- Cerca nell'intestazione: Regione, Ministero, Camera di Commercio, ecc.
+3️⃣ PERCENTUALE DI FINANZIAMENTO (funding_percentage):
+   Cerca:
+   - "intensità di aiuto": es. "intensità di aiuto pari all'80%"
+   - "quota di contributo": es. "la quota di contributo è pari al 70%"
+   - "percentuale di copertura": es. "percentuale di copertura: 60%"
+   - "cofinanziamento": es. "cofinanziamento al 50%"
+   - Può essere in forma "80% a fondo perduto"
 
-IMPORTI:
-- Dotazione totale: "dotazione finanziaria", "risorse disponibili", "stanziamento", "budget complessivo"
-- Contributo min/max per progetto: "contributo minimo/massimo", "importo ammissibile"
-- Percentuale finanziamento: "intensità di aiuto", "quota di contributo", "% di copertura", "cofinanziamento"
+4️⃣ DATE (application_deadline, project_duration_months):
+   - Scadenza: cerca "termine", "scadenza", "entro il", "entro e non oltre"
+   - Formati: "31/12/2025", "31 dicembre 2025", "entro il 15/03/2026"
+   - Converti in YYYY-MM-DD
+   - Durata: cerca "durata", "24 mesi", "due anni", "periodo di realizzazione"
 
-DATE E SCADENZE:
-- Scadenza domande: "termine ultimo", "entro il", "scadenza presentazione", "termine perentorio"
-- Date progetto: "durata progetto", "periodo di realizzazione", "inizio/fine lavori"
-- Cerca TUTTI i formati: gg/mm/aaaa, gg-mm-aaaa, "31 dicembre 2025", "entro il 31/12/2025"
+5️⃣ CATEGORIE DI SPESA (expense_categories):
+   Cerca sezioni:
+   - "Spese ammissibili"
+   - "Voci di costo"
+   - "Categorie di investimento"
+   Per OGNI categoria trova:
+   - Nome esatto (es. "Macchinari e attrezzature")
+   - Descrizione completa
+   - Limite percentuale (es. "max 70% del totale")
+   - Limite in euro (es. "max € 200.000")
+   - Lista spese specifiche ammissibili
 
-REQUISITI E CRITERI:
-- Requisiti ammissibilità: "chi può partecipare", "beneficiari", "soggetti ammissibili"
-- Criteri valutazione: "modalità di valutazione", "punteggi", "criteri di selezione"
+6️⃣ ALTRI CAMPI:
+   - Title: nell'intestazione principale
+   - Description: nella sezione "Finalità" o "Obiettivi"
+   - Organization: intestazione del documento
+   - Eligibility: sezione "Soggetti beneficiari" o "Chi può partecipare"
+   - Evaluation: sezione "Criteri di valutazione"
+   - Required docs: sezione "Documentazione" o "Allegati"
 
-DOCUMENTI RICHIESTI:
-- Cerca "allegati", "documentazione da presentare", "modulistica"
-- Elenca TUTTI i documenti menzionati
-
-CATEGORIE DI SPESA:
-- Cerca "spese ammissibili", "voci di costo", "categorie di spesa", "investimenti ammissibili"
-- Per OGNI categoria, cerca limiti (% o importo massimo)
-- Cerca "costi indiretti", "forfait", "costi diretti"
-
-DESTINATARI:
-- PMI, startup, università, enti pubblici, ecc.
-- Cerca "soggetti beneficiari", "destinatari"
-
-AMBITO:
-- Territoriale: Lombardia, Italia, Europa
-- Settoriale: innovazione, ricerca, digitalizzazione
-
-📤 FORMATO RISPOSTA:
-Rispondi SOLO con un oggetto JSON valido (senza markdown, senza \`\`\`):
+📤 FORMATO RISPOSTA (JSON PURO, SENZA MARKDOWN):
 {
-  "title": "TITOLO ESATTO del bando (obbligatorio)",
-  "description": "Descrizione dettagliata degli obiettivi (2-3 frasi)",
-  "organization": "Nome ente organizzatore",
-  "total_amount": 5000000,
-  "min_funding": 100000,
+  "title": "TITOLO COMPLETO DEL BANDO",
+  "description": "Descrizione dettagliata obiettivi e finalità",
+  "organization": "Ente organizzatore",
+  "total_amount": 10000000,
+  "min_funding": 50000,
   "max_funding": 500000,
   "funding_percentage": 80,
   "application_deadline": "2025-12-31",
   "project_duration_months": 24,
-  "eligibility_criteria": "Descrizione requisiti completa",
-  "evaluation_criteria": "Descrizione criteri valutazione",
-  "required_documents": ["documento 1", "documento 2"],
+  "eligibility_criteria": "Requisiti dettagliati",
+  "evaluation_criteria": "Criteri di valutazione",
+  "required_documents": ["doc1", "doc2"],
   "expense_categories": [
     {
-      "name": "Nome categoria esatto",
-      "description": "Descrizione categoria",
-      "max_percentage": 60,
-      "max_amount": 300000,
-      "eligible_expenses": ["spesa 1", "spesa 2"]
+      "name": "Nome categoria",
+      "description": "Descrizione",
+      "max_percentage": 70,
+      "max_amount": 200000,
+      "eligible_expenses": ["spesa1", "spesa2"]
     }
   ],
-  "target_companies": "PMI, startup, università",
-  "geographic_scope": "Lombardia",
-  "innovation_areas": ["AI", "Green Tech"]
+  "target_companies": "Destinatari",
+  "geographic_scope": "Ambito territoriale",
+  "innovation_areas": ["area1", "area2"]
 }
 
-⚠️ IMPORTANTE:
-- Numeri come numeri (no stringhe): 1000000 non "1000000"
-- Date formato: "YYYY-MM-DD"
-- null se informazione assente (no "", no 0)
-- JSON valido senza commenti
-- NO markdown, NO \`\`\`, SOLO JSON puro`,
+⚠️ REGOLE FINALI:
+- Numeri come NUMERI: 1000000 NON "1.000.000"
+- Date: formato "YYYY-MM-DD"
+- null SOLO se informazione ASSENTE
+- NO markdown, NO \`\`\`, SOLO JSON
+- Leggi TUTTO il documento prima di rispondere
+- Se trovi l'importo in milioni, CONVERTI: 5 milioni = 5000000`,
           attachments: [{
             file_id: fileId,
             tools: [{ type: 'file_search' }],
