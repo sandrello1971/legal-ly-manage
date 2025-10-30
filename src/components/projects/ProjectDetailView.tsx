@@ -6,6 +6,17 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,7 +57,7 @@ interface ProjectDetailViewProps {
 
 export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: ProjectDetailViewProps) => {
   const navigate = useNavigate();
-  const { expenses, updateExpense, refetch } = useExpenses(project.id);
+  const { expenses, updateExpense, deleteExpense, refetch } = useExpenses(project.id);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
@@ -645,14 +656,48 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
                 {expenses && expenses.length > 0 ? (
                   <div className="space-y-3">
                     {expenses.map((expense) => (
-                      <div key={expense.id} className="flex justify-between items-center border-b pb-2 hover:bg-muted/50 p-2 rounded transition-colors">
+                      <div key={expense.id} className="flex justify-between items-center border-b pb-2 hover:bg-muted/50 p-2 rounded transition-colors group">
                         <div className="flex-1">
                           <p className="font-medium text-sm">{expense.description}</p>
                           <p className="text-xs text-muted-foreground">
                             {expense.expense_date && format(new Date(expense.expense_date), 'dd MMM yyyy', { locale: it })}
                           </p>
                         </div>
-                        <span className="font-medium">{formatCurrency(expense.amount)}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium">{formatCurrency(expense.amount)}</span>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Sei sicuro di voler eliminare questa spesa? L'operazione non può essere annullata.
+                                  <br /><br />
+                                  <strong>Spesa:</strong> {expense.description}
+                                  <br />
+                                  <strong>Importo:</strong> {formatCurrency(expense.amount)}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteExpense(expense.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Elimina
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     ))}
                   </div>
