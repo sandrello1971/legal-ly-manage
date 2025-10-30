@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,12 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
   const [manualNotes, setManualNotes] = useState('');
   const { transactions, reconcileTransaction, refetch: refetchTransactions } = useBankStatements();
   const { expenses, refetch: refetchExpenses } = useExpenses(projectId);
+
+  // Refresh data when component mounts or becomes visible
+  useEffect(() => {
+    refetchTransactions();
+    refetchExpenses();
+  }, [refetchTransactions, refetchExpenses]);
 
   // Extract reference numbers from text (invoice numbers, etc.)
   const extractReferences = (text: string): string[] => {
