@@ -63,9 +63,26 @@ export default function ProjectConsuntivazione() {
       grouped[cat.id] = [];
     });
 
+    // Mapping categorie standard -> categorie progetto
+    const categoryMapping: Record<string, string[]> = {
+      'equipment': ['investimenti_materiali', 'investimenti_immateriali', 'attrezzature'],
+      'personnel': ['personale', 'risorse_umane', 'costi_personale'],
+      'materials': ['adeguamenti_spazi', 'materiali', 'infrastruttura'],
+      'services': ['consulenza', 'servizi', 'formazione'],
+      'travel': ['viaggi', 'trasferte', 'mobilita']
+    };
+
     expenses.forEach(expense => {
-      if (expense.category && grouped[expense.category]) {
-        grouped[expense.category].push(expense);
+      if (!expense.category) return;
+      
+      // Trova la categoria del progetto corrispondente
+      const possibleProjectCategories = categoryMapping[expense.category] || [];
+      const matchingProjectCategory = projectCategories.find(cat => 
+        possibleProjectCategories.includes(cat.id) || cat.id === expense.category
+      );
+      
+      if (matchingProjectCategory && grouped[matchingProjectCategory.id]) {
+        grouped[matchingProjectCategory.id].push(expense);
       }
     });
 
