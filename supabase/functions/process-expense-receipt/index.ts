@@ -569,10 +569,34 @@ Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
             
             // Map project category to standard enum category
             category = mapProjectCategoryToStandard(projectCategory);
+          } else {
+            // AI didn't return a valid project category, use fallback
+            console.log('AI returned invalid category:', aiCategory, 'using fallback');
+            const classification = classifyElectronicInvoice(description, supplierName);
+            category = classification.category;
+            confidence = classification.confidence;
+            
+            // Try to map standard category back to project category
+            const categoryMapping: Record<string, string[]> = {
+              'equipment': ['investimenti_materiali', 'investimenti_immateriali', 'attrezzature'],
+              'personnel': ['personale', 'risorse_umane'],
+              'materials': ['adeguamenti_spazi', 'materiali'],
+              'services': ['consulenza', 'servizi'],
+              'travel': ['viaggi', 'trasferte']
+            };
+            
+            const possibleProjectCategories = categoryMapping[category] || [];
+            projectCategory = projectCategories.find((cat: any) => 
+              possibleProjectCategories.includes(cat.id)
+            )?.id;
           }
         }
       } catch (error) {
         console.error('Error classifying with AI:', error);
+        // Fallback to rule-based if AI fails
+        const classification = classifyElectronicInvoice(description, supplierName);
+        category = classification.category;
+        confidence = classification.confidence;
       }
     }
   } else {
