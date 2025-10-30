@@ -2337,6 +2337,7 @@ export type Database = {
           id: string
           is_approved: boolean | null
           milestone_id: string | null
+          project_category: string | null
           project_id: string
           receipt_number: string | null
           receipt_url: string | null
@@ -2358,6 +2359,7 @@ export type Database = {
           id?: string
           is_approved?: boolean | null
           milestone_id?: string | null
+          project_category?: string | null
           project_id: string
           receipt_number?: string | null
           receipt_url?: string | null
@@ -2379,6 +2381,7 @@ export type Database = {
           id?: string
           is_approved?: boolean | null
           milestone_id?: string | null
+          project_category?: string | null
           project_id?: string
           receipt_number?: string | null
           receipt_url?: string | null

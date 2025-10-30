@@ -8,6 +8,7 @@ export interface Expense {
   project_id: string;
   milestone_id?: string;
   category: 'personnel' | 'equipment' | 'materials' | 'services' | 'travel' | 'other';
+  project_category?: string; // AI-classified project-specific category
   description: string;
   amount: number;
   amount_spent?: number;

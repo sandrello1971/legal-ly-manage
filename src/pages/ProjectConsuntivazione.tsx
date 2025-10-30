@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, FileText, AlertCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, AlertCircle, Trash2, Pencil } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
 import {
@@ -18,6 +18,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useBandi } from '@/hooks/useBandi';
+import { ExpenseEditDialog } from '@/components/expenses/ExpenseEditDialog';
+import { Expense } from '@/hooks/useExpenses';
 
 interface ExpenseCategory {
   id: string;
@@ -31,7 +33,8 @@ export default function ProjectConsuntivazione() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
-  const { expenses, loading: loadingExpenses, deleteExpense } = useExpenses(projectId);
+  const { expenses, loading: loadingExpenses, deleteExpense, updateExpense } = useExpenses(projectId);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   const project = useMemo(() => 
     projects.find(p => p.id === projectId),
@@ -54,7 +57,7 @@ export default function ProjectConsuntivazione() {
     return [];
   }, [project]);
 
-  // Group expenses by category
+  // Group expenses by project_category (AI-classified)
   const expensesByCategory = useMemo(() => {
     if (projectCategories.length === 0) return {};
     
@@ -63,26 +66,11 @@ export default function ProjectConsuntivazione() {
       grouped[cat.id] = [];
     });
 
-    // Mapping categorie standard -> categorie progetto
-    const categoryMapping: Record<string, string[]> = {
-      'equipment': ['investimenti_materiali', 'investimenti_immateriali', 'attrezzature'],
-      'personnel': ['personale', 'risorse_umane', 'costi_personale'],
-      'materials': ['adeguamenti_spazi', 'materiali', 'infrastruttura'],
-      'services': ['consulenza', 'servizi', 'formazione'],
-      'travel': ['viaggi', 'trasferte', 'mobilita']
-    };
-
     expenses.forEach(expense => {
-      if (!expense.category) return;
-      
-      // Trova la categoria del progetto corrispondente
-      const possibleProjectCategories = categoryMapping[expense.category] || [];
-      const matchingProjectCategory = projectCategories.find(cat => 
-        possibleProjectCategories.includes(cat.id) || cat.id === expense.category
-      );
-      
-      if (matchingProjectCategory && grouped[matchingProjectCategory.id]) {
-        grouped[matchingProjectCategory.id].push(expense);
+      // Use project_category if available (AI-classified), otherwise fallback to category
+      const categoryKey = expense.project_category || expense.category;
+      if (categoryKey && grouped[categoryKey]) {
+        grouped[categoryKey].push(expense);
       }
     });
 
@@ -330,38 +318,48 @@ export default function ProjectConsuntivazione() {
                         <TableCell></TableCell>
                         <TableCell></TableCell>
                         <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Sei sicuro di voler eliminare questa spesa? L'operazione non può essere annullata.
-                                  <br /><br />
-                                  <strong>Spesa:</strong> {expense.description}
-                                  <br />
-                                  <strong>Importo:</strong> {formatCurrency(expense.amount)}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Annulla</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteExpense(expense.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 hover:bg-accent"
+                              onClick={() => setEditingExpense(expense)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 >
-                                  Elimina
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Sei sicuro di voler eliminare questa spesa? L'operazione non può essere annullata.
+                                    <br /><br />
+                                    <strong>Spesa:</strong> {expense.description}
+                                    <br />
+                                    <strong>Importo:</strong> {formatCurrency(expense.amount)}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteExpense(expense.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Elimina
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -384,6 +382,16 @@ export default function ProjectConsuntivazione() {
           </Table>
         </CardContent>
       </Card>
+
+      {editingExpense && (
+        <ExpenseEditDialog
+          expense={editingExpense}
+          open={!!editingExpense}
+          onOpenChange={(open) => !open && setEditingExpense(null)}
+          onSave={updateExpense}
+          projectCategories={projectCategories}
+        />
+      )}
     </div>
   );
 }

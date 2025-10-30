@@ -264,6 +264,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
           project_id: upload.projectId,
           milestone_id: upload.milestoneId,
           category: standardCategory as any,
+          project_category: upload.projectCategory, // Store AI-classified project category
           description: upload.extractedData?.description || 'Spesa da ricevuta',
           amount: upload.extractedData?.amount || 0,
           expense_date: upload.extractedData?.date || new Date().toISOString().split('T')[0],
