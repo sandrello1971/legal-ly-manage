@@ -74,6 +74,8 @@ export const useExpenses = (projectId?: string) => {
       setLoading(true);
       setError(null);
 
+      console.log('Fetching expenses for project:', projectId);
+
       let query = supabase
         .from('project_expenses')
         .select('*')
@@ -83,17 +85,24 @@ export const useExpenses = (projectId?: string) => {
         query = query.eq('project_id', projectId);
       }
 
+      console.log('Executing query...');
       const { data, error: fetchError } = await query;
 
-      if (fetchError) throw fetchError;
+      console.log('Query result:', { data, error: fetchError });
 
+      if (fetchError) {
+        console.error('Fetch error details:', fetchError);
+        throw fetchError;
+      }
+
+      console.log(`Fetched ${data?.length || 0} expenses`);
       setExpenses(data || []);
     } catch (err: any) {
       console.error('Error fetching expenses:', err);
       setError(err.message);
       toast({
         title: 'Errore',
-        description: 'Impossibile caricare le spese',
+        description: `Impossibile caricare le spese: ${err.message}`,
         variant: 'destructive',
       });
     } finally {
