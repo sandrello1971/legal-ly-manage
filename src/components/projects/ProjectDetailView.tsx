@@ -1240,67 +1240,73 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
             </CardContent>
           </Card>
 
-          {/* Fornitori e Fatture Previste */}
+          {/* Fornitori e Fatture */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Building2 className="h-5 w-5 mr-2" />
-                Fornitori e Fatture di Riferimento
+                Fornitori e Fatture
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-base">TecnoLab S.p.A.</p>
-                      <p className="text-sm text-muted-foreground">Strumentazione scientifica</p>
+              {expenses && expenses.length > 0 ? (
+                <div className="space-y-3">
+                  {expenses.map((expense) => (
+                    <div 
+                      key={expense.id}
+                      className={`p-4 rounded-lg border-l-4 ${
+                        expense.is_approved 
+                          ? 'bg-green-50 dark:bg-green-950 border-green-500' 
+                          : expense.is_approved === false
+                          ? 'bg-red-50 dark:bg-red-950 border-red-500'
+                          : 'bg-yellow-50 dark:bg-yellow-950 border-yellow-500'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <p className="font-semibold text-base">{expense.supplier_name}</p>
+                          <p className="text-sm text-muted-foreground">{getCategoryLabel(expense.category)}</p>
+                          {expense.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{expense.description}</p>
+                          )}
+                          {expense.expense_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Data: {format(new Date(expense.expense_date), 'dd/MM/yyyy', { locale: it })}
+                            </p>
+                          )}
+                        </div>
+                        <Badge className={
+                          expense.is_approved 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : expense.is_approved === false
+                            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                        }>
+                          {expense.is_approved ? 'Ammissibile' : expense.is_approved === false ? 'Non ammissibile' : 'In revisione'}
+                        </Badge>
+                      </div>
+                      <p className={`text-2xl font-bold ${
+                        expense.is_approved 
+                          ? 'text-green-600 dark:text-green-400'
+                          : expense.is_approved === false
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-yellow-600 dark:text-yellow-400'
+                      }`}>
+                        {formatCurrency(expense.amount)}
+                      </p>
                     </div>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ammissibile</Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€1.200.000</p>
+                  ))}
                 </div>
-                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-base">CloudSoft S.R.L.</p>
-                      <p className="text-sm text-muted-foreground">Licenze software / SaaS</p>
-                    </div>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ammissibile</Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€180.000</p>
+              ) : (
+                <div className="text-center py-8">
+                  <Building2 className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-muted-foreground">Nessuna fattura caricata</p>
+                  <Button variant="outline" size="sm" className="mt-4" onClick={onAddExpense}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Carica Prima Fattura
+                  </Button>
                 </div>
-                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-base">EdilImpianti S.R.L.</p>
-                      <p className="text-sm text-muted-foreground">Adeguamenti locali</p>
-                    </div>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ammissibile</Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">€250.000</p>
-                </div>
-                <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border-l-4 border-red-500">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-base">Viaggi & Congressi S.R.L.</p>
-                      <p className="text-sm text-muted-foreground">Trasferte e alloggi</p>
-                    </div>
-                    <Badge variant="destructive">Non ammissibile</Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">€6.500</p>
-                </div>
-                <div className="p-4 bg-red-50 dark:bg-red-950 rounded-lg border-l-4 border-red-500">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <p className="font-semibold text-base">Promo&Ads S.R.L.</p>
-                      <p className="text-sm text-muted-foreground">Campagna pubblicitaria</p>
-                    </div>
-                    <Badge variant="destructive">Non ammissibile</Badge>
-                  </div>
-                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">€12.000</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
