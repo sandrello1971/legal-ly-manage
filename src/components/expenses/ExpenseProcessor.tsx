@@ -376,9 +376,9 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                             )}
                           </div>
                         )}
-                        {upload.extractedData?.invoiceType === 'electronic' && upload.validation && (
-                          <Badge variant="outline">
-                            Richiede approvazione manuale
+                        {upload.status === 'completed' && upload.confidence !== undefined && upload.confidence < 0.8 && (
+                          <Badge variant={upload.confidence >= 0.6 ? "outline" : "destructive"}>
+                            {upload.confidence >= 0.6 ? "Verificare" : "Da eliminare"}
                           </Badge>
                         )}
                         {upload.status === 'error' && (
@@ -446,13 +446,6 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                         <TabsContent value="validation" className="space-y-4">
                           {upload.validation ? (
                             <div className="space-y-4">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle className="h-5 w-5 text-blue-500" />
-                                <span className="font-medium">
-                                  Fattura analizzata - Richiede approvazione manuale
-                                </span>
-                              </div>
-                              
                               <div className="grid grid-cols-1 gap-4">
                                 <div>
                                   <Label>Verifica Codice Progetto</Label>
