@@ -227,6 +227,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
               status: 'completed',
               confidence: result.confidence || 0.8,
               category: result.category,
+              projectCategory: result.projectCategory, // Project-specific category
               extractedData: result.extractedData,
               validation: result.validation
             }
