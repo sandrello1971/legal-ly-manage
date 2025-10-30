@@ -271,7 +271,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
           supplier_name: upload.extractedData?.supplier,
           receipt_number: upload.extractedData?.receiptNumber,
           file_hash: upload.fileHash,
-          is_approved: true // Imposta automaticamente come approvata al caricamento
+          is_approved: false // Le fatture richiedono approvazione manuale
         });
       } catch (error) {
         console.error('Error creating expense:', error);
@@ -377,8 +377,8 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                           </div>
                         )}
                         {upload.extractedData?.invoiceType === 'electronic' && upload.validation && (
-                          <Badge variant={upload.validation.shouldApprove ? "default" : "destructive"}>
-                            {upload.validation.shouldApprove ? "Approvata automaticamente" : "Richiede verifica"}
+                          <Badge variant="outline">
+                            Richiede approvazione manuale
                           </Badge>
                         )}
                         {upload.status === 'error' && (
@@ -447,13 +447,9 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                           {upload.validation ? (
                             <div className="space-y-4">
                               <div className="flex items-center gap-2">
-                                {upload.validation.shouldApprove ? (
-                                  <CheckCircle className="h-5 w-5 text-success" />
-                                ) : (
-                                  <AlertCircle className="h-5 w-5 text-destructive" />
-                                )}
+                                <AlertCircle className="h-5 w-5 text-blue-500" />
                                 <span className="font-medium">
-                                  {upload.validation.shouldApprove ? 'Fattura validata automaticamente' : 'Verifica manuale richiesta'}
+                                  Fattura analizzata - Richiede approvazione manuale
                                 </span>
                               </div>
                               
