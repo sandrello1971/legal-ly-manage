@@ -42,12 +42,15 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
   // Calculate matching suggestions
   const matchingSuggestions = useMemo(() => {
     const unreconciled = transactions.filter(t => !t.is_reconciled);
-    const pendingExpenses = expenses.filter(e => !e.is_approved);
+    // Filter expenses that are not already reconciled with a bank transaction
+    const availableExpenses = expenses.filter(e => 
+      !transactions.some(t => t.expense_id === e.id && t.is_reconciled)
+    );
     
     const suggestions: MatchingSuggestion[] = [];
 
     unreconciled.forEach(transaction => {
-      pendingExpenses.forEach(expense => {
+      availableExpenses.forEach(expense => {
         const match = calculateMatch(transaction, expense);
         if (match.confidence >= 30) { // Include low confidence matches for manual review
           suggestions.push({
