@@ -47,21 +47,28 @@ export function BankStatementUploader() {
     // Process each file
     for (const fileData of newFiles) {
       try {
+        console.log('Starting upload for:', fileData.file.name);
         updateFileStatus(fileData.id, { status: 'uploading', progress: 25 });
         
         const statementId = await uploadStatement(fileData.file);
+        console.log('Upload complete, statement ID:', statementId);
+        
         updateFileStatus(fileData.id, { 
           status: 'processing', 
           progress: 50, 
           statementId 
         });
 
+        console.log('Starting processing for statement:', statementId);
         await processStatement(statementId);
+        console.log('Processing complete');
+        
         updateFileStatus(fileData.id, { 
           status: 'completed', 
           progress: 100 
         });
       } catch (error) {
+        console.error('Error processing file:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         updateFileStatus(fileData.id, { 
           status: 'error', 
@@ -72,6 +79,7 @@ export function BankStatementUploader() {
     }
     
     // Refresh data after all files are processed
+    console.log('Refreshing statements list');
     await refetch();
   }
 
