@@ -199,7 +199,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
           supplier_name: upload.extractedData?.supplier,
           receipt_number: upload.extractedData?.receiptNumber,
           file_hash: upload.fileHash,
-          is_approved: null // Imposta esplicitamente a null per status "pending"
+          is_approved: true // Imposta automaticamente come approvata al caricamento
         });
       } catch (error) {
         console.error('Error creating expense:', error);
