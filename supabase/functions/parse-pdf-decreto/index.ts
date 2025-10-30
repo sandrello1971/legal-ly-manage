@@ -15,6 +15,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const uploadPdfAndAnalyze = async (pdfBuffer: ArrayBuffer, fileName: string): Promise<string> => {
   try {
     console.log('📤 Uploading PDF to OpenAI...');
+    console.log('📊 PDF size:', (pdfBuffer.byteLength / 1024 / 1024).toFixed(2), 'MB');
     
     // Create a File object from the buffer
     const pdfBlob = new Blob([pdfBuffer], { type: 'application/pdf' });
@@ -22,19 +23,49 @@ const uploadPdfAndAnalyze = async (pdfBuffer: ArrayBuffer, fileName: string): Pr
     formData.append('file', pdfBlob, fileName);
     formData.append('purpose', 'assistants');
     
-    // Upload the file
-    const uploadResponse = await fetch('https://api.openai.com/v1/files', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-      },
-      body: formData,
-    });
+    // Upload the file with retry logic
+    let uploadResponse;
+    let lastError;
+    const maxRetries = 3;
     
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error('❌ File upload error:', uploadResponse.status, errorText);
-      throw new Error(`Failed to upload file: ${uploadResponse.status}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`📤 Upload attempt ${attempt}/${maxRetries}...`);
+        uploadResponse = await fetch('https://api.openai.com/v1/files', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+          },
+          body: formData,
+        });
+        
+        if (uploadResponse.ok) {
+          break;
+        }
+        
+        const errorText = await uploadResponse.text();
+        lastError = `${uploadResponse.status}: ${errorText}`;
+        console.error(`❌ Upload attempt ${attempt} failed:`, lastError);
+        
+        if (attempt < maxRetries) {
+          const waitTime = attempt * 2000; // 2s, 4s, 6s
+          console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      } catch (fetchError) {
+        lastError = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+        console.error(`❌ Upload attempt ${attempt} error:`, lastError);
+        
+        if (attempt < maxRetries) {
+          const waitTime = attempt * 2000;
+          console.log(`⏳ Waiting ${waitTime}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+    
+    if (!uploadResponse || !uploadResponse.ok) {
+      throw new Error(`Failed to upload file after ${maxRetries} attempts. Last error: ${lastError}`);
     }
     
     const fileData = await uploadResponse.json();
