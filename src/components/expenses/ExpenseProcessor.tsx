@@ -150,13 +150,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
         
         const result = await processExpenseReceipt(formData);
         
-        console.log('Expense processing result:', {
-          category: result.category,
-          projectCategory: result.projectCategory,
-          fullResult: result
-        });
-        
-        setUploads(prev => prev.map(u => 
+        setUploads(prev => prev.map(u =>
           u.id === upload.id 
             ? {
                 ...u,
@@ -601,17 +595,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                             <div>
                               <Label htmlFor={`category-${upload.id}`}>Categoria</Label>
                               <Select
-                                value={(() => {
-                                  const value = upload.projectCategory || upload.category;
-                                  console.log('Select category value:', {
-                                    uploadId: upload.id,
-                                    projectCategory: upload.projectCategory,
-                                    category: upload.category,
-                                    selectedValue: value,
-                                    availableCategories: getProjectCategories(upload.projectId)
-                                  });
-                                  return value;
-                                })()}
+                                value={upload.projectCategory || upload.category || ''}
                                 onValueChange={(value) => updateUpload(upload.id, { projectCategory: value })}
                                 disabled={!upload.projectId}
                               >
