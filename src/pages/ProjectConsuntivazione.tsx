@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, FileText, AlertCircle, Trash2, Pencil } from 'lucide-react';
+import { ArrowLeft, FileText, AlertCircle, Trash2, Pencil, CheckCircle2, XCircle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
+import { useBankStatements } from '@/hooks/useBankStatements';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BankStatementUploader } from '@/components/banking/BankStatementUploader';
 import { ReconciliationEngine } from '@/components/banking/ReconciliationEngine';
@@ -37,7 +39,13 @@ export default function ProjectConsuntivazione() {
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
   const { expenses, loading: loadingExpenses, deleteExpense, updateExpense } = useExpenses(projectId);
+  const { transactions } = useBankStatements();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+
+  // Check if an expense is reconciled with a bank transaction
+  const isExpenseReconciled = (expenseId: string) => {
+    return transactions.some(t => t.expense_id === expenseId && t.is_reconciled);
+  };
 
   const project = useMemo(() => 
     projects.find(p => p.id === projectId),
@@ -306,7 +314,9 @@ export default function ProjectConsuntivazione() {
                           <TableCell></TableCell>
                         </TableRow>
                         
-                        {categoryExpenses.map(expense => (
+                        {categoryExpenses.map(expense => {
+                          const isReconciled = isExpenseReconciled(expense.id);
+                          return (
                           <TableRow key={expense.id} className="border-l-4 border-l-muted">
                             <TableCell className="pl-8">
                               <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -314,6 +324,17 @@ export default function ProjectConsuntivazione() {
                                 <span>{expense.description}</span>
                                 {expense.receipt_number && (
                                   <span className="text-xs">({expense.receipt_number})</span>
+                                )}
+                                {isReconciled ? (
+                                  <Badge variant="default" className="ml-2 gap-1 bg-success text-success-foreground">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Rendicontabile
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="ml-2 gap-1 text-muted-foreground">
+                                    <XCircle className="h-3 w-3" />
+                                    Non riconciliata
+                                  </Badge>
                                 )}
                               </div>
                             </TableCell>
@@ -371,7 +392,8 @@ export default function ProjectConsuntivazione() {
                               </div>
                             </TableCell>
                       </TableRow>
-                    ))}
+                        );
+                      })}
                   </React.Fragment>
                 );
               })}
