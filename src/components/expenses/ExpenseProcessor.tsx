@@ -24,6 +24,7 @@ interface ProcessedExpense extends ExpenseUpload {
   error?: string;
   fileHash?: string;
   confidenceExplanation?: string;
+  projectCategory?: string; // Project-specific category from AI
   duplicateInfo?: {
     existingExpense: any;
   };
@@ -40,6 +41,43 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
   const { processExpenseReceipt, createExpense } = useExpenses();
   const { projects } = useProjects();
   const { bandi } = useBandi();
+
+  // Map project-specific categories to standard enum categories
+  const mapProjectCategoryToStandard = useCallback((projectCategory: string): string => {
+    const categoryMap: Record<string, string> = {
+      // Personnel related
+      'personale': 'personnel',
+      'risorse_umane': 'personnel',
+      'costi_personale': 'personnel',
+      
+      // Equipment and investments
+      'investimenti_materiali': 'equipment',
+      'investimenti_immateriali': 'equipment',
+      'attrezzature': 'equipment',
+      'hardware': 'equipment',
+      'software': 'equipment',
+      'macchinari': 'equipment',
+      
+      // Services and consulting
+      'consulenza': 'services',
+      'servizi': 'services',
+      'formazione': 'services',
+      'training': 'services',
+      
+      // Infrastructure
+      'adeguamenti_spazi': 'materials',
+      'materiali': 'materials',
+      'infrastruttura': 'materials',
+      
+      // Travel
+      'viaggi': 'travel',
+      'trasferte': 'travel',
+      'mobilita': 'travel',
+    };
+    
+    const normalizedCategory = projectCategory.toLowerCase().trim();
+    return categoryMap[normalizedCategory] || 'other';
+  }, []);
 
   // Get categories for selected project (from project's parsed_data)
   const getProjectCategories = useCallback((projectId: string) => {
@@ -120,7 +158,8 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                 fileHash,
                 confidence: result.confidence ?? 0.8,
                 confidenceExplanation: result.confidenceExplanation,
-                category: result.category,
+                category: result.category, // Standard category for DB
+                projectCategory: result.projectCategory, // Project-specific category for UI
                 extractedData: result.extractedData,
                 validation: result.validation
               }
@@ -215,10 +254,15 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
     
     for (const upload of completedUploads) {
       try {
+        // Map project category to standard category for database
+        const standardCategory = upload.projectCategory 
+          ? mapProjectCategoryToStandard(upload.projectCategory)
+          : (upload.category || 'other');
+        
         await createExpense({
           project_id: upload.projectId,
           milestone_id: upload.milestoneId,
-          category: upload.category as any,
+          category: standardCategory as any,
           description: upload.extractedData?.description || 'Spesa da ricevuta',
           amount: upload.extractedData?.amount || 0,
           expense_date: upload.extractedData?.date || new Date().toISOString().split('T')[0],
@@ -550,8 +594,8 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                             <div>
                               <Label htmlFor={`category-${upload.id}`}>Categoria</Label>
                               <Select
-                                value={upload.category}
-                                onValueChange={(value) => updateUpload(upload.id, { category: value })}
+                                value={upload.projectCategory || upload.category}
+                                onValueChange={(value) => updateUpload(upload.id, { projectCategory: value })}
                                 disabled={!upload.projectId}
                               >
                                 <SelectTrigger>
