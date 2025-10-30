@@ -41,41 +41,29 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
   const { projects } = useProjects();
   const { bandi } = useBandi();
 
-  // Get categories for selected project (from bando or standard fallback)
+  // Get categories for selected project (from project's parsed_data)
   const getProjectCategories = useCallback((projectId: string) => {
     const project = projects.find(p => p.id === projectId);
-    if (!project?.bando_id) {
-      // No bando, return standard categories
-      return [
-        { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
-        { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
-        { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
-        { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
-        { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
-        { id: 'other', name: 'Altro', description: 'Altre spese' }
-      ];
+    
+    // Get categories from project's parsed budget data
+    if (project?.parsed_data?.budget?.categories && project.parsed_data.budget.categories.length > 0) {
+      return project.parsed_data.budget.categories.map((cat: any) => ({
+        id: cat.name.toLowerCase().replace(/\s+/g, '_'),
+        name: cat.name,
+        description: cat.description || ''
+      }));
     }
     
-    const bando = bandi.find(b => b.id === project.bando_id);
-    if (!bando?.parsed_data?.expense_categories || bando.parsed_data.expense_categories.length === 0) {
-      // Bando has no categories, return standard categories
-      return [
-        { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
-        { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
-        { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
-        { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
-        { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
-        { id: 'other', name: 'Altro', description: 'Altre spese' }
-      ];
-    }
-    
-    // Return categories from bando
-    return bando.parsed_data.expense_categories.map((cat: any) => ({
-      id: cat.name.toLowerCase().replace(/\s+/g, '_'),
-      name: cat.name,
-      description: cat.description || ''
-    }));
-  }, [projects, bandi]);
+    // Fallback to standard categories if no project categories are defined
+    return [
+      { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
+      { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
+      { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
+      { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
+      { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
+      { id: 'other', name: 'Altro', description: 'Altre spese' }
+    ];
+  }, [projects]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const newUploads: ProcessedExpense[] = acceptedFiles.map((file, index) => ({
