@@ -66,15 +66,17 @@ export const useExpenses = (projectId?: string) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const fetchExpenses = async () => {
+    if (isFetching) return;
+    
     try {
+      setIsFetching(true);
       setLoading(true);
       setError(null);
-
-      console.log('Fetching expenses for project:', projectId);
 
       let query = supabase
         .from('project_expenses')
@@ -85,28 +87,18 @@ export const useExpenses = (projectId?: string) => {
         query = query.eq('project_id', projectId);
       }
 
-      console.log('Executing query...');
       const { data, error: fetchError } = await query;
 
-      console.log('Query result:', { data, error: fetchError });
+      if (fetchError) throw fetchError;
 
-      if (fetchError) {
-        console.error('Fetch error details:', fetchError);
-        throw fetchError;
-      }
-
-      console.log(`Fetched ${data?.length || 0} expenses`);
       setExpenses(data || []);
     } catch (err: any) {
       console.error('Error fetching expenses:', err);
       setError(err.message);
-      toast({
-        title: 'Errore',
-        description: `Impossibile caricare le spese: ${err.message}`,
-        variant: 'destructive',
-      });
+      // Non mostrare toast per evitare loop
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 

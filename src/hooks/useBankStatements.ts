@@ -52,10 +52,14 @@ export function useBankStatements() {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(false);
   const { toast } = useToast();
 
   const fetchStatements = async () => {
+    if (isFetching) return;
+    
     try {
+      setIsFetching(true);
       setLoading(true);
       setError(null);
 
@@ -73,11 +77,15 @@ export function useBankStatements() {
       console.error('Error fetching bank statements:', err);
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 
   const fetchTransactions = async (statementId?: string) => {
+    if (isFetching) return;
+    
     try {
+      setIsFetching(true);
       setLoading(true);
       setError(null);
 
@@ -101,6 +109,7 @@ export function useBankStatements() {
       console.error('Error fetching transactions:', err);
     } finally {
       setLoading(false);
+      setIsFetching(false);
     }
   };
 
