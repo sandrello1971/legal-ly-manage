@@ -73,17 +73,14 @@ export default function Bandi() {
 
   const handleSaveBando = async (data: any) => {
     try {
-      let saved;
       if (editingBando) {
-        saved = await updateBando(editingBando.id, data);
+        await updateBando(editingBando.id, data);
       } else {
-        saved = await createBando(data);
+        await createBando(data);
       }
-      // Forza un refetch per sincronizzare lo stato
-      await refetch();
+      // No need to refetch - state is already updated locally
       setShowForm(false);
       setEditingBando(null);
-      return saved;
     } catch (error) {
       console.error('Error saving bando:', error);
       throw error;

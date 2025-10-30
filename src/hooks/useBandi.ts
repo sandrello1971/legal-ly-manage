@@ -92,12 +92,28 @@ export const useBandi = () => {
 
       if (createError) throw createError;
 
+      // Add to local state immediately
       setBandi(prev => [data, ...prev]);
       
       toast({
         title: 'Successo',
         description: 'Bando creato con successo',
       });
+
+      // Index in knowledge base if has parsed_data
+      if (data.parsed_data) {
+        try {
+          await supabase.functions.invoke('index-document', {
+            body: { 
+              documentType: 'bando',
+              documentId: data.id 
+            }
+          });
+          console.log('✅ Bando indexed in knowledge base');
+        } catch (indexError) {
+          console.error('⚠️ Failed to index bando:', indexError);
+        }
+      }
 
       return data;
     } catch (err: any) {
@@ -130,6 +146,7 @@ export const useBandi = () => {
 
       if (updateError) throw updateError;
 
+      // Update local state immediately with the returned data
       setBandi(prev => prev.map(bando => 
         bando.id === id ? data : bando
       ));
@@ -138,6 +155,21 @@ export const useBandi = () => {
         title: 'Successo',
         description: 'Bando aggiornato con successo',
       });
+
+      // Re-index in knowledge base if has parsed_data
+      if (data.parsed_data) {
+        try {
+          await supabase.functions.invoke('index-document', {
+            body: { 
+              documentType: 'bando',
+              documentId: id 
+            }
+          });
+          console.log('✅ Bando re-indexed in knowledge base');
+        } catch (indexError) {
+          console.error('⚠️ Failed to re-index bando:', indexError);
+        }
+      }
 
       return data;
     } catch (err: any) {
@@ -206,18 +238,32 @@ export const useBandi = () => {
         description: 'PDF analizzato con successo',
       });
 
-      // Refresh the bando data
+      // CRITICAL: Wait for bando data to be fully updated before indexing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Refresh the bando data - wait for completion
       await fetchBandi();
 
-      // Index the bando in the knowledge base for RAG
+      // Index the bando in the knowledge base for RAG - only after data is refreshed
       try {
-        await supabase.functions.invoke('index-document', {
-          body: { 
-            documentType: 'bando',
-            documentId: bandoId 
-          }
-        });
-        console.log('✅ Bando indexed in knowledge base');
+        // Get the updated bando data
+        const { data: updatedBando, error: fetchError } = await supabase
+          .from('bandi')
+          .select('*')
+          .eq('id', bandoId)
+          .single();
+
+        if (!fetchError && updatedBando?.parsed_data) {
+          await supabase.functions.invoke('index-document', {
+            body: { 
+              documentType: 'bando',
+              documentId: bandoId 
+            }
+          });
+          console.log('✅ Bando indexed in knowledge base');
+        } else {
+          console.warn('⚠️ Bando not ready for indexing, skipping');
+        }
       } catch (indexError) {
         console.error('⚠️ Failed to index bando:', indexError);
         // Non blocking - continue anyway
