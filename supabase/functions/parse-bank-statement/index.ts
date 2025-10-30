@@ -85,26 +85,59 @@ serve(async (req) => {
 function parseCSV(content: string) {
   console.log('Parsing CSV content...');
   const lines = content.split('\n').filter(line => line.trim());
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  
+  // Detect separator (comma or semicolon)
+  const firstLine = lines[0];
+  const separator = firstLine.includes(';') ? ';' : ',';
+  console.log('Detected separator:', separator);
+  
+  const headers = firstLine.split(separator).map(h => h.trim().replace(/"/g, ''));
   
   console.log('CSV headers:', headers);
+  console.log('CSV content preview:', lines.slice(0, 3).join('\n'));
   
   const transactions = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-    if (values.length >= 4) {
-      const transaction = {
-        transaction_date: parseDate(values[0]) || new Date().toISOString().split('T')[0],
-        description: values[1] || 'Unknown transaction',
-        amount: parseFloat(values[2]) || 0,
-        transaction_type: parseFloat(values[2]) >= 0 ? 'credit' : 'debit',
-        reference_number: values[3] || null,
-        counterpart_name: values[4] || null,
-        category: categorizeTransaction(values[1] || ''),
-      };
+    const values = lines[i].split(separator).map(v => v.trim().replace(/"/g, ''));
+    
+    if (values.length >= 3) {
+      // Handle Italian CSV format: Data;Beneficiario;Descrizione;Importo;Causale
+      const isItalianFormat = headers[0]?.toLowerCase().includes('data');
+      
+      let transaction;
+      if (isItalianFormat && values.length >= 4) {
+        // Italian format
+        const amountStr = values[3].replace(/\./g, '').replace(',', '.'); // Handle European number format
+        const amount = parseFloat(amountStr) || 0;
+        
+        transaction = {
+          transaction_date: parseDate(values[0]) || new Date().toISOString().split('T')[0],
+          counterpart_name: values[1] || null,
+          description: values[2] || 'Unknown transaction',
+          amount: Math.abs(amount),
+          transaction_type: amount >= 0 ? 'credit' : 'debit',
+          reference_number: values[4] || null,
+          category: categorizeTransaction(values[2] || ''),
+        };
+      } else {
+        // Standard format: Date, Description, Amount, Reference, Counterpart
+        const amount = parseFloat(values[2]) || 0;
+        transaction = {
+          transaction_date: parseDate(values[0]) || new Date().toISOString().split('T')[0],
+          description: values[1] || 'Unknown transaction',
+          amount: Math.abs(amount),
+          transaction_type: amount >= 0 ? 'credit' : 'debit',
+          reference_number: values[3] || null,
+          counterpart_name: values[4] || null,
+          category: categorizeTransaction(values[1] || ''),
+        };
+      }
+      
       transactions.push(transaction);
     }
   }
+
+  console.log(`Parsed ${transactions.length} transactions`);
 
   return {
     account_info: {
