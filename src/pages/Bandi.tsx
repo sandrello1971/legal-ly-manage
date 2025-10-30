@@ -79,7 +79,8 @@ export default function Bandi() {
       } else {
         saved = await createBando(data);
       }
-      // Lo stato viene già aggiornato dalle funzioni createBando/updateBando
+      // Forza un refetch per sincronizzare lo stato
+      await refetch();
       setShowForm(false);
       setEditingBando(null);
       return saved;
