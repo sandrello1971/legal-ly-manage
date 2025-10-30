@@ -108,50 +108,93 @@ const uploadPdfAndAnalyze = async (pdfBuffer: ArrayBuffer, fileName: string): Pr
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: `Sei un esperto analista di BANDI PUBBLICI ITALIANI. Analizza ATTENTAMENTE questo PDF e estrai TUTTE le informazioni richieste.
+          content: `Sei un esperto analista di BANDI PUBBLICI ITALIANI. Il tuo compito è leggere COMPLETAMENTE il documento PDF allegato ed estrarre TUTTE le informazioni disponibili.
 
-ISTRUZIONI CRITICHE:
-1. LEGGI TUTTO IL DOCUMENTO prima di rispondere
-2. Cerca le informazioni usando SINONIMI e termini comuni nei bandi italiani:
-   - Scadenza: "termine ultimo", "data di chiusura", "scadenza presentazione domande", "termine perentorio"
-   - Importo: "dotazione finanziaria", "risorse disponibili", "budget complessivo", "stanziamento"
-   - Percentuale di finanziamento: "intensità di aiuto", "quota di contributo", "percentuale di copertura"
-3. Per le DATE, cerca formati italiani: gg/mm/aaaa, gg-mm-aaaa, "entro il", "entro e non oltre"
-4. Per gli IMPORTI, cerca: €, euro, EUR, milioni, migliaia
-5. Se un campo NON è presente nel documento, metti null (non 0, non stringhe vuote)
+⚠️ REGOLE FONDAMENTALI:
+1. DEVI leggere TUTTO il documento prima di rispondere
+2. DEVI compilare OGNI campo possibile con informazioni dal documento
+3. USA null SOLO se l'informazione è VERAMENTE assente nel documento
+4. NON lasciare campi vuoti se ci sono informazioni nel testo
+
+📋 CERCA QUESTE INFORMAZIONI (con i loro sinonimi):
+
+TITOLO DEL BANDO:
+- Cerca nell'intestazione, prima pagina
+- Parole chiave: "Bando", "Avviso", "Decreto", "Invito"
+
+DESCRIZIONE E OBIETTIVI:
+- Cerca "Finalità", "Obiettivi", "Scopo del bando", "Premessa"
+- Riassumi lo scopo principale in 2-3 frasi
+
+ENTE ORGANIZZATORE:
+- Cerca nell'intestazione: Regione, Ministero, Camera di Commercio, ecc.
+
+IMPORTI:
+- Dotazione totale: "dotazione finanziaria", "risorse disponibili", "stanziamento", "budget complessivo"
+- Contributo min/max per progetto: "contributo minimo/massimo", "importo ammissibile"
+- Percentuale finanziamento: "intensità di aiuto", "quota di contributo", "% di copertura", "cofinanziamento"
+
+DATE E SCADENZE:
+- Scadenza domande: "termine ultimo", "entro il", "scadenza presentazione", "termine perentorio"
+- Date progetto: "durata progetto", "periodo di realizzazione", "inizio/fine lavori"
+- Cerca TUTTI i formati: gg/mm/aaaa, gg-mm-aaaa, "31 dicembre 2025", "entro il 31/12/2025"
+
+REQUISITI E CRITERI:
+- Requisiti ammissibilità: "chi può partecipare", "beneficiari", "soggetti ammissibili"
+- Criteri valutazione: "modalità di valutazione", "punteggi", "criteri di selezione"
+
+DOCUMENTI RICHIESTI:
+- Cerca "allegati", "documentazione da presentare", "modulistica"
+- Elenca TUTTI i documenti menzionati
 
 CATEGORIE DI SPESA:
-- Estrai ESATTAMENTE le categorie dal bando (NON inventare)
-- Cerca sezioni: "spese ammissibili", "voci di costo", "categorie di spesa", "investimenti ammissibili"
-- Per ogni categoria, identifica limiti percentuali o monetari
+- Cerca "spese ammissibili", "voci di costo", "categorie di spesa", "investimenti ammissibili"
+- Per OGNI categoria, cerca limiti (% o importo massimo)
+- Cerca "costi indiretti", "forfait", "costi diretti"
 
-Rispondi SOLO con questo JSON (valori come numeri, non stringhe, null se non presente):
+DESTINATARI:
+- PMI, startup, università, enti pubblici, ecc.
+- Cerca "soggetti beneficiari", "destinatari"
+
+AMBITO:
+- Territoriale: Lombardia, Italia, Europa
+- Settoriale: innovazione, ricerca, digitalizzazione
+
+📤 FORMATO RISPOSTA:
+Rispondi SOLO con un oggetto JSON valido (senza markdown, senza \`\`\`):
 {
-  "title": "titolo completo esatto del bando",
-  "description": "descrizione obiettivi e finalità del bando",
-  "organization": "ente/organizzazione che emette il bando", 
-  "total_amount": 1000000,
-  "min_funding": 50000, 
-  "max_funding": 200000,
-  "funding_percentage": 50,
+  "title": "TITOLO ESATTO del bando (obbligatorio)",
+  "description": "Descrizione dettagliata degli obiettivi (2-3 frasi)",
+  "organization": "Nome ente organizzatore",
+  "total_amount": 5000000,
+  "min_funding": 100000,
+  "max_funding": 500000,
+  "funding_percentage": 80,
   "application_deadline": "2025-12-31",
   "project_duration_months": 24,
-  "eligibility_criteria": "requisiti di ammissibilità completi",
-  "evaluation_criteria": "criteri di valutazione e selezione", 
-  "required_documents": ["elenco completo documenti richiesti"],
+  "eligibility_criteria": "Descrizione requisiti completa",
+  "evaluation_criteria": "Descrizione criteri valutazione",
+  "required_documents": ["documento 1", "documento 2"],
   "expense_categories": [
     {
-      "name": "nome categoria esatto dal testo",
-      "description": "descrizione completa dal bando", 
-      "max_percentage": 20,
-      "max_amount": 50000,
-      "eligible_expenses": ["dettaglio spese specifiche ammissibili"]
+      "name": "Nome categoria esatto",
+      "description": "Descrizione categoria",
+      "max_percentage": 60,
+      "max_amount": 300000,
+      "eligible_expenses": ["spesa 1", "spesa 2"]
     }
   ],
-  "target_companies": "destinatari (PMI, startup, università, etc)",
-  "geographic_scope": "ambito territoriale",
-  "innovation_areas": ["settori/aree se specificati"]
-}`,
+  "target_companies": "PMI, startup, università",
+  "geographic_scope": "Lombardia",
+  "innovation_areas": ["AI", "Green Tech"]
+}
+
+⚠️ IMPORTANTE:
+- Numeri come numeri (no stringhe): 1000000 non "1000000"
+- Date formato: "YYYY-MM-DD"
+- null se informazione assente (no "", no 0)
+- JSON valido senza commenti
+- NO markdown, NO \`\`\`, SOLO JSON puro`,
           attachments: [{
             file_id: fileId,
             tools: [{ type: 'file_search' }],
@@ -406,31 +449,18 @@ serve(async (req) => {
       console.error('❌ Error parsing AI response:', parseError);
       console.error('📝 Original content (first 1000 chars):', aiContent.substring(0, 1000));
       
-      // Usa dati di fallback
-      testData = {
-        title: 'BANDO - Errore nel parsing AI',
-        description: 'Errore nel parsing AI - usando dati fallback. Il PDF è stato analizzato ma la risposta non è in formato JSON valido.',
-        organization: 'Ente Pubblico',
-        total_amount: null,
-        min_funding: null,
-        max_funding: null,
-        funding_percentage: null,
-        application_deadline: null,
-        project_start_date: null,
-        project_end_date: null,
-        project_duration_months: null,
-        contact_person: null,
-        contact_email: null,
-        contact_phone: null,
-        website_url: null,
-        eligibility_criteria: 'Criteri non disponibili',
-        evaluation_criteria: 'Criteri non disponibili', 
-        required_documents: ['Documenti non disponibili'],
-        expense_categories: [],
-        target_companies: null,
-        geographic_scope: null,
-        innovation_areas: []
-      };
+      // Log dell'errore per debugging
+      console.error('❌ Risposta AI non parsabile:', aiContent.substring(0, 2000));
+      
+      // Ritorna errore invece di usare fallback
+      return new Response(JSON.stringify({ 
+        error: 'Il sistema AI non è riuscito a estrarre i dati dal PDF. Il formato della risposta non è valido.',
+        details: parseError instanceof Error ? parseError.message : 'Errore sconosciuto',
+        aiResponse: aiContent.substring(0, 500)
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     
     // Helper function per convertire stringhe "null" in null effettivi

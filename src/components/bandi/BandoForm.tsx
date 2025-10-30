@@ -211,7 +211,21 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Log dettagliato per debugging
+        console.error('Error from edge function:', error);
+        
+        // Se è un errore 422, mostra un messaggio più dettagliato
+        const errorMessage = error.message || 'Errore durante l\'analisi del PDF';
+        const errorDetails = (error as any).details;
+        const aiResponse = (error as any).aiResponse;
+        
+        throw new Error(
+          errorDetails 
+            ? `${errorMessage}\n\nDettagli: ${errorDetails}${aiResponse ? `\n\nRisposta AI (primi 200 caratteri): ${aiResponse.substring(0, 200)}...` : ''}`
+            : errorMessage
+        );
+      }
 
       toast({
         title: 'Successo!',
@@ -248,9 +262,15 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
 
     } catch (error: any) {
       console.error('Error parsing decreto:', error);
+      
+      // Mostra messaggio di errore dettagliato
+      const errorLines = error.message?.split('\n') || [];
+      const mainMessage = errorLines[0] || 'Errore durante l\'analisi del PDF';
+      const detailMessage = errorLines.slice(1).join(' ') || 'Il sistema AI non è riuscito ad estrarre correttamente i dati dal PDF. Verifica che il file sia leggibile e riprova.';
+      
       toast({
-        title: 'Errore',
-        description: error.message || 'Errore durante l\'analisi del PDF',
+        title: mainMessage,
+        description: detailMessage,
         variant: 'destructive',
       });
     } finally {
