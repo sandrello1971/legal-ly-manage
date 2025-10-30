@@ -15,23 +15,29 @@ serve(async (req) => {
   try {
     console.log('Processing bank statement...');
     
-    const formData = await req.formData();
-    const file = formData.get('file') as File;
-    const fileType = formData.get('fileType') as string;
+    const body = await req.json();
+    const { fileUrl, fileName, fileType } = body;
     
-    if (!file) {
-      console.error('No file provided');
-      return new Response(JSON.stringify({ error: 'No file provided' }), {
+    if (!fileUrl || !fileType) {
+      console.error('Missing fileUrl or fileType');
+      return new Response(JSON.stringify({ error: 'Missing required parameters' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Processing ${fileType} file: ${file.name}, size: ${file.size}`);
+    console.log(`Processing ${fileType} file: ${fileName}`);
+
+    // Fetch file from storage
+    console.log('Fetching file from:', fileUrl);
+    const fileResponse = await fetch(fileUrl);
+    if (!fileResponse.ok) {
+      throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+    }
 
     // Convert file to appropriate format for parsing
     let content: string;
-    const buffer = await file.arrayBuffer();
+    const buffer = await fileResponse.arrayBuffer();
     
     if (fileType === 'csv') {
       content = new TextDecoder().decode(buffer);

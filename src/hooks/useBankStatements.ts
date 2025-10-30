@@ -184,18 +184,12 @@ export function useBankStatements() {
       if (fetchError) throw fetchError;
 
       // Call edge function to parse the statement
-      const formData = new FormData();
-      
-      // Fetch file from URL
-      const response = await fetch(statement.file_url);
-      const blob = await response.blob();
-      const file = new File([blob], statement.file_name, { type: blob.type });
-      
-      formData.append('file', file);
-      formData.append('fileType', statement.file_type);
-
       const { data: parseResult, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
-        body: formData
+        body: {
+          fileUrl: statement.file_url,
+          fileName: statement.file_name,
+          fileType: statement.file_type
+        }
       });
 
       if (parseError) throw parseError;
