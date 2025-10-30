@@ -27,13 +27,17 @@ interface MatchingSuggestion {
   autoMatch: boolean;
 }
 
-export function ReconciliationEngine() {
+interface ReconciliationEngineProps {
+  projectId?: string;
+}
+
+export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = {}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [confidenceThreshold, setConfidenceThreshold] = useState(70);
   const [selectedMatch, setSelectedMatch] = useState<MatchingSuggestion | null>(null);
   const [manualNotes, setManualNotes] = useState('');
   const { transactions, reconcileTransaction } = useBankStatements();
-  const { expenses } = useExpenses();
+  const { expenses } = useExpenses(projectId);
 
   // Calculate matching suggestions
   const matchingSuggestions = useMemo(() => {

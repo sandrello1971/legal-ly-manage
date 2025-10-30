@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ArrowLeft, FileText, AlertCircle, Trash2, Pencil } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BankStatementUploader } from '@/components/banking/BankStatementUploader';
+import { ReconciliationEngine } from '@/components/banking/ReconciliationEngine';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -382,6 +385,178 @@ export default function ProjectConsuntivazione() {
           </Table>
         </CardContent>
       </Card>
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Panoramica</TabsTrigger>
+          <TabsTrigger value="reconciliation">Riconciliazione Bancaria</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dettaglio per Categoria</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[300px]">Categoria / Fattura</TableHead>
+                    <TableHead>Fornitore</TableHead>
+                    <TableHead className="text-right">Budget</TableHead>
+                    <TableHead className="text-right">Speso</TableHead>
+                    <TableHead className="text-right">Residuo</TableHead>
+                    <TableHead className="text-right">%</TableHead>
+                    <TableHead className="w-[80px]">Azioni</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {projectCategories.map(category => {
+                    const budget = budgetPerCategory[category.id] || 0;
+                    const spent = spentPerCategory[category.id] || 0;
+                    const remaining = budget - spent;
+                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+                    const categoryExpenses = expensesByCategory[category.id] || [];
+
+                    return (
+                      <>
+                        <TableRow
+                          key={category.id}
+                          className={getRowColor(spent, budget)}
+                        >
+                          <TableCell className="font-bold">
+                            <div>
+                              <div>{category.name}</div>
+                              {category.description && (
+                                <div className="text-xs text-muted-foreground font-normal">{category.description}</div>
+                              )}
+                              {(category.max_percentage || category.max_amount) && (
+                                <div className="text-xs text-muted-foreground font-normal">
+                                  {category.max_percentage && `Max: ${category.max_percentage}%`}
+                                  {category.max_amount && ` (€${category.max_amount.toLocaleString('it-IT')})`}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell></TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(budget)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(spent)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(remaining)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {percentage.toFixed(1)}%
+                          </TableCell>
+                          <TableCell></TableCell>
+                        </TableRow>
+                        
+                        {categoryExpenses.map(expense => (
+                          <TableRow key={expense.id} className="border-l-4 border-l-muted">
+                            <TableCell className="pl-8">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <FileText className="h-3 w-3" />
+                                <span>{expense.description}</span>
+                                {expense.receipt_number && (
+                                  <span className="text-xs">({expense.receipt_number})</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {expense.supplier_name || '-'}
+                            </TableCell>
+                            <TableCell></TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatCurrency(expense.amount)}
+                            </TableCell>
+                            <TableCell></TableCell>
+                            <TableCell></TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-accent"
+                                  onClick={() => setEditingExpense(expense)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Sei sicuro di voler eliminare questa spesa? L'operazione non può essere annullata.
+                                        <br /><br />
+                                        <strong>Spesa:</strong> {expense.description}
+                                        <br />
+                                        <strong>Importo:</strong> {formatCurrency(expense.amount)}
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteExpense(expense.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Elimina
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </>
+                    );
+                  })}
+                  
+                  <TableRow className="bg-muted font-bold">
+                    <TableCell>TOTALE GENERALE</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className="text-right">{formatCurrency(totalBudget)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totalSpent)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(totalBudget - totalSpent)}</TableCell>
+                    <TableCell className="text-right">
+                      {totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(1) : 0}%
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reconciliation" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Carica Estratto Conto Bancario</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Carica l'estratto conto per verificare i pagamenti delle fatture del progetto. Formati supportati: CSV, XML, MT940, PDF
+              </p>
+            </CardHeader>
+            <CardContent>
+              <BankStatementUploader />
+            </CardContent>
+          </Card>
+
+          <ReconciliationEngine projectId={projectId} />
+        </TabsContent>
+      </Tabs>
 
       {editingExpense && (
         <ExpenseEditDialog
