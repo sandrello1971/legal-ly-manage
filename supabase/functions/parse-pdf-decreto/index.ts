@@ -339,11 +339,19 @@ serve(async (req) => {
       cleanJson = cleanJson.replace(/,(\s*[}\]])/g, '$1');
       
       // Fix per proprietà non quotate (es: {name: "value"} -> {"name": "value"})
-      cleanJson = cleanJson.replace(/(\w+):/g, '"$1":');
+      cleanJson = cleanJson.replace(/([{,]\s*)(\w+):/g, '$1"$2":');
       
-      // Fix per valori stringa senza virgolette dopo : 
-      // Attenzione: questo è un fix approssimativo, potrebbe non funzionare in tutti i casi
+      // Fix per valori stringa senza virgolette, MA preserva null, true, false
+      // Prima proteggere i valori speciali
+      cleanJson = cleanJson.replace(/:\s*(null|true|false)(\s*[,}\]])/gi, ': ___$1___$2');
+      
+      // Poi quota le stringhe non quotate
       cleanJson = cleanJson.replace(/:\s*([a-zA-Z][a-zA-Z0-9\s]*[a-zA-Z0-9])(\s*[,}\]])/g, ': "$1"$2');
+      
+      // Ripristina i valori speciali (senza virgolette)
+      cleanJson = cleanJson.replace(/___null___/gi, 'null');
+      cleanJson = cleanJson.replace(/___true___/gi, 'true');
+      cleanJson = cleanJson.replace(/___false___/gi, 'false');
       
       // Rimuovi spazi multipli
       cleanJson = cleanJson.replace(/\s+/g, ' ');
@@ -384,22 +392,44 @@ serve(async (req) => {
         innovation_areas: []
       };
     }
+    
+    // Helper function per convertire stringhe "null" in null effettivi
+    const sanitizeValue = (value: any): any => {
+      if (value === "null" || value === "NULL" || value === "") {
+        return null;
+      }
+      return value;
+    };
 
     // Pulisci e valida i dati prima dell'inserimento
     const cleanData = {
-      title: testData.title || 'Bando da Analizzare',
-      description: testData.description || '',
-      organization: testData.organization || '',
-      total_amount: testData.total_amount && testData.total_amount !== "" ? parseFloat(testData.total_amount) : null,
-      application_deadline: testData.application_deadline && testData.application_deadline !== "" ? testData.application_deadline : null,
-      project_start_date: testData.project_start_date && testData.project_start_date !== "" ? testData.project_start_date : null,
-      project_end_date: testData.project_end_date && testData.project_end_date !== "" ? testData.project_end_date : null,
-      contact_person: testData.contact_person || '',
-      contact_email: testData.contact_email || '',
-      contact_phone: testData.contact_phone || '',
-      website_url: testData.website_url || '',
-      eligibility_criteria: testData.eligibility_criteria || '',
-      evaluation_criteria: testData.evaluation_criteria || '',
+      title: sanitizeValue(testData.title) || 'Bando da Analizzare',
+      description: sanitizeValue(testData.description) || '',
+      organization: sanitizeValue(testData.organization) || '',
+      total_amount: (() => {
+        const val = sanitizeValue(testData.total_amount);
+        if (val === null || val === "") return null;
+        const parsed = parseFloat(val);
+        return isNaN(parsed) ? null : parsed;
+      })(),
+      application_deadline: (() => {
+        const val = sanitizeValue(testData.application_deadline);
+        return (val && val !== "") ? val : null;
+      })(),
+      project_start_date: (() => {
+        const val = sanitizeValue(testData.project_start_date);
+        return (val && val !== "") ? val : null;
+      })(),
+      project_end_date: (() => {
+        const val = sanitizeValue(testData.project_end_date);
+        return (val && val !== "") ? val : null;
+      })(),
+      contact_person: sanitizeValue(testData.contact_person) || '',
+      contact_email: sanitizeValue(testData.contact_email) || '',
+      contact_phone: sanitizeValue(testData.contact_phone) || '',
+      website_url: sanitizeValue(testData.website_url) || '',
+      eligibility_criteria: sanitizeValue(testData.eligibility_criteria) || '',
+      evaluation_criteria: sanitizeValue(testData.evaluation_criteria) || '',
       required_documents: Array.isArray(testData.required_documents) ? testData.required_documents : [],
       parsed_data: testData,
       decree_file_name: fileName,
