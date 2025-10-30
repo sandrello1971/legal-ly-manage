@@ -554,16 +554,18 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                               />
                             </div>
                             <div>
-                              <Label htmlFor={`amount-${upload.id}`}>Importo (€)</Label>
+                              <Label htmlFor={`amount-${upload.id}`}>Importo (non modificabile)</Label>
                               <Input
                                 id={`amount-${upload.id}`}
                                 type="number"
                                 step="0.01"
                                 value={upload.extractedData?.amount || 0}
-                                onChange={(e) => updateUpload(upload.id, {
-                                  extractedData: { ...upload.extractedData, amount: parseFloat(e.target.value) }
-                                })}
+                                disabled
+                                className="bg-muted cursor-not-allowed"
                               />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                L'importo non può essere modificato dopo il caricamento
+                              </p>
                             </div>
                           </div>
                         </TabsContent>

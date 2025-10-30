@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,8 @@ import {
   Download,
   File,
   ExternalLink,
-  CheckSquare
+  CheckSquare,
+  Calculator
 } from 'lucide-react';
 import { type Project } from '@/hooks/useProjects';
 import { useExpenses, type Expense } from '@/hooks/useExpenses';
@@ -43,6 +45,7 @@ interface ProjectDetailViewProps {
 }
 
 export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: ProjectDetailViewProps) => {
+  const navigate = useNavigate();
   const { expenses, approveExpense, rejectExpense, updateExpense, refetch } = useExpenses(project.id);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -364,6 +367,10 @@ export const ProjectDetailView = ({ project, onEdit, onDelete, onAddExpense }: P
         </div>
 
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate(`/projects/${project.id}/consuntivazione`)}>
+            <Calculator className="h-4 w-4 mr-2" />
+            Consuntivazione
+          </Button>
           <Button variant="outline" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             Scarica PDF

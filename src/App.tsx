@@ -20,6 +20,7 @@ import Reports from "./pages/Reports";
 import Documents from "./pages/Documents";
 import Banking from "./pages/Banking";
 import Settings from "./pages/Settings";
+import ProjectConsuntivazione from "./pages/ProjectConsuntivazione";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => {
               <Route path="banking" element={<Banking />} />
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="projects/:projectId/consuntivazione" element={<ProjectConsuntivazione />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
