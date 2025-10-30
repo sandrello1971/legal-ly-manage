@@ -34,16 +34,28 @@ export default function ProjectConsuntivazione() {
     return bandi.find(b => b.id === project.bando_id);
   }, [project, bandi]);
 
-  // Extract categories from bando
+  // Extract categories from bando or use standard categories as fallback
   const projectCategories = useMemo(() => {
-    if (!bando?.parsed_data?.expense_categories) return [];
-    return bando.parsed_data.expense_categories.map((cat: any) => ({
-      id: cat.name.toLowerCase().replace(/\s+/g, '_'),
-      name: cat.name,
-      description: cat.description || '',
-      max_percentage: cat.max_percentage,
-      max_amount: cat.max_amount
-    }));
+    // Try to get categories from bando first
+    if (bando?.parsed_data?.expense_categories && bando.parsed_data.expense_categories.length > 0) {
+      return bando.parsed_data.expense_categories.map((cat: any) => ({
+        id: cat.name.toLowerCase().replace(/\s+/g, '_'),
+        name: cat.name,
+        description: cat.description || '',
+        max_percentage: cat.max_percentage,
+        max_amount: cat.max_amount
+      }));
+    }
+    
+    // Fallback to standard expense categories (matching the enum in the database)
+    return [
+      { id: 'personnel', name: 'Personale', description: 'Costi del personale', max_percentage: null, max_amount: null },
+      { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione', max_percentage: null, max_amount: null },
+      { id: 'materials', name: 'Materiali', description: 'Materiali di consumo', max_percentage: null, max_amount: null },
+      { id: 'services', name: 'Servizi', description: 'Servizi esterni', max_percentage: null, max_amount: null },
+      { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta', max_percentage: null, max_amount: null },
+      { id: 'other', name: 'Altro', description: 'Altre spese', max_percentage: null, max_amount: null }
+    ];
   }, [bando]);
 
   // Group expenses by category

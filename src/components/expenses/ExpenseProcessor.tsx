@@ -41,14 +41,35 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
   const { projects } = useProjects();
   const { bandi } = useBandi();
 
-  // Get categories for selected project
+  // Get categories for selected project (from bando or standard fallback)
   const getProjectCategories = useCallback((projectId: string) => {
     const project = projects.find(p => p.id === projectId);
-    if (!project?.bando_id) return [];
+    if (!project?.bando_id) {
+      // No bando, return standard categories
+      return [
+        { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
+        { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
+        { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
+        { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
+        { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
+        { id: 'other', name: 'Altro', description: 'Altre spese' }
+      ];
+    }
     
     const bando = bandi.find(b => b.id === project.bando_id);
-    if (!bando?.parsed_data?.expense_categories) return [];
+    if (!bando?.parsed_data?.expense_categories || bando.parsed_data.expense_categories.length === 0) {
+      // Bando has no categories, return standard categories
+      return [
+        { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
+        { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
+        { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
+        { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
+        { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
+        { id: 'other', name: 'Altro', description: 'Altre spese' }
+      ];
+    }
     
+    // Return categories from bando
     return bando.parsed_data.expense_categories.map((cat: any) => ({
       id: cat.name.toLowerCase().replace(/\s+/g, '_'),
       name: cat.name,
@@ -549,7 +570,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                                   <SelectValue placeholder={upload.projectId ? "Seleziona categoria" : "Seleziona prima un progetto"} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {upload.projectId && getProjectCategories(upload.projectId).map((cat) => (
+                                  {getProjectCategories(upload.projectId).map((cat) => (
                                     <SelectItem key={cat.id} value={cat.id}>
                                       <div>
                                         <div>{cat.name}</div>
@@ -559,18 +580,8 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                                       </div>
                                     </SelectItem>
                                   ))}
-                                  {upload.projectId && getProjectCategories(upload.projectId).length === 0 && (
-                                    <SelectItem value="other" disabled>
-                                      Nessuna categoria disponibile per questo progetto
-                                    </SelectItem>
-                                  )}
                                 </SelectContent>
                               </Select>
-                              {upload.projectId && getProjectCategories(upload.projectId).length === 0 && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Il bando associato non ha categorie configurate
-                                </p>
-                              )}
                             </div>
                           </div>
                           
