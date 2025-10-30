@@ -176,8 +176,62 @@ serve(async (req) => {
       };
     }
 
-    // Use AI-classified category if available, otherwise fallback to rule-based
-    const finalCategory = extractedData.category || 'other';
+    // Use AI to classify into project categories if available
+    let finalCategory = extractedData.category || 'other';
+    let categoryConfidence = extractedData.confidence || 0.5;
+    
+    if (projectCategories && projectCategories.length > 0) {
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+      if (lovableApiKey) {
+        try {
+          const classificationResult = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are an expert at classifying business expenses into project budget categories.
+                  
+Available categories for this project:
+${projectCategories.map((cat: any) => `- ${cat.id}: ${cat.name} - ${cat.description}`).join('\n')}
+
+Analyze the expense and return ONLY the category ID that best matches the expense type.`
+                },
+                {
+                  role: 'user',
+                  content: `Classify this expense:
+Description: ${extractedData.description}
+Supplier: ${extractedData.supplier || 'Unknown'}
+
+Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
+                }
+              ],
+              temperature: 0.1,
+              max_tokens: 50
+            }),
+          });
+          
+          if (classificationResult.ok) {
+            const data = await classificationResult.json();
+            const aiCategory = data.choices[0].message.content.trim().toLowerCase();
+            
+            // Validate AI response matches one of the project categories
+            if (projectCategories.some((cat: any) => cat.id === aiCategory)) {
+              finalCategory = aiCategory;
+              categoryConfidence = 0.85;
+              console.log('AI classified image expense as:', finalCategory);
+            }
+          }
+        } catch (error) {
+          console.error('Error classifying image expense with AI:', error);
+        }
+      }
+    }
     
     const result = {
       extractedData: {
@@ -185,7 +239,7 @@ serve(async (req) => {
         category: finalCategory
       },
       category: finalCategory,
-      confidence: extractedData.confidence || 0.5,
+      confidence: categoryConfidence,
       classificationReasons: projectCategories 
         ? [`Classificato automaticamente dall'AI nelle categorie del progetto`]
         : [`Classificato usando categorie standard`]
