@@ -319,6 +319,12 @@ export default function ProjectConsuntivazione() {
                           // Split description by commas to show multiple items
                           const items = expense.description.split(',').map(item => item.trim()).filter(item => item.length > 0);
                           
+                          // Find potential matching transactions for manual reconciliation
+                          const matchingTransactions = transactions.filter(t => 
+                            !t.is_reconciled && 
+                            Math.abs(Math.abs(t.amount) - expense.amount) / expense.amount < 0.2
+                          );
+                          
                           return (
                           <TableRow key={expense.id} className="border-l-4 border-l-muted">
                             <TableCell className="pl-8">
@@ -348,10 +354,22 @@ export default function ProjectConsuntivazione() {
                                       Rendicontabile
                                     </Badge>
                                   ) : (
-                                    <Badge variant="outline" className="gap-1 text-muted-foreground flex-shrink-0">
-                                      <XCircle className="h-3 w-3" />
-                                      Non riconciliata
-                                    </Badge>
+                                    <>
+                                      <Badge variant="outline" className="gap-1 text-muted-foreground flex-shrink-0">
+                                        <XCircle className="h-3 w-3" />
+                                        Non riconciliata
+                                      </Badge>
+                                      {matchingTransactions.length > 0 && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-6 text-xs"
+                                          onClick={() => navigate(`/projects/${projectId}/consuntivazione?tab=riconciliazione&expense=${expense.id}`)}
+                                        >
+                                          Riconcilia ({matchingTransactions.length})
+                                        </Button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </div>
