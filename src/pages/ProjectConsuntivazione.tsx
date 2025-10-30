@@ -21,42 +21,27 @@ export default function ProjectConsuntivazione() {
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
   const { expenses, loading: loadingExpenses } = useExpenses(projectId);
-  const { bandi, loading: loadingBandi } = useBandi();
 
   const project = useMemo(() => 
     projects.find(p => p.id === projectId),
     [projects, projectId]
   );
 
-  // Get bando associated with project
-  const bando = useMemo(() => {
-    if (!project?.bando_id) return null;
-    return bandi.find(b => b.id === project.bando_id);
-  }, [project, bandi]);
-
-  // Extract categories from bando or use standard categories as fallback
+  // Extract categories from project's parsed_data
   const projectCategories = useMemo(() => {
-    // Try to get categories from bando first
-    if (bando?.parsed_data?.expense_categories && bando.parsed_data.expense_categories.length > 0) {
-      return bando.parsed_data.expense_categories.map((cat: any) => ({
+    // Get categories from project's parsed budget data
+    if (project?.parsed_data?.budget?.categories && project.parsed_data.budget.categories.length > 0) {
+      return project.parsed_data.budget.categories.map((cat: any) => ({
         id: cat.name.toLowerCase().replace(/\s+/g, '_'),
         name: cat.name,
         description: cat.description || '',
         max_percentage: cat.max_percentage,
-        max_amount: cat.max_amount
+        max_amount: cat.allocated_amount
       }));
     }
     
-    // Fallback to standard expense categories (matching the enum in the database)
-    return [
-      { id: 'personnel', name: 'Personale', description: 'Costi del personale', max_percentage: null, max_amount: null },
-      { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione', max_percentage: null, max_amount: null },
-      { id: 'materials', name: 'Materiali', description: 'Materiali di consumo', max_percentage: null, max_amount: null },
-      { id: 'services', name: 'Servizi', description: 'Servizi esterni', max_percentage: null, max_amount: null },
-      { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta', max_percentage: null, max_amount: null },
-      { id: 'other', name: 'Altro', description: 'Altre spese', max_percentage: null, max_amount: null }
-    ];
-  }, [bando]);
+    return [];
+  }, [project]);
 
   // Group expenses by category
   const expensesByCategory = useMemo(() => {
@@ -144,7 +129,7 @@ export default function ProjectConsuntivazione() {
     }).format(amount);
   };
 
-  if (loadingProjects || loadingExpenses || loadingBandi) {
+  if (loadingProjects || loadingExpenses) {
     return (
       <div className="container mx-auto py-8">
         <p>Caricamento...</p>
