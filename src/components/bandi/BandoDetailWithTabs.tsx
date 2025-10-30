@@ -37,7 +37,7 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
   const [showExpenseProcessor, setShowExpenseProcessor] = useState(false);
   
   const { getBandoById } = useBandi();
-  const { projects, refetch: refetchProjects } = useProjects(bandoId);
+  const { projects, refetch: refetchProjects, deleteProject } = useProjects(bandoId);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -129,6 +129,25 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
     setShowExpenseProcessor(true);
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      await deleteProject(projectId);
+      toast({
+        title: "Progetto eliminato",
+        description: "Il progetto è stato eliminato con successo"
+      });
+      setSelectedProject(null);
+      refetchProjects();
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il progetto",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Show project form
   if (showProjectForm) {
     return (
@@ -184,10 +203,7 @@ export const BandoDetailWithTabs = ({ bandoId, onBack, onEdit, onDelete }: Bando
         <ProjectDetailView
           project={selectedProject}
           onEdit={handleEditProject}
-          onDelete={() => {
-            // TODO: implement delete
-            setSelectedProject(null);
-          }}
+          onDelete={() => handleDeleteProject(selectedProject.id)}
           onAddExpense={handleAddExpense}
         />
       </div>
