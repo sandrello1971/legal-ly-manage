@@ -38,7 +38,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
   const [uploads, setUploads] = useState<ProcessedExpense[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
-  const { processExpenseReceipt, createExpense, expenses } = useExpenses();
+  const { processExpenseReceipt, createExpense } = useExpenses();
   const { projects } = useProjects();
   const { bandi } = useBandi();
 
@@ -79,64 +79,29 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
     return categoryMap[normalizedCategory] || 'other';
   }, []);
 
-  // Get categories for selected project
+  // Get categories for selected project (from project's parsed_data)
   const getProjectCategories = useCallback((projectId: string) => {
-    if (!projectId) {
-      return [
-        { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
-        { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
-        { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
-        { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
-        { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
-        { id: 'other', name: 'Altro', description: 'Altre spese' }
-      ];
-    }
-
     const project = projects.find(p => p.id === projectId);
-    const categories: any[] = [];
     
-    // First, try to get categories from project's parsed budget data
+    // Get categories from project's parsed budget data
     if (project?.parsed_data?.budget?.categories && project.parsed_data.budget.categories.length > 0) {
-      categories.push(...project.parsed_data.budget.categories.map((cat: any) => ({
+      return project.parsed_data.budget.categories.map((cat: any) => ({
         id: cat.name.toLowerCase().replace(/\s+/g, '_'),
         name: cat.name,
         description: cat.description || ''
-      })));
-      return categories;
+      }));
     }
     
-    // If no budget categories, get categories from existing expenses for this project
-    const projectExpenses = expenses.filter(e => e.project_id === projectId);
-    const expenseCategories = new Set(
-      projectExpenses
-        .map(e => e.project_category || e.category)
-        .filter(Boolean)
-    );
-    
-    expenseCategories.forEach(catKey => {
-      if (catKey) {
-        categories.push({
-          id: catKey,
-          name: catKey.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          description: 'Categoria dalle spese esistenti'
-        });
-      }
-    });
-    
-    // If still no categories found, use fallback
-    if (categories.length === 0) {
-      return [
-        { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
-        { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
-        { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
-        { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
-        { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
-        { id: 'other', name: 'Altro', description: 'Altre spese' }
-      ];
-    }
-    
-    return categories;
-  }, [projects, expenses]);
+    // Fallback to standard categories if no project categories are defined
+    return [
+      { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
+      { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
+      { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
+      { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
+      { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
+      { id: 'other', name: 'Altro', description: 'Altre spese' }
+    ];
+  }, [projects]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const newUploads: ProcessedExpense[] = acceptedFiles.map((file, index) => ({
