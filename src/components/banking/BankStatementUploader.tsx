@@ -20,7 +20,7 @@ interface UploadedFile {
 
 export function BankStatementUploader() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const { statements, uploadStatement, processStatement, deleteStatement, loading } = useBankStatements();
+  const { statements, uploadStatement, processStatement, deleteStatement, loading, refetch } = useBankStatements();
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -70,6 +70,9 @@ export function BankStatementUploader() {
         });
       }
     }
+    
+    // Refresh data after all files are processed
+    await refetch();
   }
 
   const updateFileStatus = (id: string, updates: Partial<UploadedFile>) => {

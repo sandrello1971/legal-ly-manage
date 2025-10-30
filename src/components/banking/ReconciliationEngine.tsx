@@ -36,8 +36,8 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
   const [confidenceThreshold, setConfidenceThreshold] = useState(70);
   const [selectedMatch, setSelectedMatch] = useState<MatchingSuggestion | null>(null);
   const [manualNotes, setManualNotes] = useState('');
-  const { transactions, reconcileTransaction } = useBankStatements();
-  const { expenses } = useExpenses(projectId);
+  const { transactions, reconcileTransaction, refetch: refetchTransactions } = useBankStatements();
+  const { expenses, refetch: refetchExpenses } = useExpenses(projectId);
 
   // Extract reference numbers from text (invoice numbers, etc.)
   const extractReferences = (text: string): string[] => {
@@ -255,6 +255,10 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
         `Auto-reconciled: ${match.reasons.join(', ')}`
       );
     }
+    
+    // Refresh data after reconciliation
+    await refetchTransactions();
+    await refetchExpenses();
   };
 
   const handleManualReconcile = async (suggestion: MatchingSuggestion) => {
@@ -266,6 +270,10 @@ export function ReconciliationEngine({ projectId }: ReconciliationEngineProps = 
     );
     setSelectedMatch(null);
     setManualNotes('');
+    
+    // Refresh data after reconciliation
+    await refetchTransactions();
+    await refetchExpenses();
   };
 
   const getConfidenceColor = (confidence: number) => {
