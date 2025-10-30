@@ -412,18 +412,32 @@ export default function ProjectConsuntivazione() {
                                   {/* Reconciliation Status */}
                                   {(() => {
                                     if (reconStatus.isReconciled) {
+                                      const matchedTransaction = reconStatus.match?.transaction;
+                                      
                                       return (
-                                        <Badge 
-                                          variant="default" 
-                                          className="bg-green-600 hover:bg-green-700 text-white gap-1 whitespace-nowrap flex-shrink-0"
-                                          title={reconStatus.isManual 
-                                            ? "Riconciliata manualmente" 
-                                            : `Riconciliata automaticamente (${reconStatus.confidence}%)`
-                                          }
-                                        >
-                                          <CheckCircle2 className="h-3 w-3" />
-                                          Rendicontabile
-                                        </Badge>
+                                        <div className="flex flex-col gap-1">
+                                          <Badge 
+                                            variant="default" 
+                                            className="bg-green-600 hover:bg-green-700 text-white gap-1 whitespace-nowrap flex-shrink-0"
+                                            title={reconStatus.isManual 
+                                              ? "Riconciliata manualmente" 
+                                              : `Riconciliata automaticamente (${reconStatus.confidence}%)`
+                                            }
+                                          >
+                                            <CheckCircle2 className="h-3 w-3" />
+                                            Rendicontabile
+                                          </Badge>
+                                          {matchedTransaction && (
+                                            <div className="text-xs text-muted-foreground">
+                                              Mov. bancario: {new Date(matchedTransaction.transaction_date).toLocaleDateString('it-IT')} - €{matchedTransaction.amount.toFixed(2)}
+                                              {matchedTransaction.description && (
+                                                <span className="block truncate max-w-[200px]" title={matchedTransaction.description}>
+                                                  {matchedTransaction.description}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
                                       );
                                     } else {
                                       // Check if there's a potential match
