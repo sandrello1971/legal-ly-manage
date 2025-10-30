@@ -92,7 +92,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                 ...u,
                 status: 'completed',
                 fileHash,
-                confidence: result.confidence || 0.8,
+                confidence: result.confidence ?? 0.8,
                 confidenceExplanation: result.confidenceExplanation,
                 category: result.category,
                 extractedData: result.extractedData,
