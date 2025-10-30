@@ -98,6 +98,7 @@ export default function Bandi() {
   const handleDeleteBando = async (id: string) => {
     if (confirm('Sei sicuro di voler eliminare questo bando?')) {
       await deleteBando(id);
+      setSelectedBando(null); // Torna alla lista dopo l'eliminazione
     }
   };
 
