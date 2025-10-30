@@ -50,10 +50,29 @@ serve(async (req) => {
     }
 
     console.log('Processing receipt file:', file.name, 'for project:', projectId);
+    
+    // Get project categories if projectId is provided
+    let projectCategories = null;
+    if (projectId) {
+      const { data: project } = await supabase
+        .from('projects')
+        .select('parsed_data')
+        .eq('id', projectId)
+        .single();
+      
+      if (project?.parsed_data?.budget?.categories) {
+        projectCategories = project.parsed_data.budget.categories.map((cat: any) => ({
+          id: cat.name.toLowerCase().replace(/\s+/g, '_'),
+          name: cat.name,
+          description: cat.description || ''
+        }));
+        console.log('Project categories:', projectCategories);
+      }
+    }
 
     // Handle XML files (electronic invoices)
     if (file.type === 'application/xml' || file.type === 'text/xml' || file.name.endsWith('.xml')) {
-      return await processXMLInvoice(file, projectId, supabaseUrl, supabaseServiceKey);
+      return await processXMLInvoice(file, projectId, projectCategories, supabaseUrl, supabaseServiceKey);
     }
 
     // Convert file to base64 for OpenAI Vision API
@@ -84,8 +103,18 @@ serve(async (req) => {
             - date: The date in YYYY-MM-DD format
             - supplier: The vendor/supplier name
             - receiptNumber: The receipt/invoice number if available
-            - category: Suggested category (personnel, equipment, materials, services, travel, other)
+            - category: Suggested category ID based on the expense type
             - confidence: Your confidence in the extraction (0.0 to 1.0)
+            
+            ${projectCategories ? `
+            IMPORTANT: Classify this expense into ONE of these specific project categories:
+            ${projectCategories.map((cat: any) => `- ${cat.id}: ${cat.name} - ${cat.description}`).join('\n')}
+            
+            Return the category ID (e.g., "${projectCategories[0].id}") in the "category" field.
+            Choose the MOST APPROPRIATE category based on the expense description and supplier.
+            ` : `
+            Use these standard categories: personnel, equipment, materials, services, travel, other
+            `}
             
             If you cannot find certain information, use null for that field.
             Be as accurate as possible with amounts and dates.`
@@ -147,17 +176,19 @@ serve(async (req) => {
       };
     }
 
-    // Auto-classify based on description and supplier
-    const classification = await classifyExpense(extractedData.description, extractedData.supplier);
+    // Use AI-classified category if available, otherwise fallback to rule-based
+    const finalCategory = extractedData.category || 'other';
     
     const result = {
       extractedData: {
         ...extractedData,
-        category: classification.category || extractedData.category
+        category: finalCategory
       },
-      category: classification.category || extractedData.category,
-      confidence: Math.min(extractedData.confidence || 0.5, classification.confidence || 0.5),
-      classificationReasons: classification.reasons || []
+      category: finalCategory,
+      confidence: extractedData.confidence || 0.5,
+      classificationReasons: projectCategories 
+        ? [`Classificato automaticamente dall'AI nelle categorie del progetto`]
+        : [`Classificato usando categorie standard`]
     };
 
     console.log('Final result:', result);
@@ -238,7 +269,7 @@ async function classifyExpense(description: string, supplier: string | null) {
 }
 
 // Function to process XML electronic invoices
-async function processXMLInvoice(file: File, projectId: string, supabaseUrl: string, supabaseServiceKey: string) {
+async function processXMLInvoice(file: File, projectId: string, projectCategories: any[] | null, supabaseUrl: string, supabaseServiceKey: string) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
   // Read XML content
@@ -300,7 +331,7 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
   
   try {
     // Parse XML to extract invoice data (xmlContent already available from above)
-    const invoiceData = parseXMLInvoice(xmlContent);
+    const invoiceData = await parseXMLInvoice(xmlContent, projectCategories);
     
     // Validate project code presence
     const projectCodeValidation = validateProjectCode(xmlContent, projectData);
@@ -384,7 +415,7 @@ async function processXMLInvoice(file: File, projectId: string, supabaseUrl: str
 }
 
 // Parse XML electronic invoice
-function parseXMLInvoice(xmlContent: string) {
+async function parseXMLInvoice(xmlContent: string, projectCategories: any[] | null) {
   // Extract key information from XML using regex patterns
   // This handles the standard Italian electronic invoice format (FatturaPA)
   
@@ -423,8 +454,68 @@ function parseXMLInvoice(xmlContent: string) {
   
   const description = descriptions.length > 0 ? descriptions.join(', ') : 'Fattura elettronica';
   
-  // Auto-classify based on description
-  const classification = classifyElectronicInvoice(description, supplierName);
+  // Classify using AI if project categories are available
+  let category = 'other';
+  let confidence = 0.5;
+  
+  if (projectCategories && projectCategories.length > 0) {
+    // Use Lovable AI for intelligent classification
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (lovableApiKey) {
+      try {
+        const classificationResult = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: `You are an expert at classifying business expenses into project budget categories.
+                
+Available categories for this project:
+${projectCategories.map((cat: any) => `- ${cat.id}: ${cat.name} - ${cat.description}`).join('\n')}
+
+Analyze the expense and return ONLY the category ID that best matches the expense type.`
+              },
+              {
+                role: 'user',
+                content: `Classify this expense:
+Description: ${description}
+Supplier: ${supplierName || 'Unknown'}
+
+Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 50
+          }),
+        });
+        
+        if (classificationResult.ok) {
+          const data = await classificationResult.json();
+          const aiCategory = data.choices[0].message.content.trim().toLowerCase();
+          
+          // Validate AI response matches one of the project categories
+          if (projectCategories.some((cat: any) => cat.id === aiCategory)) {
+            category = aiCategory;
+            confidence = 0.85;
+            console.log('AI classified expense as:', category);
+          }
+        }
+      } catch (error) {
+        console.error('Error classifying with AI:', error);
+      }
+    }
+  } else {
+    // Fallback to rule-based classification
+    const classification = classifyElectronicInvoice(description, supplierName);
+    category = classification.category;
+    confidence = classification.confidence;
+  }
   
   return {
     description: description,
@@ -433,8 +524,8 @@ function parseXMLInvoice(xmlContent: string) {
     supplier: supplierName,
     receiptNumber: invoiceNumber,
     causale: causale,
-    category: classification.category,
-    confidence: classification.confidence,
+    category: category,
+    confidence: confidence,
     invoiceType: 'electronic'
   };
 }
