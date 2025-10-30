@@ -96,17 +96,56 @@ function parseCSV(content: string) {
   console.log('CSV headers:', headers);
   console.log('CSV content preview:', lines.slice(0, 3).join('\n'));
   
+  // Detect format type
+  const isInvoiceFormat = headers.some(h => 
+    h.toLowerCase().includes('fornitore') || 
+    h.toLowerCase().includes('numero fattura') ||
+    h.toLowerCase().includes('numero_fattura')
+  );
+  const isItalianBankFormat = headers[0]?.toLowerCase().includes('data');
+  
+  console.log('Format detected:', { isInvoiceFormat, isItalianBankFormat });
+  
   const transactions = [];
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(separator).map(v => v.trim().replace(/"/g, ''));
     
     if (values.length >= 3) {
-      // Handle Italian CSV format: Data;Beneficiario;Descrizione;Importo;Causale
-      const isItalianFormat = headers[0]?.toLowerCase().includes('data');
-      
       let transaction;
-      if (isItalianFormat && values.length >= 4) {
-        // Italian format - handle both European (1.234,56) and standard (1234.56) formats
+      
+      if (isInvoiceFormat) {
+        // Invoice format: File;Numero Fattura;Fornitore;Descrizione;Importo (€);IVA (%);CUP
+        const invoiceNumberIdx = headers.findIndex(h => h.toLowerCase().includes('numero') && h.toLowerCase().includes('fattura'));
+        const supplierIdx = headers.findIndex(h => h.toLowerCase().includes('fornitore'));
+        const descriptionIdx = headers.findIndex(h => h.toLowerCase().includes('descrizione'));
+        const amountIdx = headers.findIndex(h => h.toLowerCase().includes('importo'));
+        
+        if (supplierIdx >= 0 && amountIdx >= 0) {
+          let amountStr = values[amountIdx].trim();
+          // Handle both formats: 1200000.0 or 1.200.000,00
+          if (amountStr.includes(',')) {
+            amountStr = amountStr.replace(/\./g, '').replace(',', '.');
+          }
+          
+          const amount = parseFloat(amountStr) || 0;
+          const invoiceNumber = invoiceNumberIdx >= 0 ? values[invoiceNumberIdx] : null;
+          const supplier = supplierIdx >= 0 ? values[supplierIdx] : null;
+          const description = descriptionIdx >= 0 ? values[descriptionIdx] : 'Invoice';
+          
+          console.log(`Parsed invoice: ${supplier} - ${invoiceNumber} - €${amount}`);
+          
+          transaction = {
+            transaction_date: new Date().toISOString().split('T')[0], // Use current date as fallback
+            counterpart_name: supplier,
+            description: `${description}${invoiceNumber ? ` (Fattura ${invoiceNumber})` : ''}`,
+            amount: Math.abs(amount),
+            transaction_type: 'debit',
+            reference_number: invoiceNumber,
+            category: categorizeTransaction(description || ''),
+          };
+        }
+      } else if (isItalianBankFormat && values.length >= 4) {
+        // Italian bank format: Data;Beneficiario;Descrizione;Importo;Causale
         let amountStr = values[3].trim();
         
         // Check if it's European format (has comma as decimal separator)
@@ -141,7 +180,9 @@ function parseCSV(content: string) {
         };
       }
       
-      transactions.push(transaction);
+      if (transaction) {
+        transactions.push(transaction);
+      }
     }
   }
 
