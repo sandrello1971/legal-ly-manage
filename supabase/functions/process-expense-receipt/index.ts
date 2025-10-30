@@ -179,6 +179,7 @@ serve(async (req) => {
     // Use AI to classify into project categories if available
     let finalCategory = extractedData.category || 'other';
     let categoryConfidence = extractedData.confidence || 0.5;
+    let projectCategory = undefined;
     
     if (projectCategories && projectCategories.length > 0) {
       const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -222,9 +223,12 @@ Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
             
             // Validate AI response matches one of the project categories
             if (projectCategories.some((cat: any) => cat.id === aiCategory)) {
-              finalCategory = aiCategory;
+              projectCategory = aiCategory;
               categoryConfidence = 0.85;
-              console.log('AI classified image expense as:', finalCategory);
+              console.log('AI classified image expense as:', projectCategory);
+              
+              // Map project category to standard enum category
+              finalCategory = mapProjectCategoryToStandard(aiCategory);
             }
           }
         } catch (error) {
@@ -236,12 +240,14 @@ Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
     const result = {
       extractedData: {
         ...extractedData,
-        category: finalCategory
+        category: finalCategory,
+        projectCategory: projectCategory // Categoria specifica del progetto
       },
-      category: finalCategory,
+      category: finalCategory, // Categoria standard per il database
+      projectCategory: projectCategory, // Categoria di progetto per display
       confidence: categoryConfidence,
-      classificationReasons: projectCategories 
-        ? [`Classificato automaticamente dall'AI nelle categorie del progetto`]
+      classificationReasons: projectCategory 
+        ? [`Classificato automaticamente dall'AI come "${projectCategory}" (mappato a "${finalCategory}")`]
         : [`Classificato usando categorie standard`]
     };
 
@@ -512,6 +518,8 @@ async function parseXMLInvoice(xmlContent: string, projectCategories: any[] | nu
   let category = 'other';
   let confidence = 0.5;
   
+  let projectCategory = undefined;
+  
   if (projectCategories && projectCategories.length > 0) {
     // Use Lovable AI for intelligent classification
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -555,9 +563,12 @@ Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
           
           // Validate AI response matches one of the project categories
           if (projectCategories.some((cat: any) => cat.id === aiCategory)) {
-            category = aiCategory;
+            projectCategory = aiCategory;
             confidence = 0.85;
-            console.log('AI classified expense as:', category);
+            console.log('AI classified expense as:', projectCategory);
+            
+            // Map project category to standard enum category
+            category = mapProjectCategoryToStandard(projectCategory);
           }
         }
       } catch (error) {
@@ -578,7 +589,8 @@ Return ONLY the category ID (e.g., "${projectCategories[0].id}").`
     supplier: supplierName,
     receiptNumber: invoiceNumber,
     causale: causale,
-    category: category,
+    category: category, // Standard category for database
+    projectCategory: projectCategory, // Project-specific category for display
     confidence: confidence,
     invoiceType: 'electronic'
   };
@@ -1198,4 +1210,41 @@ Rispondi SOLO con JSON (senza markdown):
     console.error('Error in project coherence AI analysis:', error);
     return null;
   }
+}
+
+// Helper function to map project-specific categories to standard enum categories
+function mapProjectCategoryToStandard(projectCategory: string): string {
+  const categoryMap: Record<string, string> = {
+    // Personnel related
+    'personale': 'personnel',
+    'risorse_umane': 'personnel',
+    'costi_personale': 'personnel',
+    
+    // Equipment and investments
+    'investimenti_materiali': 'equipment',
+    'investimenti_immateriali': 'equipment',
+    'attrezzature': 'equipment',
+    'hardware': 'equipment',
+    'software': 'equipment',
+    'macchinari': 'equipment',
+    
+    // Services and consulting
+    'consulenza': 'services',
+    'servizi': 'services',
+    'formazione': 'services',
+    'training': 'services',
+    
+    // Infrastructure
+    'adeguamenti_spazi': 'materials',
+    'materiali': 'materials',
+    'infrastruttura': 'materials',
+    
+    // Travel
+    'viaggi': 'travel',
+    'trasferte': 'travel',
+    'mobilita': 'travel',
+  };
+  
+  const normalizedCategory = projectCategory.toLowerCase().trim();
+  return categoryMap[normalizedCategory] || 'other';
 }
