@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useBandi } from '@/hooks/useBandi';
 import { ExpenseEditDialog } from '@/components/expenses/ExpenseEditDialog';
+import { ExpenseImporter } from '@/components/expenses/ExpenseImporter';
 import { Expense } from '@/hooks/useExpenses';
 
 interface ExpenseCategory {
@@ -452,6 +453,14 @@ export default function ProjectConsuntivazione() {
         </TabsContent>
 
         <TabsContent value="reconciliation" className="space-y-6">
+          <ExpenseImporter 
+            projectId={projectId!} 
+            onImportComplete={() => {
+              // Refresh expenses after import
+              window.location.reload();
+            }}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Carica Estratto Conto Bancario</CardTitle>
