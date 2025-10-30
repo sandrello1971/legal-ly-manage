@@ -38,6 +38,9 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
   const { parsePdfDecreto, createBando, updateBando } = useBandi();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Salva l'ID del bando se viene creato durante l'analisi AI
+  const [createdBandoId, setCreatedBandoId] = useState<string | null>(initialData?.id || null);
+
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
@@ -149,7 +152,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       setParsing(true);
 
       // Se non abbiamo un ID del bando, dobbiamo salvarlo prima (ma senza chiudere il form)
-      let bandoId = initialData?.id;
+      let bandoId = createdBandoId || initialData?.id;
       
       if (!bandoId) {
         // Crea il bando solo con campi validi
@@ -182,6 +185,11 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
         // Salva direttamente senza chiudere il form
         const savedBando = await createBando(bandoData);
         bandoId = savedBando?.id;
+        
+        // Salva l'ID per evitare di ricreare il bando
+        if (bandoId) {
+          setCreatedBandoId(bandoId);
+        }
       }
 
       if (!bandoId) {
@@ -267,7 +275,7 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title.trim()) {
@@ -301,7 +309,17 @@ export const BandoForm = ({ initialData, onSave, onCancel }: BandoFormProps) => 
       parsed_data: (formData as any).parsed_data || null
     };
 
-    onSave(bandoData);
+    // Se il bando è stato già creato durante l'analisi AI, fai update invece di create
+    if (createdBandoId) {
+      try {
+        await updateBando(createdBandoId, bandoData);
+        onCancel(); // Chiudi il form dopo l'update
+      } catch (error) {
+        console.error('Error updating bando:', error);
+      }
+    } else {
+      onSave(bandoData);
+    }
   };
 
   return (
