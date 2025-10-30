@@ -310,35 +310,58 @@ serve(async (req) => {
     let testData;
     try {
       // Trova e pulisce il JSON nella risposta
-      let jsonStr = aiContent;
-      if (aiContent.startsWith('```json')) {
-        jsonStr = aiContent.replace(/```json\s*/, '').replace(/```\s*$/, '');
+      let jsonStr = aiContent.trim();
+      
+      // Rimuovi markdown code blocks
+      if (jsonStr.startsWith('```json')) {
+        jsonStr = jsonStr.replace(/```json\s*/, '').replace(/```\s*$/, '').trim();
+      } else if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/```\s*/, '').replace(/```\s*$/, '').trim();
       }
       
-      const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        let cleanJson = jsonMatch[0];
-        
-        // Rimuovi caratteri di troncatura e chiudi JSON se necessario
-        if (!cleanJson.endsWith('}')) {
-          const lastCommaIndex = cleanJson.lastIndexOf(',');
-          if (lastCommaIndex > 0) {
-            cleanJson = cleanJson.substring(0, lastCommaIndex) + '}';
-          } else {
-            cleanJson += '}';
-          }
-        }
-        
-        testData = JSON.parse(cleanJson);
-        console.log('✅ Successfully parsed AI response');
-      } else {
-        throw new Error('No JSON found in AI response');
+      console.log('🔍 Raw JSON string (first 500 chars):', jsonStr.substring(0, 500));
+      
+      // Trova il primo { e l'ultimo } per estrarre il JSON
+      const firstBrace = jsonStr.indexOf('{');
+      const lastBrace = jsonStr.lastIndexOf('}');
+      
+      if (firstBrace === -1 || lastBrace === -1 || firstBrace >= lastBrace) {
+        throw new Error('No valid JSON structure found in AI response');
       }
+      
+      let cleanJson = jsonStr.substring(firstBrace, lastBrace + 1);
+      
+      // Rimuovi commenti JavaScript stile // e /* */
+      cleanJson = cleanJson.replace(/\/\*[\s\S]*?\*\//g, '');
+      cleanJson = cleanJson.replace(/\/\/.*/g, '');
+      
+      // Rimuovi trailing commas prima di } o ]
+      cleanJson = cleanJson.replace(/,(\s*[}\]])/g, '$1');
+      
+      // Fix per proprietà non quotate (es: {name: "value"} -> {"name": "value"})
+      cleanJson = cleanJson.replace(/(\w+):/g, '"$1":');
+      
+      // Fix per valori stringa senza virgolette dopo : 
+      // Attenzione: questo è un fix approssimativo, potrebbe non funzionare in tutti i casi
+      cleanJson = cleanJson.replace(/:\s*([a-zA-Z][a-zA-Z0-9\s]*[a-zA-Z0-9])(\s*[,}\]])/g, ': "$1"$2');
+      
+      // Rimuovi spazi multipli
+      cleanJson = cleanJson.replace(/\s+/g, ' ');
+      
+      console.log('🔍 Cleaned JSON (first 500 chars):', cleanJson.substring(0, 500));
+      
+      // Prova a parsare
+      testData = JSON.parse(cleanJson);
+      console.log('✅ Successfully parsed AI response');
+      
     } catch (parseError) {
       console.error('❌ Error parsing AI response:', parseError);
+      console.error('📝 Original content (first 1000 chars):', aiContent.substring(0, 1000));
+      
+      // Usa dati di fallback
       testData = {
         title: 'BANDO - Errore nel parsing AI',
-        description: 'Errore nel parsing AI - usando dati fallback',
+        description: 'Errore nel parsing AI - usando dati fallback. Il PDF è stato analizzato ma la risposta non è in formato JSON valido.',
         organization: 'Ente Pubblico',
         total_amount: null,
         min_funding: null,
