@@ -31,7 +31,7 @@ export default function Bandi() {
   const [selectedBando, setSelectedBando] = useState<string | null>(null);
   const [editingBando, setEditingBando] = useState<any>(null);
 
-  const { bandi, loading, error, createBando, updateBando, deleteBando } = useBandi();
+  const { bandi, loading, error, createBando, updateBando, deleteBando, refetch } = useBandi();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -79,6 +79,7 @@ export default function Bandi() {
       } else {
         saved = await createBando(data);
       }
+      await refetch(); // Aggiorna la lista dopo il salvataggio
       setShowForm(false);
       setEditingBando(null);
       return saved;
