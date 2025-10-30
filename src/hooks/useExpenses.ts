@@ -38,6 +38,7 @@ export interface ExpenseUpload {
     supplier?: string;
     receiptNumber?: string;
     invoiceType?: 'electronic' | 'traditional';
+    confidence?: number;
   };
   validation?: {
     projectCode?: {

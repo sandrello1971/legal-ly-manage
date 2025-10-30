@@ -289,13 +289,18 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
                         {upload.status === 'processing' && (
                           <Badge variant="secondary">Elaborazione...</Badge>
                         )}
-                        {upload.status === 'completed' && upload.confidence && (
+                        {upload.status === 'completed' && upload.confidence !== undefined && (
                           <div className="flex flex-col gap-1">
                             <Badge variant="secondary" className={getConfidenceColor(upload.confidence)}>
-                              Confidenza: {getConfidenceText(upload.confidence)} ({Math.round(upload.confidence * 100)}%)
+                              Confidenza Validazione: {getConfidenceText(upload.confidence)} ({Math.round(upload.confidence * 100)}%)
                             </Badge>
                             {upload.confidenceExplanation && (
                               <p className="text-xs text-muted-foreground">{upload.confidenceExplanation}</p>
+                            )}
+                            {upload.extractedData?.confidence && upload.extractedData.confidence !== upload.confidence && (
+                              <p className="text-xs text-muted-foreground">
+                                Qualità estrazione: {Math.round(upload.extractedData.confidence * 100)}%
+                              </p>
                             )}
                           </div>
                         )}
