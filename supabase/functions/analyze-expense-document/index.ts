@@ -83,6 +83,52 @@ serve(async (req) => {
       hasExpenseCategories: !!bandoData?.expense_categories 
     });
 
+    // RAG: Genera embedding per la descrizione del documento e recupera contesto rilevante
+    let ragContext = '';
+    try {
+      console.log('🔍 Generating embedding for RAG search...');
+      
+      const queryText = `Spesa per il progetto ${project.title}. Documento: ${document.title || 'Non specificato'}. Importo: ${document.amount || 'N/A'}`;
+      
+      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: queryText,
+        }),
+      });
+
+      if (embeddingResponse.ok) {
+        const embeddingData = await embeddingResponse.json();
+        const queryEmbedding = embeddingData.data[0].embedding;
+
+        // Cerca documenti rilevanti nel knowledge base
+        const { data: relevantDocs, error: searchError } = await supabase
+          .rpc('match_knowledge_base', {
+            query_embedding: queryEmbedding,
+            match_threshold: 0.7,
+            match_count: 5
+          });
+
+        if (!searchError && relevantDocs && relevantDocs.length > 0) {
+          console.log(`✅ Found ${relevantDocs.length} relevant documents in knowledge base`);
+          ragContext = '\n\nCONTESTO RILEVANTE DAL DATABASE:\n' + 
+            relevantDocs.map((doc: any) => 
+              `[${doc.title}]\n${doc.content}\n(Rilevanza: ${(1 - doc.distance).toFixed(2)})`
+            ).join('\n\n');
+        } else {
+          console.log('⚠️ No relevant documents found in knowledge base');
+        }
+      }
+    } catch (ragError) {
+      console.error('❌ RAG search error:', ragError);
+      // Continue without RAG context
+    }
+
     // Download file from storage
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('documents')
@@ -96,12 +142,14 @@ serve(async (req) => {
     const arrayBuffer = await fileData.arrayBuffer();
     const base64File = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-    // Create analysis prompt
+    // Create analysis prompt with RAG context
     const expenseCategories = bandoData?.expense_categories || [];
     const categoryNames = expenseCategories.map((cat: any) => cat.name).join(', ');
 
     const analysisPrompt = `
 Analizza questo documento di spesa per il progetto "${project.title}".
+
+${ragContext}
 
 IMPORTANTE - ORDINE DI VERIFICA:
 1. VERIFICA PROGETTO (priorità assoluta): Il progetto ha già superato la fase di ammissibilità al bando.

@@ -209,6 +209,20 @@ export const useBandi = () => {
       // Refresh the bando data
       await fetchBandi();
 
+      // Index the bando in the knowledge base for RAG
+      try {
+        await supabase.functions.invoke('index-document', {
+          body: { 
+            documentType: 'bando',
+            documentId: bandoId 
+          }
+        });
+        console.log('✅ Bando indexed in knowledge base');
+      } catch (indexError) {
+        console.error('⚠️ Failed to index bando:', indexError);
+        // Non blocking - continue anyway
+      }
+
       return data;
     } catch (err: any) {
       console.error('Error parsing PDF:', err);

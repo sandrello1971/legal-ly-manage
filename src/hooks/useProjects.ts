@@ -91,6 +91,20 @@ export const useProjects = (bandoId?: string) => {
         description: 'Progetto creato con successo',
       });
 
+      // Index the project in the knowledge base for RAG
+      try {
+        await supabase.functions.invoke('index-document', {
+          body: { 
+            documentType: 'project',
+            documentId: data.id 
+          }
+        });
+        console.log('✅ Project indexed in knowledge base');
+      } catch (indexError) {
+        console.error('⚠️ Failed to index project:', indexError);
+        // Non blocking - continue anyway
+      }
+
       return data;
     } catch (err: any) {
       console.error('Error creating project:', err);
@@ -125,6 +139,20 @@ export const useProjects = (bandoId?: string) => {
         title: 'Successo',
         description: 'Progetto aggiornato con successo',
       });
+
+      // Re-index the project in the knowledge base for RAG
+      try {
+        await supabase.functions.invoke('index-document', {
+          body: { 
+            documentType: 'project',
+            documentId: id 
+          }
+        });
+        console.log('✅ Project re-indexed in knowledge base');
+      } catch (indexError) {
+        console.error('⚠️ Failed to re-index project:', indexError);
+        // Non blocking - continue anyway
+      }
 
       return data;
     } catch (err: any) {
