@@ -271,7 +271,7 @@ export function ExpenseProcessor({ defaultProjectId }: ExpenseProcessorProps = {
           supplier_name: upload.extractedData?.supplier,
           receipt_number: upload.extractedData?.receiptNumber,
           file_hash: upload.fileHash,
-          is_approved: false // Le fatture richiedono approvazione manuale
+          is_approved: true // Le spese caricate sono già approvate
         });
       } catch (error) {
         console.error('Error creating expense:', error);
