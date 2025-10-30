@@ -3,9 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, FileText, AlertCircle } from 'lucide-react';
+import { ArrowLeft, FileText, AlertCircle, Trash2 } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useBandi } from '@/hooks/useBandi';
 
 interface ExpenseCategory {
@@ -20,7 +31,7 @@ export default function ProjectConsuntivazione() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
-  const { expenses, loading: loadingExpenses } = useExpenses(projectId);
+  const { expenses, loading: loadingExpenses, deleteExpense } = useExpenses(projectId);
 
   const project = useMemo(() => 
     projects.find(p => p.id === projectId),
@@ -234,6 +245,7 @@ export default function ProjectConsuntivazione() {
                 <TableHead className="text-right">Speso</TableHead>
                 <TableHead className="text-right">Residuo</TableHead>
                 <TableHead className="text-right">%</TableHead>
+                <TableHead className="w-[80px]">Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -277,6 +289,7 @@ export default function ProjectConsuntivazione() {
                       <TableCell className="text-right font-bold">
                         {percentage.toFixed(1)}%
                       </TableCell>
+                      <TableCell></TableCell>
                     </TableRow>
                     
                     {categoryExpenses.map(expense => (
@@ -299,6 +312,40 @@ export default function ProjectConsuntivazione() {
                         </TableCell>
                         <TableCell></TableCell>
                         <TableCell></TableCell>
+                        <TableCell>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Sei sicuro di voler eliminare questa spesa? L'operazione non può essere annullata.
+                                  <br /><br />
+                                  <strong>Spesa:</strong> {expense.description}
+                                  <br />
+                                  <strong>Importo:</strong> {formatCurrency(expense.amount)}
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteExpense(expense.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Elimina
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </>
@@ -314,6 +361,7 @@ export default function ProjectConsuntivazione() {
                 <TableCell className="text-right">
                   {totalBudget > 0 ? ((totalSpent / totalBudget) * 100).toFixed(1) : 0}%
                 </TableCell>
+                <TableCell></TableCell>
               </TableRow>
             </TableBody>
           </Table>
