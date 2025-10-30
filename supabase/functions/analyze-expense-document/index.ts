@@ -158,6 +158,15 @@ IMPORTANTE - ORDINE DI VERIFICA:
 2. VERIFICA FORMALE BANDO: Solo controlli formali (es: tipo di documento, completezza informazioni).
    NON verificare criteri di ammissibilità generali perché il progetto è già stato approvato.
 
+CALCOLO CONFIDENZA (IMPORTANTE):
+- 90-100%: CUP trovato + spesa chiaramente coerente con obiettivi progetto + categoria appropriata + documento valido
+- 80-89%: CUP trovato + spesa ragionevolmente coerente con progetto + documentazione completa
+- 70-79%: CUP trovato ma spesa parzialmente coerente O documento parzialmente incompleto
+- 60-69%: CUP non trovato ma spesa molto coerente con obiettivi del progetto
+- < 60%: Problemi significativi di coerenza o documentazione
+
+NOTA CRITICA: NON penalizzare la confidenza se la spesa "non è esplicitamente prevista" ma è COERENTE con gli obiettivi del progetto. I progetti evolvono e molte spese operative sono implicitamente necessarie anche se non elencate dettagliatamente nel piano iniziale.
+
 CONTESTO PROGETTO:
 - Titolo: ${project.title}
 - Budget totale: €${project.total_budget}

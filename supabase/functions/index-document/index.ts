@@ -118,56 +118,72 @@ Status: ${data.status}`,
       if (error || !data) throw new Error('Project not found');
       documentData = data;
 
-      // Crea chunks dal progetto
+      // Crea chunks dettagliati dal progetto
       chunks = [
         {
-          title: `Progetto: ${data.title} - Informazioni Generali`,
+          title: `Progetto: ${data.title} - Informazioni Generali e Obiettivi`,
           content: `Titolo: ${data.title}
-Descrizione: ${data.description || 'N/A'}
 CUP: ${data.cup_code || 'N/A'}
 Status: ${data.status}
-Manager: ${data.project_manager || 'N/A'}`,
+Manager: ${data.project_manager || 'N/A'}
+
+DESCRIZIONE E OBIETTIVI:
+${data.description || 'Non specificati'}
+
+FINALITÀ DEL PROGETTO:
+Il progetto ${data.title} mira a raggiungere gli obiettivi descritti nella proposta. Tutte le spese devono essere funzionali e coerenti con questi obiettivi, anche se non esplicitamente elencate nel piano iniziale, purché supportino il raggiungimento dei risultati attesi.`,
           metadata: { section: 'general' }
         },
         {
-          title: `Progetto: ${data.title} - Budget e Finanze`,
+          title: `Progetto: ${data.title} - Budget e Allocazioni`,
           content: `Budget Totale: €${data.total_budget}
 Budget Allocato: €${data.allocated_budget || 0}
 Budget Speso: €${data.spent_budget || 0}
 Budget Rimanente: €${data.remaining_budget || data.total_budget}
-Percentuale Progresso: ${data.progress_percentage || 0}%`,
+Percentuale Progresso: ${data.progress_percentage || 0}%
+
+DISPONIBILITÀ BUDGET:
+Il progetto ha ancora €${data.remaining_budget || data.total_budget} disponibili per spese coerenti con gli obiettivi progettuali.`,
           metadata: { section: 'budget' }
         },
         {
-          title: `Progetto: ${data.title} - Tempistiche`,
+          title: `Progetto: ${data.title} - Tempistiche e Cronoprogramma`,
           content: `Data Inizio Prevista: ${data.start_date || 'N/A'}
 Data Fine Prevista: ${data.end_date || 'N/A'}
 Data Inizio Effettiva: ${data.actual_start_date || 'N/A'}
-Data Fine Effettiva: ${data.actual_end_date || 'N/A'}`,
+Data Fine Effettiva: ${data.actual_end_date || 'N/A'}
+
+PERIODO DI VALIDITÀ:
+Le spese devono essere sostenute durante il periodo di attuazione del progetto per essere ammissibili.`,
           metadata: { section: 'timeline' }
         }
       ];
 
       if (data.notes) {
         chunks.push({
-          title: `Progetto: ${data.title} - Note`,
-          content: `Note del Progetto:\n${data.notes}`,
+          title: `Progetto: ${data.title} - Note e Dettagli Operativi`,
+          content: `Note del Progetto:
+${data.notes}
+
+Queste note forniscono contesto aggiuntivo sulle attività previste e le modalità di realizzazione.`,
           metadata: { section: 'notes' }
         });
       }
 
       if (data.risk_assessment) {
         chunks.push({
-          title: `Progetto: ${data.title} - Valutazione Rischi`,
-          content: `Valutazione Rischi:\n${data.risk_assessment}`,
+          title: `Progetto: ${data.title} - Valutazione Rischi e Mitigazione`,
+          content: `Valutazione Rischi:
+${data.risk_assessment}`,
           metadata: { section: 'risks' }
         });
       }
 
       if (data.parsed_data) {
         chunks.push({
-          title: `Progetto: ${data.title} - Dati Analizzati`,
-          content: `Dati Analizzati:\n${JSON.stringify(data.parsed_data, null, 2)}`,
+          title: `Progetto: ${data.title} - Dati Analizzati e Informazioni Tecniche`,
+          content: `Dati Analizzati dal Documento di Progetto:
+${JSON.stringify(data.parsed_data, null, 2)}`,
           metadata: { section: 'parsed_data' }
         });
       }
