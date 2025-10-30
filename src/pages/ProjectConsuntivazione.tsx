@@ -8,6 +8,7 @@ import { ArrowLeft, FileText, AlertCircle, Trash2, Pencil, CheckCircle2, XCircle
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
 import { useBankStatements } from '@/hooks/useBankStatements';
+import { findBestTransactionMatch, isExpenseReconciled } from '@/lib/reconciliationUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BankStatementUploader } from '@/components/banking/BankStatementUploader';
 import { ReconciliationEngine } from '@/components/banking/ReconciliationEngine';
@@ -43,9 +44,20 @@ export default function ProjectConsuntivazione() {
   const { transactions } = useBankStatements();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
-  // Check if an expense is reconciled with a bank transaction
-  const isExpenseReconciled = (expenseId: string) => {
-    return transactions.some(t => t.expense_id === expenseId && t.is_reconciled);
+  // Get reconciliation status for an expense
+  const getExpenseReconciliationStatus = (expenseId: string, expense: Expense) => {
+    // First check if manually reconciled
+    if (isExpenseReconciled(expenseId, transactions)) {
+      return { isReconciled: true, confidence: 100, isManual: true };
+    }
+    
+    // Otherwise check for automatic match
+    const match = findBestTransactionMatch(expense, transactions, 80);
+    if (match && match.confidence >= 80) {
+      return { isReconciled: true, confidence: match.confidence, isManual: false, match };
+    }
+    
+    return { isReconciled: false, confidence: 0, isManual: false };
   };
 
   const project = useMemo(() => 
@@ -363,7 +375,7 @@ export default function ProjectConsuntivazione() {
                         </TableRow>
                         
                         {categoryExpenses.map(expense => {
-                          const isReconciled = isExpenseReconciled(expense.id);
+                          const reconStatus = getExpenseReconciliationStatus(expense.id, expense);
                           // Split description by commas to show multiple items
                           const items = expense.description.split(',').map(item => item.trim()).filter(item => item.length > 0);
                           
@@ -396,29 +408,62 @@ export default function ProjectConsuntivazione() {
                                   {expense.receipt_number && (
                                     <span className="text-xs flex-shrink-0">({expense.receipt_number})</span>
                                   )}
-                                  {isReconciled ? (
-                                    <Badge variant="default" className="gap-1 bg-success text-success-foreground flex-shrink-0">
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      Rendicontabile
-                                    </Badge>
-                                  ) : (
-                                    <>
-                                      <Badge variant="outline" className="gap-1 text-muted-foreground flex-shrink-0">
-                                        <XCircle className="h-3 w-3" />
-                                        Non riconciliata
-                                      </Badge>
-                                      {matchingTransactions.length > 0 && (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="h-6 text-xs"
-                                          onClick={() => navigate(`/projects/${projectId}/consuntivazione?tab=riconciliazione&expense=${expense.id}`)}
+                                  
+                                  {/* Reconciliation Status */}
+                                  {(() => {
+                                    if (reconStatus.isReconciled) {
+                                      return (
+                                        <Badge 
+                                          variant="default" 
+                                          className="bg-green-600 hover:bg-green-700 text-white gap-1 whitespace-nowrap flex-shrink-0"
+                                          title={reconStatus.isManual 
+                                            ? "Riconciliata manualmente" 
+                                            : `Riconciliata automaticamente (${reconStatus.confidence}%)`
+                                          }
                                         >
-                                          Riconcilia ({matchingTransactions.length})
-                                        </Button>
-                                      )}
-                                    </>
-                                  )}
+                                          <CheckCircle2 className="h-3 w-3" />
+                                          Rendicontabile
+                                        </Badge>
+                                      );
+                                    } else {
+                                      // Check if there's a potential match
+                                      const potentialMatch = findBestTransactionMatch(expense, transactions, 50);
+                                      
+                                      if (potentialMatch && potentialMatch.confidence >= 50) {
+                                        return (
+                                          <div className="flex items-center gap-2 flex-shrink-0">
+                                            <Badge 
+                                              variant="secondary" 
+                                              className="bg-yellow-100 text-yellow-800 gap-1 whitespace-nowrap"
+                                              title={`Possibile match trovato (${potentialMatch.confidence}%) - Verifica manualmente`}
+                                            >
+                                              <AlertCircle className="h-3 w-3" />
+                                              Verifica richiesta
+                                            </Badge>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 text-xs"
+                                              onClick={() => navigate(`/projects/${projectId}/consuntivazione?tab=riconciliazione`)}
+                                            >
+                                              Riconcilia
+                                            </Button>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      return (
+                                        <Badge 
+                                          variant="secondary" 
+                                          className="gap-1 whitespace-nowrap flex-shrink-0"
+                                          title="Nessun pagamento trovato nell'estratto conto"
+                                        >
+                                          <XCircle className="h-3 w-3" />
+                                          Non riconciliata
+                                        </Badge>
+                                      );
+                                    }
+                                  })()}
                                 </div>
                               </div>
                             </TableCell>
