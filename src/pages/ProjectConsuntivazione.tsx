@@ -6,37 +6,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ArrowLeft, FileText, AlertCircle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useExpenses } from '@/hooks/useExpenses';
-import { useBandi } from '@/hooks/useBandi';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ExpenseCategory {
+  id: string;
+  name: string;
+  description: string;
+}
 
 export default function ProjectConsuntivazione() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
   const { expenses, loading: loadingExpenses } = useExpenses(projectId);
-  const { bandi, loading: loadingBandi } = useBandi();
 
   const project = useMemo(() => 
     projects.find(p => p.id === projectId),
     [projects, projectId]
   );
 
-  // Get bando associated with project
-  const bando = useMemo(() => {
-    if (!project?.bando_id) return null;
-    return bandi.find(b => b.id === project.bando_id);
-  }, [project, bandi]);
-
-  // Extract categories from bando
-  const projectCategories = useMemo(() => {
-    if (!bando?.parsed_data?.expense_categories) return [];
-    return bando.parsed_data.expense_categories.map((cat: any) => ({
-      id: cat.name.toLowerCase().replace(/\s+/g, '_'),
-      name: cat.name,
-      description: cat.description || '',
-      max_percentage: cat.max_percentage,
-      max_amount: cat.max_amount
-    }));
-  }, [bando]);
+  // Define expense categories from the database enum
+  const projectCategories: ExpenseCategory[] = useMemo(() => [
+    { id: 'personnel', name: 'Personale', description: 'Costi del personale' },
+    { id: 'equipment', name: 'Attrezzature', description: 'Attrezzature e strumentazione' },
+    { id: 'materials', name: 'Materiali', description: 'Materiali di consumo' },
+    { id: 'services', name: 'Servizi', description: 'Servizi esterni' },
+    { id: 'travel', name: 'Viaggi', description: 'Spese di viaggio e trasferta' },
+    { id: 'other', name: 'Altro', description: 'Altre spese' }
+  ], []);
 
   // Group expenses by category
   const expensesByCategory = useMemo(() => {
@@ -56,34 +53,16 @@ export default function ProjectConsuntivazione() {
     return grouped;
   }, [expenses, projectCategories]);
 
-  // Calculate budget per category
+  // Calculate budget per category (equal distribution)
   const budgetPerCategory = useMemo(() => {
     if (!project?.total_budget || projectCategories.length === 0) return {};
     
     const budgets: Record<string, number> = {};
+    const budgetPerCat = project.total_budget / projectCategories.length;
     
     projectCategories.forEach(cat => {
-      if (cat.max_amount) {
-        budgets[cat.id] = cat.max_amount;
-      } else if (cat.max_percentage) {
-        budgets[cat.id] = (project.total_budget * cat.max_percentage) / 100;
-      } else {
-        // Se non ha limiti specifici, distribuisci equamente il budget rimanente
-        budgets[cat.id] = 0;
-      }
+      budgets[cat.id] = budgetPerCat;
     });
-
-    // Calcola budget non allocato
-    const allocatedBudget = Object.values(budgets).reduce((sum, val) => sum + val, 0);
-    const remainingBudget = project.total_budget - allocatedBudget;
-    const categoriesWithoutBudget = projectCategories.filter(cat => !budgets[cat.id]);
-    
-    if (categoriesWithoutBudget.length > 0 && remainingBudget > 0) {
-      const equalShare = remainingBudget / categoriesWithoutBudget.length;
-      categoriesWithoutBudget.forEach(cat => {
-        budgets[cat.id] = equalShare;
-      });
-    }
 
     return budgets;
   }, [project, projectCategories]);
@@ -124,7 +103,7 @@ export default function ProjectConsuntivazione() {
     }).format(amount);
   };
 
-  if (loadingProjects || loadingExpenses || loadingBandi) {
+  if (loadingProjects || loadingExpenses) {
     return (
       <div className="container mx-auto py-8">
         <p>Caricamento...</p>
@@ -250,12 +229,6 @@ export default function ProjectConsuntivazione() {
                           <div>{category.name}</div>
                           {category.description && (
                             <div className="text-xs text-muted-foreground font-normal">{category.description}</div>
-                          )}
-                          {(category.max_percentage || category.max_amount) && (
-                            <div className="text-xs text-muted-foreground font-normal">
-                              {category.max_percentage && `Max: ${category.max_percentage}%`}
-                              {category.max_amount && ` (€${category.max_amount.toLocaleString('it-IT')})`}
-                            </div>
                           )}
                         </div>
                       </TableCell>
