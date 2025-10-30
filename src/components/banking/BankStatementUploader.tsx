@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, Clock, X, Trash2 } from 'lucide-react';
 import { useBankStatements, type BankStatement } from '@/hooks/useBankStatements';
 
 interface UploadedFile {
@@ -20,7 +20,7 @@ interface UploadedFile {
 
 export function BankStatementUploader() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const { statements, uploadStatement, processStatement, loading } = useBankStatements();
+  const { statements, uploadStatement, processStatement, deleteStatement, loading } = useBankStatements();
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
@@ -270,6 +270,66 @@ export function BankStatementUploader() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Uploaded Statements List */}
+      {statements.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Estratti Conto Caricati</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {statements.map((statement) => (
+                <Card key={statement.id} className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 flex-1">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <div className="flex-1">
+                        <p className="font-medium">{statement.file_name}</p>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          <span>{new Date(statement.created_at).toLocaleDateString('it-IT')}</span>
+                          <span>•</span>
+                          <span>{statement.total_transactions} transazioni</span>
+                          {statement.bank_name && (
+                            <>
+                              <span>•</span>
+                              <span>{statement.bank_name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant={
+                        statement.status === 'completed' ? 'default' :
+                        statement.status === 'error' ? 'destructive' :
+                        'secondary'
+                      }>
+                        {statement.status === 'completed' ? 'Completato' :
+                         statement.status === 'error' ? 'Errore' :
+                         statement.status === 'processing' ? 'Elaborazione...' :
+                         'In attesa'}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteStatement(statement.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {statement.processing_error && (
+                    <Alert variant="destructive" className="mt-3">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{statement.processing_error}</AlertDescription>
+                    </Alert>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
