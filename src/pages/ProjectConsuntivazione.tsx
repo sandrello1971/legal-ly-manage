@@ -40,9 +40,18 @@ export default function ProjectConsuntivazione() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { projects, loading: loadingProjects } = useProjects();
-  const { expenses, loading: loadingExpenses, deleteExpense, updateExpense } = useExpenses(projectId);
-  const { transactions } = useBankStatements();
+  const { expenses, loading: loadingExpenses, deleteExpense, updateExpense, refetch: refetchExpenses } = useExpenses(projectId);
+  const { transactions, refetch: refetchTransactions } = useBankStatements();
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Refresh data when switching to overview tab
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      refetchExpenses();
+      refetchTransactions();
+    }
+  }, [activeTab, refetchExpenses, refetchTransactions]);
 
   // Get reconciliation status for an expense
   const getExpenseReconciliationStatus = (expenseId: string, expense: Expense) => {
@@ -307,7 +316,7 @@ export default function ProjectConsuntivazione() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="overview">Panoramica</TabsTrigger>
           <TabsTrigger value="reconciliation">Riconciliazione Bancaria</TabsTrigger>
