@@ -445,6 +445,7 @@ async function processXMLInvoice(file: File, projectId: string, projectCategorie
     const result = {
       extractedData: invoiceData,
       category: invoiceData.category,
+      projectCategory: invoiceData.projectCategory, // Add project category to top level
       confidence: confidence,
       confidenceExplanation: confidenceExplanation,
       validation: {
