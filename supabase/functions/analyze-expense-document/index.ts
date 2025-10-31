@@ -122,8 +122,8 @@ IMPORTANTE - DUE VERIFICHE SEPARATE E INDIPENDENTI:
    Subtotale massimo verifica progetto: 20 punti
 
 CALCOLO CONFIDENZA FINALE (DETERMINISTICO):
-Somma i punti delle due verifiche per ottenere un punteggio 0-100.
-La confidenza DEVE essere calcolata matematicamente sommando i punti, non con valutazioni soggettive.
+Somma i punti delle due verifiche (0-100), poi DIVIDI PER 100 per ottenere scala 0.0-1.0.
+La confidenza DEVE essere calcolata matematicamente sommando i punti e dividendo per 100, non con valutazioni soggettive.
 
 REGOLE CRITICHE PER DETERMINISMO:
 - Usa SOLO i criteri numerici sopra indicati
@@ -195,7 +195,7 @@ Rispondi in JSON con questa struttura esatta:
   },
   
   "suggested_category": "string",
-  "confidence": number (formal_score + project_score, range 0-100),
+  "confidence": number ((formal_score + project_score) / 100, range 0.0-1.0),
   "issues": ["array di problemi specifici rilevati"],
   
   "extracted_line_items": [

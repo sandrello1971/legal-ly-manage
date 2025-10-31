@@ -402,45 +402,63 @@ async function processXMLInvoice(file: File, projectId: string, projectCategorie
     // Validate coherence with project (second level: mentioned in project proposal)
     const projectCoherence = await validateProjectCoherence(invoiceData, projectData, bandoData);
     
-    // Determine if the expense should be approved or rejected
-    const shouldApprove = projectCodeValidation.isValid && bandoCoherence.isCoherent && projectCoherence.isCoherent;
-    
-    // Calculate confidence based on ALL validation results
-    let confidence = 0.3; // Base confidence
+    // Calculate confidence using deterministic point system
+    let formalPoints = 0;
+    let projectPoints = 0;
     let confidenceExplanation = '';
     
-    // CRITICAL: If bando says NOT eligible, confidence must be LOW regardless of CUP
-    if (!bandoCoherence.isCoherent) {
-      confidence = Math.min(0.4, bandoCoherence.coherenceScore / 100); // Max 40% if not eligible
-      confidenceExplanation = `Confidenza bassa: la spesa non sembra ammissibile secondo i criteri del bando (${Math.round(bandoCoherence.coherenceScore)}% coerenza con bando).`;
+    // FORMAL VALIDATION (max 80 points)
+    if (projectCodeValidation.cupFound) {
+      formalPoints += 30; // CUP found
     }
-    // If project says NOT mentioned in proposal, confidence is MEDIUM
-    else if (!projectCoherence.isCoherent) {
-      confidence = Math.min(0.65, projectCoherence.coherenceScore / 100); // Max 65% if not in project
-      confidenceExplanation = `Confidenza media: la spesa non era esplicitamente prevista nella proposta progettuale. ${projectCodeValidation.cupFound ? 'CUP trovato, ' : ''}bando coerente al ${Math.round(bandoCoherence.coherenceScore)}%.`;
+    if (invoiceData.supplier) {
+      formalPoints += 10; // Supplier clear
     }
-    // If project gives warning (score 50-70), confidence is MEDIUM-HIGH
-    else if (projectCoherence.coherenceScore < 70) {
-      confidence = projectCoherence.coherenceScore / 100; // Use AI score directly (50-70%)
-      confidenceExplanation = `Confidenza media: ${projectCodeValidation.cupFound ? 'CUP presente, ' : ''}bando coerente al ${Math.round(bandoCoherence.coherenceScore)}%, ma la spesa potrebbe non essere stata esplicitamente menzionata nel progetto (${Math.round(projectCoherence.coherenceScore)}%). Richiede verifica manuale.`;
+    if (invoiceData.amount > 0) {
+      formalPoints += 10; // Amount clear
     }
-    // Everything is OK - high confidence
-    else {
-      // Start with project code validation confidence
-      if (projectCodeValidation.cupFound) {
-        confidence = 0.90; // High confidence base
-        confidenceExplanation = `Confidenza alta: CUP trovato nella fattura, coerenza con bando al ${Math.round(bandoCoherence.coherenceScore)}% e con progetto al ${Math.round(projectCoherence.coherenceScore)}%.`;
-      } else if (projectCodeValidation.isValid) {
-        confidence = 0.75; // Good confidence base
-        confidenceExplanation = `Confidenza buona: riferimento progetto trovato, coerenza con bando al ${Math.round(bandoCoherence.coherenceScore)}% e con progetto al ${Math.round(projectCoherence.coherenceScore)}%.`;
-      } else {
-        confidenceExplanation = `Confidenza media: coerenza con bando al ${Math.round(bandoCoherence.coherenceScore)}% e con progetto al ${Math.round(projectCoherence.coherenceScore)}%.`;
-      }
-      
-      // Adjust based on coherence scores
-      const avgCoherenceScore = (bandoCoherence.coherenceScore + projectCoherence.coherenceScore) / 2;
-      confidence = Math.min(0.95, (confidence + (avgCoherenceScore / 100)) / 2);
+    if (invoiceData.date) {
+      formalPoints += 10; // Date present
     }
+    formalPoints += 20; // XML always readable
+    
+    // PROJECT VALIDATION (max 20 points)
+    if (bandoCoherence.isCoherent && bandoCoherence.coherenceScore >= 70) {
+      projectPoints += 15; // Expense compatible with project type
+    } else if (bandoCoherence.coherenceScore >= 50) {
+      projectPoints += 10; // Partially compatible
+    }
+    
+    if (invoiceData.category && invoiceData.category !== 'other') {
+      projectPoints += 5; // Category appropriate
+    }
+    
+    // Calculate final confidence (0-1 scale)
+    const totalPoints = formalPoints + projectPoints;
+    const confidence = totalPoints / 100;
+    
+    // Build explanation
+    const formalChecks = [];
+    if (projectCodeValidation.cupFound) formalChecks.push(`CUP trovato (+30)`);
+    if (invoiceData.supplier) formalChecks.push(`Fornitore identificato (+10)`);
+    if (invoiceData.amount > 0) formalChecks.push(`Importo presente (+10)`);
+    if (invoiceData.date) formalChecks.push(`Data presente (+10)`);
+    formalChecks.push(`XML leggibile (+20)`);
+    
+    const projectChecks = [];
+    if (bandoCoherence.isCoherent && bandoCoherence.coherenceScore >= 70) {
+      projectChecks.push(`Compatibile con obiettivi progetto (+15, coerenza bando: ${Math.round(bandoCoherence.coherenceScore)}%)`);
+    } else if (bandoCoherence.coherenceScore >= 50) {
+      projectChecks.push(`Parzialmente compatibile con progetto (+10, coerenza bando: ${Math.round(bandoCoherence.coherenceScore)}%)`);
+    }
+    if (invoiceData.category && invoiceData.category !== 'other') {
+      projectChecks.push(`Categoria appropriata (+5)`);
+    }
+    
+    confidenceExplanation = `Verifica formale: ${formalPoints}/80 punti (${formalChecks.join(', ')}). Verifica progetto: ${projectPoints}/20 punti (${projectChecks.join(', ')}). Totale: ${totalPoints}/100 = ${Math.round(confidence * 100)}% confidenza.`;
+    
+    // Determine if should approve based on confidence threshold
+    const shouldApprove = confidence >= 0.7; // 70% threshold
     
     const result = {
       extractedData: invoiceData,
