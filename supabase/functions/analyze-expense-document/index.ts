@@ -83,51 +83,8 @@ serve(async (req) => {
       hasExpenseCategories: !!bandoData?.expense_categories 
     });
 
-    // RAG: Genera embedding per la descrizione del documento e recupera contesto rilevante
-    let ragContext = '';
-    try {
-      console.log('🔍 Generating embedding for RAG search...');
-      
-      const queryText = `Spesa per il progetto ${project.title}. Documento: ${document.title || 'Non specificato'}. Importo: ${document.amount || 'N/A'}`;
-      
-      const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-3-small',
-          input: queryText,
-        }),
-      });
-
-      if (embeddingResponse.ok) {
-        const embeddingData = await embeddingResponse.json();
-        const queryEmbedding = embeddingData.data[0].embedding;
-
-        // Cerca documenti rilevanti nel knowledge base
-        const { data: relevantDocs, error: searchError } = await supabase
-          .rpc('match_knowledge_base', {
-            query_embedding: queryEmbedding,
-            match_threshold: 0.7,
-            match_count: 5
-          });
-
-        if (!searchError && relevantDocs && relevantDocs.length > 0) {
-          console.log(`✅ Found ${relevantDocs.length} relevant documents in knowledge base`);
-          ragContext = '\n\nCONTESTO RILEVANTE DAL DATABASE:\n' + 
-            relevantDocs.map((doc: any) => 
-              `[${doc.title}]\n${doc.content}\n(Rilevanza: ${(1 - doc.distance).toFixed(2)})`
-            ).join('\n\n');
-        } else {
-          console.log('⚠️ No relevant documents found in knowledge base');
-        }
-      }
-    } catch (ragError) {
-      console.error('❌ RAG search error:', ragError);
-      // Continue without RAG context
-    }
+    // Nota: RAG disabilitato per garantire risultati deterministici
+    // La confidenza deve basarsi solo su criteri oggettivi del documento
 
     // Download file from storage
     const { data: fileData, error: downloadError } = await supabase.storage
@@ -149,23 +106,31 @@ serve(async (req) => {
     const analysisPrompt = `
 Analizza questo documento di spesa per il progetto "${project.title}".
 
-${ragContext}
+IMPORTANTE - DUE VERIFICHE SEPARATE E INDIPENDENTI:
 
-IMPORTANTE - ORDINE DI VERIFICA:
-1. VERIFICA PROGETTO (priorità assoluta): Il progetto ha già superato la fase di ammissibilità al bando.
-   Verifica che la spesa sia coerente con gli obiettivi, il budget e le tempistiche del progetto.
-   
-2. VERIFICA FORMALE BANDO: Solo controlli formali (es: tipo di documento, completezza informazioni).
-   NON verificare criteri di ammissibilità generali perché il progetto è già stato approvato.
+1. VERIFICA FORMALE BANDO (solo aspetti formali del documento):
+   - Codice CUP presente nel documento? (+30 punti)
+   - Documento leggibile e completo? (+20 punti)
+   - Data documento presente e valida? (+10 punti)
+   - Fornitore/Beneficiario identificabile? (+10 punti)
+   - Importo chiaramente indicato? (+10 punti)
+   Subtotale massimo verifica formale: 80 punti
 
-CALCOLO CONFIDENZA (IMPORTANTE):
-- 90-100%: CUP trovato + spesa chiaramente coerente con obiettivi progetto + categoria appropriata + documento valido
-- 80-89%: CUP trovato + spesa ragionevolmente coerente con progetto + documentazione completa
-- 70-79%: CUP trovato ma spesa parzialmente coerente O documento parzialmente incompleto
-- 60-69%: CUP non trovato ma spesa molto coerente con obiettivi del progetto
-- < 60%: Problemi significativi di coerenza o documentazione
+2. VERIFICA CONTENUTO PROGETTO (coerenza con il progetto specifico):
+   - La descrizione della spesa è compatibile con gli obiettivi del progetto? (+15 punti)
+   - La categoria di spesa è appropriata per il progetto? (+5 punti)
+   Subtotale massimo verifica progetto: 20 punti
 
-NOTA CRITICA: NON penalizzare la confidenza se la spesa "non è esplicitamente prevista" ma è COERENTE con gli obiettivi del progetto. I progetti evolvono e molte spese operative sono implicitamente necessarie anche se non elencate dettagliatamente nel piano iniziale.
+CALCOLO CONFIDENZA FINALE (DETERMINISTICO):
+Somma i punti delle due verifiche per ottenere un punteggio 0-100.
+La confidenza DEVE essere calcolata matematicamente sommando i punti, non con valutazioni soggettive.
+
+REGOLE CRITICHE PER DETERMINISMO:
+- Usa SOLO i criteri numerici sopra indicati
+- NON fare valutazioni soggettive o interpretazioni variabili
+- Se un criterio è soddisfatto = aggiungi i punti, altrimenti no
+- Per la compatibilità con obiettivi: se la spesa è ragionevolmente collegabile al tipo di progetto = +15 punti
+- NON penalizzare spese operative normali (es: licenze software per progetti tech, consulenze per progetti ricerca, ecc.)
 
 CONTESTO PROGETTO:
 - Titolo: ${project.title}
@@ -180,37 +145,59 @@ ANALIZZA E ESTRAI:
 3. Data del documento
 4. Fornitore/Beneficiario
 5. Descrizione dettagliata della spesa
-6. Codice progetto (CUP, CIG o altri riferimenti)
-7. Verifica con PROGETTO:
-   - Coerenza con obiettivi del progetto
-   - Rispetto del budget allocato
-   - Categoria di spesa appropriata
-   - Tempistiche compatibili
-8. Verifica FORMALE con bando:
-   - Documento completo e leggibile
-   - Informazioni obbligatorie presenti
-   - Formato documentale adeguato
+6. Codice progetto (CUP: ${project.cup || 'N/A'})
+
+VERIFICA FORMALE BANDO (calcola punti):
+- CUP "${project.cup || ''}" trovato nel documento? Sì = +30 punti, No = 0 punti
+- Documento leggibile e di qualità sufficiente? Sì = +20 punti, No = 0 punti  
+- Data documento presente? Sì = +10 punti, No = 0 punti
+- Fornitore chiaramente indicato? Sì = +10 punti, No = 0 punti
+- Importo ben visibile? Sì = +10 punti, No = 0 punti
+
+VERIFICA PROGETTO (calcola punti):
+- Spesa compatibile con tipo/obiettivi progetto? Sì = +15 punti, No = 0 punti
+- Categoria appropriata? Sì = +5 punti, No = 0 punti
 
 CATEGORIE DI SPESA PROGETTO:
 ${expenseCategories.map((cat: any) => 
   `- ${cat.name}: ${cat.description || ''} (Max: ${cat.max_percentage ? cat.max_percentage + '%' : 'N/A'})`
 ).join('\n')}
 
-Rispondi in JSON con questa struttura:
+Rispondi in JSON con questa struttura esatta:
 {
   "document_type": "string",
   "total_amount": number,
   "document_date": "YYYY-MM-DD",
   "supplier": "string",
   "description": "string",
-  "project_code_found": "string o null",
-  "is_project_related": boolean,
-  "project_relation_reason": "string (motivazione basata su obiettivi e scope del progetto)",
+  "project_code_found": "string o null (indica CUP se trovato)",
+  
+  "formal_validation": {
+    "cup_found": boolean,
+    "cup_score": number (0 o 30),
+    "document_readable": boolean,
+    "readable_score": number (0 o 20),
+    "date_present": boolean,
+    "date_score": number (0 o 10),
+    "supplier_clear": boolean,
+    "supplier_score": number (0 o 10),
+    "amount_clear": boolean,
+    "amount_score": number (0 o 10),
+    "total_formal_score": number (somma dei punteggi, max 80)
+  },
+  
+  "project_validation": {
+    "expense_compatible": boolean,
+    "compatibility_score": number (0 o 15),
+    "category_appropriate": boolean,
+    "category_score": number (0 o 5),
+    "total_project_score": number (somma, max 20)
+  },
+  
   "suggested_category": "string",
-  "project_coherence_score": number (0-100),
-  "formal_check_passed": boolean,
-  "confidence": number (0-100),
-  "issues": ["array di eventuali problemi"],
+  "confidence": number (formal_score + project_score, range 0-100),
+  "issues": ["array di problemi specifici rilevati"],
+  
   "extracted_line_items": [
     {
       "description": "string",
@@ -286,13 +273,29 @@ Rispondi in JSON con questa struttura:
         supplier: 'Fornitore da verificare',
         description: document.title || 'Documento da analizzare',
         project_code_found: null,
-        is_project_related: false,
-        project_relation_reason: 'Analisi automatica non riuscita - richiede verifica manuale completa',
+        formal_validation: {
+          cup_found: false,
+          cup_score: 0,
+          document_readable: false,
+          readable_score: 0,
+          date_present: false,
+          date_score: 0,
+          supplier_clear: false,
+          supplier_score: 0,
+          amount_clear: false,
+          amount_score: 0,
+          total_formal_score: 0
+        },
+        project_validation: {
+          expense_compatible: false,
+          compatibility_score: 0,
+          category_appropriate: false,
+          category_score: 0,
+          total_project_score: 0
+        },
         suggested_category: 'other',
-        project_coherence_score: 0,
-        formal_check_passed: false,
         confidence: 0,
-        issues: ['Analisi automatica fallita', 'Richiede verifica manuale completa del progetto e documentazione'],
+        issues: ['Analisi automatica fallita', 'Richiede verifica manuale completa'],
         extracted_line_items: []
       };
     }
@@ -322,6 +325,8 @@ Rispondi in JSON con questa struttura:
       amount: analysisData.total_amount,
       category: analysisData.suggested_category,
       confidence: analysisData.confidence,
+      formal_score: analysisData.formal_validation?.total_formal_score || 0,
+      project_score: analysisData.project_validation?.total_project_score || 0,
       issues: analysisData.issues?.length || 0
     });
 
