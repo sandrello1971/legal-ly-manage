@@ -29,9 +29,9 @@ export function Header() {
         </Button>
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">LT</span>
+            <span className="text-primary-foreground font-bold text-sm">GRB</span>
           </div>
-          <h1 className="text-xl font-semibold text-foreground">LegalTender Pro</h1>
+          <h1 className="text-xl font-semibold text-foreground">Gestione Rendicontazione Bandi</h1>
         </div>
       </div>
 
