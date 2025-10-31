@@ -106,20 +106,20 @@ serve(async (req) => {
     const analysisPrompt = `
 Analizza questo documento di spesa per il progetto "${project.title}".
 
-IMPORTANTE - DUE VERIFICHE SEPARATE E INDIPENDENTI:
+IMPORTANTE - DUE VERIFICHE CON PESO UGUALE:
 
 1. VERIFICA FORMALE BANDO (solo aspetti formali del documento):
-   - Codice CUP presente nel documento? (+30 punti)
-   - Documento leggibile e completo? (+20 punti)
-   - Data documento presente e valida? (+10 punti)
-   - Fornitore/Beneficiario identificabile? (+10 punti)
-   - Importo chiaramente indicato? (+10 punti)
-   Subtotale massimo verifica formale: 80 punti
+   - Codice CUP presente nel documento? (+20 punti)
+   - Documento leggibile e completo? (+15 punti)
+   - Data documento presente e valida? (+5 punti)
+   - Fornitore/Beneficiario identificabile? (+5 punti)
+   - Importo chiaramente indicato? (+5 punti)
+   Subtotale massimo verifica formale: 50 punti
 
 2. VERIFICA CONTENUTO PROGETTO (coerenza con il progetto specifico):
-   - La descrizione della spesa è compatibile con gli obiettivi del progetto? (+15 punti)
-   - La categoria di spesa è appropriata per il progetto? (+5 punti)
-   Subtotale massimo verifica progetto: 20 punti
+   - La descrizione della spesa è compatibile con gli obiettivi del progetto? (+40 punti)
+   - La categoria di spesa è appropriata per il progetto? (+10 punti)
+   Subtotale massimo verifica progetto: 50 punti
 
 CALCOLO CONFIDENZA FINALE (DETERMINISTICO):
 Somma i punti delle due verifiche (0-100), poi DIVIDI PER 100 per ottenere scala 0.0-1.0.
@@ -148,15 +148,15 @@ ANALIZZA E ESTRAI:
 6. Codice progetto (CUP: ${project.cup || 'N/A'})
 
 VERIFICA FORMALE BANDO (calcola punti):
-- CUP "${project.cup || ''}" trovato nel documento? Sì = +30 punti, No = 0 punti
-- Documento leggibile e di qualità sufficiente? Sì = +20 punti, No = 0 punti  
-- Data documento presente? Sì = +10 punti, No = 0 punti
-- Fornitore chiaramente indicato? Sì = +10 punti, No = 0 punti
-- Importo ben visibile? Sì = +10 punti, No = 0 punti
+- CUP "${project.cup || ''}" trovato nel documento? Sì = +20 punti, No = 0 punti
+- Documento leggibile e di qualità sufficiente? Sì = +15 punti, No = 0 punti  
+- Data documento presente? Sì = +5 punti, No = 0 punti
+- Fornitore chiaramente indicato? Sì = +5 punti, No = 0 punti
+- Importo ben visibile? Sì = +5 punti, No = 0 punti
 
 VERIFICA PROGETTO (calcola punti):
-- Spesa compatibile con tipo/obiettivi progetto? Sì = +15 punti, No = 0 punti
-- Categoria appropriata? Sì = +5 punti, No = 0 punti
+- Spesa compatibile con tipo/obiettivi progetto? Sì = +40 punti, No = 0 punti
+- Categoria appropriata? Sì = +10 punti, No = 0 punti
 
 CATEGORIE DI SPESA PROGETTO:
 ${expenseCategories.map((cat: any) => 
@@ -174,24 +174,24 @@ Rispondi in JSON con questa struttura esatta:
   
   "formal_validation": {
     "cup_found": boolean,
-    "cup_score": number (0 o 30),
+    "cup_score": number (0 o 20),
     "document_readable": boolean,
-    "readable_score": number (0 o 20),
+    "readable_score": number (0 o 15),
     "date_present": boolean,
-    "date_score": number (0 o 10),
+    "date_score": number (0 o 5),
     "supplier_clear": boolean,
-    "supplier_score": number (0 o 10),
+    "supplier_score": number (0 o 5),
     "amount_clear": boolean,
-    "amount_score": number (0 o 10),
-    "total_formal_score": number (somma dei punteggi, max 80)
+    "amount_score": number (0 o 5),
+    "total_formal_score": number (somma dei punteggi, max 50)
   },
   
   "project_validation": {
     "expense_compatible": boolean,
-    "compatibility_score": number (0 o 15),
+    "compatibility_score": number (0 o 40),
     "category_appropriate": boolean,
-    "category_score": number (0 o 5),
-    "total_project_score": number (somma, max 20)
+    "category_score": number (0 o 10),
+    "total_project_score": number (somma, max 50)
   },
   
   "suggested_category": "string",

@@ -402,35 +402,35 @@ async function processXMLInvoice(file: File, projectId: string, projectCategorie
     // Validate coherence with project (second level: mentioned in project proposal)
     const projectCoherence = await validateProjectCoherence(invoiceData, projectData, bandoData);
     
-    // Calculate confidence using deterministic point system
+    // Calculate confidence using deterministic point system (50-50 weight)
     let formalPoints = 0;
     let projectPoints = 0;
     let confidenceExplanation = '';
     
-    // FORMAL VALIDATION (max 80 points)
+    // FORMAL VALIDATION (max 50 points)
     if (projectCodeValidation.cupFound) {
-      formalPoints += 30; // CUP found
+      formalPoints += 20; // CUP found
     }
     if (invoiceData.supplier) {
-      formalPoints += 10; // Supplier clear
+      formalPoints += 5; // Supplier clear
     }
     if (invoiceData.amount > 0) {
-      formalPoints += 10; // Amount clear
+      formalPoints += 5; // Amount clear
     }
     if (invoiceData.date) {
-      formalPoints += 10; // Date present
+      formalPoints += 5; // Date present
     }
-    formalPoints += 20; // XML always readable
+    formalPoints += 15; // XML always readable
     
-    // PROJECT VALIDATION (max 20 points)
+    // PROJECT VALIDATION (max 50 points)
     if (bandoCoherence.isCoherent && bandoCoherence.coherenceScore >= 70) {
-      projectPoints += 15; // Expense compatible with project type
+      projectPoints += 40; // Expense compatible with project type
     } else if (bandoCoherence.coherenceScore >= 50) {
-      projectPoints += 10; // Partially compatible
+      projectPoints += 20; // Partially compatible
     }
     
     if (invoiceData.category && invoiceData.category !== 'other') {
-      projectPoints += 5; // Category appropriate
+      projectPoints += 10; // Category appropriate
     }
     
     // Calculate final confidence (0-1 scale)
@@ -439,23 +439,23 @@ async function processXMLInvoice(file: File, projectId: string, projectCategorie
     
     // Build explanation
     const formalChecks = [];
-    if (projectCodeValidation.cupFound) formalChecks.push(`CUP trovato (+30)`);
-    if (invoiceData.supplier) formalChecks.push(`Fornitore identificato (+10)`);
-    if (invoiceData.amount > 0) formalChecks.push(`Importo presente (+10)`);
-    if (invoiceData.date) formalChecks.push(`Data presente (+10)`);
-    formalChecks.push(`XML leggibile (+20)`);
+    if (projectCodeValidation.cupFound) formalChecks.push(`CUP trovato (+20)`);
+    if (invoiceData.supplier) formalChecks.push(`Fornitore identificato (+5)`);
+    if (invoiceData.amount > 0) formalChecks.push(`Importo presente (+5)`);
+    if (invoiceData.date) formalChecks.push(`Data presente (+5)`);
+    formalChecks.push(`XML leggibile (+15)`);
     
     const projectChecks = [];
     if (bandoCoherence.isCoherent && bandoCoherence.coherenceScore >= 70) {
-      projectChecks.push(`Compatibile con obiettivi progetto (+15, coerenza bando: ${Math.round(bandoCoherence.coherenceScore)}%)`);
+      projectChecks.push(`Compatibile con obiettivi progetto (+40, coerenza bando: ${Math.round(bandoCoherence.coherenceScore)}%)`);
     } else if (bandoCoherence.coherenceScore >= 50) {
-      projectChecks.push(`Parzialmente compatibile con progetto (+10, coerenza bando: ${Math.round(bandoCoherence.coherenceScore)}%)`);
+      projectChecks.push(`Parzialmente compatibile con progetto (+20, coerenza bando: ${Math.round(bandoCoherence.coherenceScore)}%)`);
     }
     if (invoiceData.category && invoiceData.category !== 'other') {
-      projectChecks.push(`Categoria appropriata (+5)`);
+      projectChecks.push(`Categoria appropriata (+10)`);
     }
     
-    confidenceExplanation = `Verifica formale: ${formalPoints}/80 punti (${formalChecks.join(', ')}). Verifica progetto: ${projectPoints}/20 punti (${projectChecks.join(', ')}). Totale: ${totalPoints}/100 = ${Math.round(confidence * 100)}% confidenza.`;
+    confidenceExplanation = `Verifica formale: ${formalPoints}/50 punti (${formalChecks.join(', ')}). Verifica progetto: ${projectPoints}/50 punti (${projectChecks.join(', ')}). Totale: ${totalPoints}/100 = ${Math.round(confidence * 100)}% confidenza.`;
     
     // Determine if should approve based on confidence threshold
     const shouldApprove = confidence >= 0.7; // 70% threshold
