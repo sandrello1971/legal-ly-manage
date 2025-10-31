@@ -323,7 +323,8 @@ export default function ProjectConsuntivazione() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[300px]">Categoria / Fattura</TableHead>
+                    <TableHead className="w-[200px]">Categoria / Fattura</TableHead>
+                    <TableHead className="w-[300px]">Voci</TableHead>
                     <TableHead>Fornitore</TableHead>
                     <TableHead className="text-right">Budget</TableHead>
                     <TableHead className="text-right">Speso</TableHead>
@@ -360,6 +361,7 @@ export default function ProjectConsuntivazione() {
                             </div>
                           </TableCell>
                           <TableCell></TableCell>
+                          <TableCell></TableCell>
                           <TableCell className="text-right font-bold">
                             {formatCurrency(budget)}
                           </TableCell>
@@ -388,109 +390,133 @@ export default function ProjectConsuntivazione() {
                           
                           return (
                           <TableRow key={expense.id} className="border-l-4 border-l-muted">
+                            {/* Column 1: Invoice Number */}
                             <TableCell className="pl-8">
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <FileText className="h-3 w-3 flex-shrink-0" />
-                                  <div className="flex-1">
-                                    {items.length > 1 ? (
-                                      <div className="space-y-0.5">
-                                        {items.map((item, idx) => (
-                                          <div key={idx} className="flex items-start gap-1.5">
-                                            <span className="text-xs mt-0.5">•</span>
-                                            <span>{item}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span>{expense.description}</span>
-                                    )}
-                                  </div>
-                                  {expense.receipt_number && (
-                                    <span className="text-xs flex-shrink-0">({expense.receipt_number})</span>
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium">
+                                    {expense.receipt_number || 'N/A'}
+                                  </span>
+                                  {expense.expense_date && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(expense.expense_date).toLocaleDateString('it-IT')}
+                                    </span>
                                   )}
-                                  
-                                  {/* Reconciliation Status */}
-                                  {(() => {
-                                    if (reconStatus.isReconciled) {
-                                      const matchedTransaction = reconStatus.match?.transaction;
-                                      
-                                      return (
-                                        <div className="flex flex-col gap-1">
-                                          <Badge 
-                                            variant="default" 
-                                            className="bg-green-600 hover:bg-green-700 text-white gap-1 whitespace-nowrap flex-shrink-0"
-                                            title={reconStatus.isManual 
-                                              ? "Riconciliata manualmente" 
-                                              : `Riconciliata automaticamente (${reconStatus.confidence}%)`
-                                            }
-                                          >
-                                            <CheckCircle2 className="h-3 w-3" />
-                                            Rendicontabile
-                                          </Badge>
-                                          {matchedTransaction && (
-                                            <div className="text-xs text-muted-foreground">
-                                              Mov. bancario: {new Date(matchedTransaction.transaction_date).toLocaleDateString('it-IT')} - €{matchedTransaction.amount.toFixed(2)}
-                                              {matchedTransaction.description && (
-                                                <span className="block truncate max-w-[200px]" title={matchedTransaction.description}>
-                                                  {matchedTransaction.description}
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    } else {
-                                      // Check if there's a potential match
-                                      const potentialMatch = findBestTransactionMatch(expense, transactions, 50);
-                                      
-                                      if (potentialMatch && potentialMatch.confidence >= 50) {
-                                        return (
-                                          <div className="flex items-center gap-2 flex-shrink-0">
-                                            <Badge 
-                                              variant="secondary" 
-                                              className="bg-yellow-100 text-yellow-800 gap-1 whitespace-nowrap"
-                                              title={`Possibile match trovato (${potentialMatch.confidence}%) - Verifica manualmente`}
-                                            >
-                                              <AlertCircle className="h-3 w-3" />
-                                              Verifica richiesta
-                                            </Badge>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-6 text-xs"
-                                              onClick={() => navigate(`/projects/${projectId}/consuntivazione?tab=riconciliazione`)}
-                                            >
-                                              Riconcilia
-                                            </Button>
-                                          </div>
-                                        );
-                                      }
-                                      
-                                      return (
-                                        <Badge 
-                                          variant="secondary" 
-                                          className="gap-1 whitespace-nowrap flex-shrink-0"
-                                          title="Nessun pagamento trovato nell'estratto conto"
-                                        >
-                                          <XCircle className="h-3 w-3" />
-                                          Non riconciliata
-                                        </Badge>
-                                      );
-                                    }
-                                  })()}
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {expense.supplier_name || '-'}
+
+                            {/* Column 2: Items/Description */}
+                            <TableCell>
+                              <div className="text-sm">
+                                {items.length > 1 ? (
+                                  <div className="space-y-0.5">
+                                    {items.map((item, idx) => (
+                                      <div key={idx} className="flex items-start gap-1.5">
+                                        <span className="text-xs mt-0.5">•</span>
+                                        <span>{item}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span>{expense.description}</span>
+                                )}
+                              </div>
                             </TableCell>
+
+                            {/* Column 3: Supplier + Reconciliation Status */}
+                            <TableCell>
+                              <div className="flex flex-col gap-2">
+                                <span className="text-sm">{expense.supplier_name || '-'}</span>
+                                
+                                {/* Reconciliation Status */}
+                                {(() => {
+                                  if (reconStatus.isReconciled) {
+                                    const matchedTransaction = reconStatus.match?.transaction;
+                                    
+                                    return (
+                                      <div className="flex flex-col gap-1">
+                                        <Badge 
+                                          variant="default" 
+                                          className="bg-green-600 hover:bg-green-700 text-white gap-1 whitespace-nowrap w-fit"
+                                          title={reconStatus.isManual 
+                                            ? "Riconciliata manualmente" 
+                                            : `Riconciliata automaticamente (${reconStatus.confidence}%)`
+                                          }
+                                        >
+                                          <CheckCircle2 className="h-3 w-3" />
+                                          Rendicontabile
+                                        </Badge>
+                                        {matchedTransaction && (
+                                          <div className="text-xs text-muted-foreground">
+                                            Mov. bancario: {new Date(matchedTransaction.transaction_date).toLocaleDateString('it-IT')} - €{matchedTransaction.amount.toFixed(2)}
+                                            {matchedTransaction.description && (
+                                              <span className="block truncate max-w-[200px]" title={matchedTransaction.description}>
+                                                {matchedTransaction.description}
+                                              </span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  } else {
+                                    // Check if there's a potential match
+                                    const potentialMatch = findBestTransactionMatch(expense, transactions, 50);
+                                    
+                                    if (potentialMatch && potentialMatch.confidence >= 50) {
+                                      return (
+                                        <div className="flex items-center gap-2">
+                                          <Badge 
+                                            variant="secondary" 
+                                            className="bg-yellow-100 text-yellow-800 gap-1 whitespace-nowrap w-fit"
+                                            title={`Possibile match trovato (${potentialMatch.confidence}%) - Verifica manualmente`}
+                                          >
+                                            <AlertCircle className="h-3 w-3" />
+                                            Verifica richiesta
+                                          </Badge>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 text-xs"
+                                            onClick={() => navigate(`/projects/${projectId}/consuntivazione?tab=riconciliazione`)}
+                                          >
+                                            Riconcilia
+                                          </Button>
+                                        </div>
+                                      );
+                                    }
+                                    
+                                    return (
+                                      <Badge 
+                                        variant="secondary" 
+                                        className="gap-1 whitespace-nowrap w-fit"
+                                        title="Nessun pagamento trovato nell'estratto conto"
+                                      >
+                                        <XCircle className="h-3 w-3" />
+                                        Non riconciliata
+                                      </Badge>
+                                    );
+                                  }
+                                })()}
+                              </div>
+                            </TableCell>
+
+                            {/* Column 4: Budget (empty for expense rows) */}
                             <TableCell></TableCell>
+
+                            {/* Column 5: Amount */}
                             <TableCell className="text-right text-sm">
                               {formatCurrency(expense.amount)}
                             </TableCell>
+
+                            {/* Column 6: Remaining (empty for expense rows) */}
                             <TableCell></TableCell>
+
+                            {/* Column 7: Percentage (empty for expense rows) */}
                             <TableCell></TableCell>
+
+                            {/* Column 8: Actions */}
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Button
